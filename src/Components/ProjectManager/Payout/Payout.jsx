@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Plus, Eye, AlertCircle, CheckCircle2, Trash2, Circle } from 'lucide-react';
+import { Plus, Eye, AlertCircle, CheckCircle2, Trash2, Circle, Search, X } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 
 // ─── Firebase imports ────────────────────────────────────────────────────────
@@ -50,9 +50,13 @@ export default function PayoutDashboard() {
   const [milestoneMap,  setMilestoneMap]  = useState({});
   const [loading,       setLoading]       = useState(true);
   const [selected,      setSelected]      = useState(null);
+  const [searchQuery,   setSearchQuery]   = useState('');
+  const searchRef = useRef(null);
+
   const { showAddPayoutModal, setShowAddPayoutModal } = useOutletContext();
   const showAddClient    = showAddPayoutModal;
-  const setShowAddClient = setShowAddPayoutModal;   // ✅ FIX: setter properly aliased
+  const setShowAddClient = setShowAddPayoutModal;
+
   const [showAddMS,     setShowAddMS]     = useState(false);
   const [deleteTarget,  setDeleteTarget]  = useState(null);
   const [openMenuId,    setOpenMenuId]    = useState(null);
@@ -107,6 +111,17 @@ export default function PayoutDashboard() {
   }, []);
 
   const enrichedClients = clients.map(c => ({ ...c, milestones: milestoneMap[c.id] || [] }));
+
+  // ── Search filter: name, project, status ──
+  const filteredClients = enrichedClients.filter(c => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      c.name?.toLowerCase().includes(q) ||
+      c.project?.toLowerCase().includes(q) ||
+      c.status?.toLowerCase().includes(q)
+    );
+  });
 
   const getVal = useCallback((clientId, field) => {
     const c = clients.find(x => x.id === clientId);
@@ -254,17 +269,39 @@ export default function PayoutDashboard() {
     <div className="min-h-screen bg-[#EEF2F7]">
 
       {/* ── Page header ── */}
-      <div className="px-4 md:px-8 pt-4 pb-2 flex items-center justify-between">
-        <div>
+      <div className="px-4 md:px-8 pt-4 pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+
+        {/* Title */}
+        <div className="flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-800">Client Payouts</h2>
           <p className="text-xs text-gray-400 mt-0.5">Track budgets, payments &amp; milestones</p>
         </div>
-        <button
-          onClick={() => setShowAddClient(true)}
-          className="flex items-center gap-1.5 px-3 md:px-4 py-2 md:py-2.5 text-white font-semibold rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 transition-all shadow text-xs md:text-sm"
-        >
-          <Plus size={15} /> Add Client
-        </button>
+
+        {/* ── Search Bar ── */}
+        <div className="relative w-full sm:w-64 md:w-72">
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+          />
+          <input
+            ref={searchRef}
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search clients, projects, status..."
+            className="w-full pl-8 pr-7 py-2 rounded-lg text-sm text-gray-700 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/25 transition-all"
+            style={{ border: `1px solid ${TL}` }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
       </div>
 
       {/* ── TABLE WRAPPER ── */}
@@ -321,16 +358,31 @@ export default function PayoutDashboard() {
               </thead>
 
               <tbody>
-                {enrichedClients.length === 0 && (
+                {filteredClients.length === 0 && (
                   <tr>
                     <td colSpan={11} className="py-20 text-center">
-                      <div className="text-4xl mb-3">💳</div>
-                      <p className="text-gray-400 text-sm">No clients yet. Add one above!</p>
+                      {searchQuery ? (
+                        <>
+                          <div className="text-4xl mb-3">🔍</div>
+                          <p className="text-gray-400 text-sm">
+                            No results for "<span className="font-semibold text-gray-600">{searchQuery}</span>"
+                          </p>
+                          <button
+                            onClick={() => setSearchQuery('')}
+                            className="mt-2 text-xs text-teal-500 hover:underline"
+                          >Clear search</button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-4xl mb-3">💳</div>
+                          <p className="text-gray-400 text-sm">No clients yet. Add one from the top!</p>
+                        </>
+                      )}
                     </td>
                   </tr>
                 )}
 
-                {enrichedClients.map((client, idx) => {
+                {filteredClients.map((client, idx) => {
                   const remaining  = client.totalBudget - client.paidAmount;
                   const progress   = pct(client.paidAmount, client.totalBudget);
                   const isDragOver = dragOverIdx === idx && dragItem.current !== idx;

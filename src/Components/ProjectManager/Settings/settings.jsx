@@ -96,7 +96,7 @@ const Settings = () => {
         </div>
 
         {/* Notifications */}
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
+        {/* <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
           <div className="px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
             <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Notifications</h2>
           </div>
@@ -104,7 +104,7 @@ const Settings = () => {
             <Toggle label="Email Notifications" value={s.emailNotifs}    onChange={v => set('emailNotifs', v)} />
             <Toggle label="Payment Alerts"       value={s.paymentAlerts} onChange={v => set('paymentAlerts', v)} />
           </div>
-        </div>
+        </div> */}
 
       </div>
     </div>

@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 border border-gray-100">
 
           {/* Back Button */}
-          <button onClick={() => navigate('/login')}
+          <button onClick={() => navigate('/')}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-6 transition">
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -92,7 +92,7 @@ export default function ForgotPasswordPage() {
                   try another email address
                 </button>
               </p>
-              <button onClick={() => navigate("/login")}
+              <button onClick={() => navigate("/loginpage")}
                 className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white py-3 rounded-lg font-semibold transition duration-200 shadow-lg">
                 Back to Login
               </button>
