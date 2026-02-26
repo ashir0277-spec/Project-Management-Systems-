@@ -18,23 +18,22 @@ function App() {
   return (
    <>
    <ToastContainer/>
-      <Routes>
-          <Route path="/" element={<LoginPage/>} /> 
-          <Route path="/forgotpassword" element={<ForgotPassword/>} /> 
-        <Route element={<PMLayout />}>
-          {/* <Route path="/dashboard" element={<Main/>} />Dashboard */}
-          <Route path="/dashboard" element={<Dashboard/>}/>
-          <Route path="/projects" element={<Projects />}/>
-          <Route path="/team" element={<TeamMembers/>}/>
-          <Route path="/clients" element={<Clients/>}/>
-          <Route path="/payout" element={<Payout/>}/>
-          <Route path="/communication" element={<Communication/>}/>
-          <Route path="/analytics" element={<Analytics/>} />
-          <Route path="/settings" element={<Settings/>} />
-          
-       
-        </Route>
-      </Routes>
+     <Routes>
+  <Route path="" element={<LoginPage/>} /> 
+  <Route path="/forgotpassword" element={<ForgotPassword/>} /> 
+  
+  {/* ✅ PMLayout wrapper uncomment karo */}
+  <Route element={<PMLayout />}>
+    <Route path="/dashboard" element={<Dashboard/>}/>
+    <Route path="/projects" element={<Projects />}/>
+    <Route path="/team" element={<TeamMembers/>}/>
+    <Route path="/clients" element={<Clients/>}/>
+    <Route path="/payout" element={<Payout/>}/>
+    <Route path="/communication" element={<Communication/>}/>
+    <Route path="/analytics" element={<Analytics/>} />
+    <Route path="/settings" element={<Settings/>} />
+  </Route>
+</Routes>
       </>
   );
 }
