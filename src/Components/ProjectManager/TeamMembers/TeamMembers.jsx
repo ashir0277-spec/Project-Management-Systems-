@@ -541,9 +541,9 @@ const TeamMembers = () => {
       {showDrawer && selected && (
         <div className="fixed inset-0 z-[100]" onClick={() => { setShowDrawer(false); setShowAddTask(false); }}>
           <div className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" />
-          <div className="absolute right-0 top-0 bottom-0 bg-white flex flex-col shadow-2xl"
-            style={{ width: '520px', borderLeft: `1px solid ${TL}` }}
-            onClick={e => e.stopPropagation()}>
+          <div className="absolute right-0 top-0 bottom-0 bg-white flex flex-col shadow-2xl w-full sm:w-[520px]"
+           style={{ borderLeft: `1px solid ${TL}` }}
+             onClick={e => e.stopPropagation()}>
 
             {/* Header */}
             <div className="flex items-start justify-between px-7 pt-7 pb-5 flex-shrink-0" style={{ borderBottom: `1px solid ${TL}` }}>

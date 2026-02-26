@@ -57,10 +57,10 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-[#EEF2F7]">
+      <div className="p-8 mx-auto space-y-5">
 
-      {/* HEADER */}
-      <header className="ml-[280px] fixed top-0 left-0 right-0 z-50 bg-white shadow-sm" style={{ borderBottom: `1px solid ${TL}` }}>
-        <div className="flex items-center justify-between px-8 py-4">
+        {/* Page Title + Save Button */}
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Settings</h1>
             <p className="text-sm text-gray-500">Manage your preferences</p>
@@ -73,23 +73,18 @@ const Settings = () => {
               : <><Save size={15} /> Save</>}
           </button>
         </div>
-      </header>
-
-      <div className="h-[25px]" />
-
-      <div className="p-8  mx-auto space-y-5">
 
         {/* Profile */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
           <div className="px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
             <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Profile</h2>
           </div>
-          <div className="p-6 grid grid-cols-2 gap-4">
+          <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              { key: 'name',    label: 'Full Name',    ph: 'Enter your name'    },
-              { key: 'email',   label: 'Email',        ph: 'you@company.com', type: 'email' },
-              { key: 'phone',   label: 'Phone',        ph: '+92 300 0000000'    },
-              { key: 'company', label: 'Company',      ph: 'Your company name'  },
+              { key: 'name',    label: 'Full Name',  ph: 'Enter your name'    },
+              { key: 'email',   label: 'Email',      ph: 'you@company.com', type: 'email' },
+              { key: 'phone',   label: 'Phone',      ph: '+92 300 0000000'    },
+              { key: 'company', label: 'Company',    ph: 'Your company name'  },
             ].map(({ key, label, ph, type }) => (
               <div key={key}>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{label}</label>
@@ -100,8 +95,16 @@ const Settings = () => {
           </div>
         </div>
 
-        {/* Preferences */}
-       
+        {/* Notifications */}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
+          <div className="px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Notifications</h2>
+          </div>
+          <div className="px-6">
+            <Toggle label="Email Notifications" value={s.emailNotifs}    onChange={v => set('emailNotifs', v)} />
+            <Toggle label="Payment Alerts"       value={s.paymentAlerts} onChange={v => set('paymentAlerts', v)} />
+          </div>
+        </div>
 
       </div>
     </div>

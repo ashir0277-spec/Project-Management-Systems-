@@ -1,13 +1,11 @@
-// Dashboard.jsx – Light/White theme
-// Table: Project Name | Status | Priority | Description | Deadline
-// No progress bar anywhere in the table
-
+// Dashboard.jsx – Light/White theme with functional search
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { useOutletContext } from 'react-router-dom';
 import {
   FolderOpen, Users, CheckCircle2,
-  Clock, BarChart2, AlertTriangle, CalendarClock
+  Clock, BarChart2, AlertTriangle, CalendarClock, Search
 } from 'lucide-react';
 
 const TL  = 'rgba(51,51,51,0.12)';
@@ -127,7 +125,7 @@ const UpcomingDeadlinesCard = ({ members }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden  " style={{ border: `1px solid ${TL}` }}>
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
       <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
         <CalendarClock size={16} className="text-amber-500" />
         <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Upcoming Deadlines</h2>
@@ -177,6 +175,7 @@ const UpcomingDeadlinesCard = ({ members }) => {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 const Dashboard = () => {
+  const { searchQuery = '' } = useOutletContext();
   const [projects, setProjects] = useState([]);
   const [members,  setMembers]  = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -196,14 +195,36 @@ const Dashboard = () => {
   const pendingTasks   = allTasks.filter(t => t.status === 'Pending').length;
   const inProgTasks    = allTasks.filter(t => t.status === 'In Progress').length;
 
-  const recentProjects = [...projects]
-    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
-    .slice(0, 5);
+  // ── Search filter ────────────────────────────────────────────────────────
+  const q = searchQuery.toLowerCase().trim();
 
-  const recentTasks = members
-    .flatMap(m => (m.tasks || []).map(t => ({ ...t, memberName: m.name, memberId: m.id })))
-    .filter(t => t.status !== 'Done')
-    .slice(0, 5);
+  const filteredProjects = q
+    ? projects.filter(p =>
+        p.name?.toLowerCase().includes(q) ||
+        p.status?.toLowerCase().includes(q) ||
+        p.priority?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q)
+      )
+    : [...projects].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5);
+
+  const filteredTasks = q
+    ? members.flatMap(m =>
+        (m.tasks || [])
+          .filter(t =>
+            t.title?.toLowerCase().includes(q) ||
+            t.description?.toLowerCase().includes(q) ||
+            t.priority?.toLowerCase().includes(q) ||
+            m.name?.toLowerCase().includes(q)
+          )
+          .map(t => ({ ...t, memberName: m.name, memberId: m.id }))
+      )
+    : members
+        .flatMap(m => (m.tasks || []).map(t => ({ ...t, memberName: m.name, memberId: m.id })))
+        .filter(t => t.status !== 'Done')
+        .slice(0, 5);
+
+  const hasResults = filteredProjects.length > 0 || filteredTasks.length > 0;
+  const isSearching = q.length > 0;
 
   if (loading) return (
     <div className="min-h-screen bg-[#EEF2F7] flex items-center justify-center">
@@ -211,14 +232,146 @@ const Dashboard = () => {
     </div>
   );
 
+  // ── Search Results View ───────────────────────────────────────────────────
+  if (isSearching) {
+    return (
+      <div className="min-h-screen bg-[#EEF2F7]">
+        <div className="p-6 max-w-[1600px] mx-auto space-y-6">
+
+          {/* Search header */}
+          <div className="flex items-center gap-3">
+            <Search size={18} className="text-teal-500" />
+            <p className="text-sm text-gray-500">
+              Results for <span className="font-semibold text-gray-800">"{searchQuery}"</span>
+            </p>
+            <span className="text-xs text-gray-400">
+              {filteredProjects.length + filteredTasks.length} found
+            </span>
+          </div>
+
+          {/* No Results */}
+          {!hasResults && (
+            <div className="bg-white rounded-2xl shadow-sm p-16 text-center" style={{ border: `1px solid ${TL}` }}>
+              <div className="text-5xl mb-4">🔍</div>
+              <p className="text-lg font-semibold text-gray-700 mb-2">No results found</p>
+              <p className="text-sm text-gray-400">
+                Nothing matched "<span className="font-medium">{searchQuery}</span>". Try a different keyword.
+              </p>
+            </div>
+          )}
+
+          {/* Matching Projects */}
+          {filteredProjects.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
+              <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+                <BarChart2 size={16} className="text-teal-500" />
+                <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Projects</h2>
+                <span className="ml-auto text-xs text-gray-400">{filteredProjects.length} found</span>
+              </div>
+              <div className="overflow-x-auto w-full" style={{ scrollbarWidth: 'none' }}>
+                <table className="w-full min-w-[600px]">
+                  <colgroup>
+                    <col style={{ width: '22%' }} />
+                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '30%' }} />
+                    <col style={{ width: '15%' }} />
+                  </colgroup>
+                  <thead>
+                    <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
+                      {['Project Name', 'Status', 'Priority', 'Description', 'Deadline'].map((h, i) => (
+                        <th key={h} className="py-2.5 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-left"
+                          style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProjects.map((p, idx) => {
+                      const sCfg = statusColors[p.status]     || statusColors['Planning'];
+                      const pCfg = priorityColors[p.priority] || priorityColors.Medium;
+                      return (
+                        <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
+                          style={{ borderBottom: `1px solid ${TL}` }}>
+                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                            <p className="text-[13px] font-semibold text-gray-900 truncate">{p.name}</p>
+                          </td>
+                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${sCfg.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`} />{p.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                            <span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${pCfg.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`} />{p.priority}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                            <p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-[11px] font-mono text-gray-500 whitespace-nowrap">{p.deadline || '—'}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Matching Tasks */}
+          {filteredTasks.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
+              <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+                <CheckCircle2 size={16} className="text-teal-500" />
+                <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Tasks</h2>
+                <span className="ml-auto text-xs text-gray-400">{filteredTasks.length} found</span>
+              </div>
+              <div className="p-5 space-y-2.5">
+                {filteredTasks.map(task => {
+                  const pCfg = priorityColors[task.priority] || priorityColors.Medium;
+                  const tsCfg = {
+                    'Done':        'text-emerald-600 bg-emerald-50 border-emerald-200',
+                    'In Progress': 'text-amber-600 bg-amber-50 border-amber-200',
+                    'Pending':     'text-gray-500 bg-gray-50 border-gray-200',
+                  }[task.status] || 'text-gray-500 bg-gray-50 border-gray-200';
+                  return (
+                    <div key={`${task.memberId}-${task.id}`}
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+                      style={{ border: `1px solid ${TL}` }}>
+                      <Clock size={14} className="text-amber-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold text-gray-800 truncate">{task.title}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[11px] text-gray-400">{task.memberName}</span>
+                          <span className="text-gray-300">·</span>
+                          <span className={`text-[11px] font-semibold ${pCfg.text}`}>{task.priority}</span>
+                        </div>
+                      </div>
+                      <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${tsCfg}`}>
+                        {task.status}
+                      </span>
+                      <span className="text-[11px] font-mono text-gray-400 flex-shrink-0">{task.dueDate || '—'}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    );
+  }
+
+  // ── Normal Dashboard View ─────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#EEF2F7]">
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
 
         {/* ── STAT CARDS ─────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 ">
-
-          {/* 1. Projects */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
           <StatCard>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-teal-400 to-cyan-500">
               <FolderOpen size={18} className="text-white" />
@@ -235,7 +388,6 @@ const Dashboard = () => {
             </div>
           </StatCard>
 
-          {/* 2. Team Members */}
           <StatCard>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-400 to-purple-500">
               <Users size={18} className="text-white" />
@@ -247,7 +399,6 @@ const Dashboard = () => {
             </div>
           </StatCard>
 
-          {/* 3. Tasks Done */}
           <StatCard>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-emerald-400 to-teal-500">
               <CheckCircle2 size={18} className="text-white" />
@@ -259,7 +410,6 @@ const Dashboard = () => {
             </div>
           </StatCard>
 
-          {/* 4. Pending Tasks */}
           <StatCard>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500">
               <Clock size={18} className="text-white" />
@@ -271,13 +421,11 @@ const Dashboard = () => {
             </div>
           </StatCard>
 
-          {/* 5. Urgent Task */}
           <UrgentCard members={members} />
-
         </div>
 
         {/* ── MAIN ROW ───────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 ">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Recent Projects Table */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
@@ -289,79 +437,66 @@ const Dashboard = () => {
               <span className="text-xs text-gray-400">{projects.length} total</span>
             </div>
 
-            {recentProjects.length === 0 ? (
+            {filteredProjects.length === 0 ? (
               <div className="py-16 text-center">
                 <div className="text-3xl mb-2">📁</div>
                 <p className="text-gray-400 text-sm">No projects yet</p>
               </div>
             ) : (
-              
-<div className="overflow-x-auto w-full" style={{scrollbarWidth:'none'}}>
-  <table className="w-full min-w-[600px]">
-    <colgroup>
-      <col style={{ width: '22%' }} />
-      <col style={{ width: '18%' }} />
-      <col style={{ width: '15%' }} />
-      <col style={{ width: '30%' }} />
-      <col style={{ width: '15%' }} />
-    </colgroup>
-    <thead>
-      <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
-        {['Project Name', 'Status', 'Priority', 'Description', 'Deadline'].map((h, i) => (
-          <th key={h}
-            className="py-2.5 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-left"
-            style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>
-            {h}
-          </th>
-        ))}
-      </tr>
-    </thead>
-    <tbody>
-      {recentProjects.map((p, idx) => {
-        const sCfg = statusColors[p.status]     || statusColors['Planning'];
-        const pCfg = priorityColors[p.priority] || priorityColors.Medium;
-        return (
-          <tr key={p.id}
-            className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
-            style={{ borderBottom: `1px solid ${TL}` }}>
-
-            <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-              <p className="text-[13px] font-semibold text-gray-900 truncate">{p.name}</p>
-            </td>
-
-            <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${sCfg.text}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`} />{p.status}
-              </span>
-            </td>
-
-            <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-              <span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${pCfg.text}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`} />{p.priority}
-              </span>
-            </td>
-
-            <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-              <p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p>
-            </td>
-
-            <td className="px-4 py-3">
-              <span className="text-[11px] font-mono text-gray-500 whitespace-nowrap">{p.deadline || '—'}</span>
-            </td>
-
-          </tr>
-        );
-      })}
-    </tbody>
-  </table>
-</div>
+              <div className="overflow-x-auto w-full" style={{ scrollbarWidth: 'none' }}>
+                <table className="w-full min-w-[600px]">
+                  <colgroup>
+                    <col style={{ width: '22%' }} />
+                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '30%' }} />
+                    <col style={{ width: '15%' }} />
+                  </colgroup>
+                  <thead>
+                    <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
+                      {['Project Name', 'Status', 'Priority', 'Description', 'Deadline'].map((h, i) => (
+                        <th key={h} className="py-2.5 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-left"
+                          style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProjects.map((p, idx) => {
+                      const sCfg = statusColors[p.status]     || statusColors['Planning'];
+                      const pCfg = priorityColors[p.priority] || priorityColors.Medium;
+                      return (
+                        <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
+                          style={{ borderBottom: `1px solid ${TL}` }}>
+                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                            <p className="text-[13px] font-semibold text-gray-900 truncate">{p.name}</p>
+                          </td>
+                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${sCfg.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`} />{p.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                            <span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${pCfg.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`} />{p.priority}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                            <p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-[11px] font-mono text-gray-500 whitespace-nowrap">{p.deadline || '—'}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
           {/* Right column */}
           <div className="flex flex-col gap-6">
-
-            {/* Task Overview */}
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
               <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
                 <CheckCircle2 size={16} className="text-teal-500" />
@@ -396,11 +531,11 @@ const Dashboard = () => {
                 )}
                 <div style={{ borderTop: `1px solid ${TL}` }} className="pt-4">
                   <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Pending Tasks</p>
-                  {recentTasks.length === 0 ? (
+                  {filteredTasks.length === 0 ? (
                     <p className="text-xs text-gray-400 text-center py-4">All caught up! 🎉</p>
                   ) : (
                     <div className="space-y-2.5">
-                      {recentTasks.map(task => {
+                      {filteredTasks.map(task => {
                         const pCfg = priorityColors[task.priority] || priorityColors.Medium;
                         return (
                           <div key={`${task.memberId}-${task.id}`} className="flex items-start gap-2.5">
@@ -419,9 +554,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Upcoming Deadlines */}
             <UpcomingDeadlinesCard members={members} />
-
           </div>
         </div>
       </div>
