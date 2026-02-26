@@ -18,7 +18,7 @@ const PMLayout = () => {
       <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
 
       {/* Main content */}
-      <div className="flex-1 lg:ml-[280px]  bg-[#080f25] overflow-hidden">
+      <div className="flex-1 lg:ml-[280px] bg-[#080f25] overflow-hidden">
         <TopBar
           onNewMember={() => setShowAddMemberModal(true)}
           onNewClient={() => setShowAddClientModal(true)}
@@ -26,12 +26,7 @@ const PMLayout = () => {
           onToggleSidebar={toggleSidebar}
         />
 
-        {/* ── TEST ── */}
-        <div style={{ color: 'red', fontSize: '40px', padding: '20px' }}>
-          ✅ PMLayout is rendering
-        </div>
-
-        <main className="pt-[96px]">
+        <main className="pt[96px]">
           <Outlet
             context={{
               showAddMemberModal,

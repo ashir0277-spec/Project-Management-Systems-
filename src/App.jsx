@@ -1,7 +1,7 @@
-import { useNavigate, Routes, Route } from "react-router-dom";
+import { useNavigate,BrowserRouter, Routes, Route } from "react-router-dom";
 
 import PMLayout from "./Layouts/PMLayout";
-import Main from './Components/ProjectManager/Dashboard/Main'; // dashboard page
+import Main from './Components/ProjectManager/Dashboard/MainLayout'; // dashboard page
 import Projects from "./Components/ProjectManager/Projects/Projects";
 import TeamMembers from "./Components/ProjectManager/TeamMembers/TeamMembers";
 import Clients from "./Components/ProjectManager/Clients/clients";
@@ -18,22 +18,25 @@ function App() {
   return (
    <>
    <ToastContainer/>
-     <Routes>
-  <Route path="" element={<LoginPage/>} /> 
-  <Route path="/forgotpassword" element={<ForgotPassword/>} /> 
-  
-  {/* ✅ PMLayout wrapper uncomment karo */}
-  <Route element={<PMLayout />}>
-    <Route path="/dashboard" element={<Dashboard/>}/>
-    <Route path="/projects" element={<Projects />}/>
-    <Route path="/team" element={<TeamMembers/>}/>
-    <Route path="/clients" element={<Clients/>}/>
-    <Route path="/payout" element={<Payout/>}/>
-    <Route path="/communication" element={<Communication/>}/>
-    <Route path="/analytics" element={<Analytics/>} />
-    <Route path="/settings" element={<Settings/>} />
-  </Route>
-</Routes>
+   <BrowserRouter>
+      <Routes>
+          <Route path="/" element={<LoginPage/>} /> 
+          <Route path="/forgotpassword" element={<ForgotPassword/>} /> 
+        <Route element={<PMLayout />}>
+          {/* <Route path="/dashboard" element={<Main/>} />Dashboard */}
+          <Route path="/dashboard" element={<Dashboard/>}/>
+          <Route path="/projects" element={<Projects />}/>
+          <Route path="/team" element={<TeamMembers/>}/>
+          <Route path="/clients" element={<Clients/>}/>
+          <Route path="/payout" element={<Payout/>}/>
+          <Route path="/communication" element={<Communication/>}/>
+          <Route path="/analytics" element={<Analytics/>} />
+          <Route path="/settings" element={<Settings/>} />
+          
+       
+        </Route>
+      </Routes>
+   </BrowserRouter>
       </>
   );
 }

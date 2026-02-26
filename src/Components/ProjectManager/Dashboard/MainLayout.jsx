@@ -1,8 +1,8 @@
 import React from 'react'
-import StatsCard from '../Dashboard/StatsCard'
-import ActiveProjects from '../Dashboard/ActiveProjects'
-import TeamStatus from '../Dashboard/TeamStatus'
-import QuickActions from '../Dashboard/QuickActions'
+import StatsCard from './StatsCard'
+import ActiveProjects from './ActiveProjects'
+import TeamStatus from './TeamStatus'
+import QuickActions from './QuickActions'
 
 const Main = () => {
   return (
