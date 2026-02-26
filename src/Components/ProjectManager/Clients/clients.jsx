@@ -614,7 +614,7 @@ const Clients = () => {
                 <div className="space-y-2">
                   {files.map(file => (
                     <div key={file.id} className="group relative flex items-start gap-3 md:gap-4 bg-white border border-gray-200 rounded-xl p-3 md:p-4 hover:border-teal-400 hover:shadow-sm transition-all">
-                      <div className="text-2xl md:text-3xl flex-shrink-0">🔗</div>
+                      <div className="text-2xl md:text-3xl flex-shrink-0"></div>
                       <div className="flex-1 min-w-0">
                         <p className="text-gray-900 font-semibold text-sm truncate">{file.name}</p>
                         <div className="flex flex-wrap gap-2 text-xs mt-0.5">
