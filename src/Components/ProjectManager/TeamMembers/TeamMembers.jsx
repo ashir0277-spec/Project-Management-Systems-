@@ -64,6 +64,120 @@ const getCurrentMonthYear = () => {
   const d = new Date(); return `${m[d.getMonth()]} ${d.getFullYear()}`;
 };
 
+// ─── Custom Dropdown Component ────────────────────────────────────────────────
+const CustomDropdown = ({ value, onChange, options, placeholder }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const buttonRef = useRef(null);
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
+
+  useEffect(() => {
+    const h = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target) &&
+          buttonRef.current && !buttonRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const handleOpen = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropPos({
+        top: rect.bottom + 6,
+        left: rect.left,
+        width: rect.width,
+      });
+    }
+    setIsOpen(prev => !prev);
+  };
+
+  const selectedLabel = value === 'all'
+    ? placeholder
+    : options.find(o => (o.value ?? o) === value)?.label ?? value;
+
+  const isActive = value !== 'all';
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        onClick={handleOpen}
+        className={`flex items-center gap-2 pl-3 pr-2.5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap
+          ${isActive
+            ? 'bg-teal-50 text-teal-700 border-teal-300'
+            : 'bg-white text-gray-700 hover:border-gray-300'
+          }`}
+        style={{ border: `1px solid ${isActive ? 'rgba(20,184,166,0.4)' : TL}` }}
+      >
+        <span className={`${isActive ? 'text-teal-600' : 'text-gray-500'}`}>{selectedLabel}</span>
+        {isOpen
+          ? <ChevronUp size={14} className={`${isActive ? 'text-teal-500' : 'text-gray-400'}`} />
+          : <ChevronDown size={14} className={`${isActive ? 'text-teal-500' : 'text-gray-400'}`} />
+        }
+      </button>
+
+      {isOpen && (
+        <div
+          ref={dropdownRef}
+          className="fixed z-[9999] bg-white rounded-xl overflow-hidden"
+          style={{
+            top: dropPos.top,
+            left: dropPos.left,
+            minWidth: Math.max(dropPos.width, 180),
+            border: `1px solid ${TL}`,
+            boxShadow: '0 12px 36px rgba(0,0,0,0.13)',
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Arrow */}
+          <div className="absolute -top-[5px] left-5 w-2.5 h-2.5 bg-white rotate-45 border-l border-t border-gray-200" />
+
+          <div className="pt-2 pb-1.5">
+            {/* All option */}
+            <button
+              onClick={() => { onChange('all'); setIsOpen(false); }}
+              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-medium transition-colors
+                ${value === 'all' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${value === 'all' ? 'bg-teal-400' : 'bg-gray-200'}`} />
+              {placeholder}
+              {value === 'all' && <CheckCircle2 size={12} className="ml-auto opacity-60 text-teal-500" />}
+            </button>
+
+            {/* Divider */}
+            <div className="mx-3 my-1.5 border-t border-gray-100" />
+
+            {/* Options */}
+            {options.map(opt => {
+              const optValue = opt.value ?? opt;
+              const optLabel = opt.label ?? opt;
+              const isSelected = value === optValue;
+              return (
+                <button
+                  key={optValue}
+                  onClick={() => { onChange(optValue); setIsOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-medium transition-colors
+                    ${isSelected ? 'bg-teal-50 text-teal-600' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  {opt.dot
+                    ? <span className={`w-2 h-2 rounded-full flex-shrink-0 ${opt.dot}`} />
+                    : <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isSelected ? 'bg-teal-400' : 'bg-gray-200'}`} />
+                  }
+                  {optLabel}
+                  {isSelected && <CheckCircle2 size={12} className="ml-auto opacity-60 text-teal-500" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 const TeamMembers = () => {
   const { showAddMemberModal, setShowAddMemberModal } = useOutletContext();
@@ -242,6 +356,15 @@ const TeamMembers = () => {
     { label: '',            w: '48px'  },
   ];
 
+  // ── Dropdown options ───────────────────────────────────────────────────────
+  const roleOptions = ROLES.map(r => ({ value: r, label: r }));
+
+  const statusOptions = [
+    { value: 'Active',   label: 'Active',   dot: 'bg-emerald-500' },
+    { value: 'Away',     label: 'Away',     dot: 'bg-amber-400'   },
+    { value: 'Inactive', label: 'Inactive', dot: 'bg-gray-400'    },
+  ];
+
   const modalInput = 'w-full px-4 py-3 rounded-lg text-sm text-gray-800 bg-white placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-all';
 
   if (loading) return (
@@ -266,26 +389,23 @@ const TeamMembers = () => {
             className="w-full pl-9 pr-4 py-2.5 bg-white border text-sm text-gray-700 placeholder-gray-400 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-all"
             style={{ border: `1px solid ${TL}` }} />
         </div>
-        <div className="relative">
-          <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-2.5 bg-white border text-sm text-gray-700 rounded-lg focus:border-teal-500 focus:outline-none transition-all cursor-pointer"
-            style={{ border: `1px solid ${TL}` }}>
-            <option value="all">All Roles</option>
-            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-          </select>
-          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-        </div>
-        <div className="relative">
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-2.5 bg-white border text-sm text-gray-700 rounded-lg focus:border-teal-500 focus:outline-none transition-all cursor-pointer"
-            style={{ border: `1px solid ${TL}` }}>
-            <option value="all">All Status</option>
-            <option value="Active">Active</option>
-            <option value="Away">Away</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-        </div>
+
+        {/* ── Custom Role Dropdown ── */}
+        <CustomDropdown
+          value={filterRole}
+          onChange={setFilterRole}
+          options={roleOptions}
+          placeholder="All Roles"
+        />
+
+        {/* ── Custom Status Dropdown ── */}
+        <CustomDropdown
+          value={filterStatus}
+          onChange={setFilterStatus}
+          options={statusOptions}
+          placeholder="All Status"
+        />
+
         <span className="text-xs text-gray-400 whitespace-nowrap">{filtered.length} member{filtered.length !== 1 ? 's' : ''}</span>
       </div>
 
