@@ -69,7 +69,7 @@ const CustomDropdown = ({ value, onChange, options, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
-  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
+  const [dropPos, setDropPos] = useState({ top: 0, posLeft: null, posRight: null, arrowOffset: 16 });
 
   useEffect(() => {
     const h = (e) => {
@@ -85,11 +85,26 @@ const CustomDropdown = ({ value, onChange, options, placeholder }) => {
   const handleOpen = () => {
     if (!isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setDropPos({
-        top: rect.bottom + 6,
-        left: rect.left,
-        width: rect.width,
-      });
+      const viewportWidth = window.innerWidth;
+      const dropWidth = 210;
+      const PADDING = 8;
+
+      const wouldOverflowRight = rect.left + dropWidth > viewportWidth - PADDING;
+
+      let posLeft = null;
+      let posRight = null;
+      let arrowOffset = 16;
+
+      if (!wouldOverflowRight) {
+        posLeft = rect.left;
+        arrowOffset = Math.max(10, Math.round(rect.width / 2) - 5);
+      } else {
+        posRight = viewportWidth - rect.right;
+        arrowOffset = dropWidth - Math.round(rect.width / 2) - 5;
+        arrowOffset = Math.max(10, Math.min(arrowOffset, dropWidth - 20));
+      }
+
+      setDropPos({ top: rect.bottom + 6, posLeft, posRight, arrowOffset });
     }
     setIsOpen(prev => !prev);
   };
@@ -125,18 +140,20 @@ const CustomDropdown = ({ value, onChange, options, placeholder }) => {
           className="fixed z-[9999] bg-white rounded-xl overflow-hidden"
           style={{
             top: dropPos.top,
-            left: dropPos.left,
-            minWidth: Math.max(dropPos.width, 180),
+            ...(dropPos.posLeft !== null ? { left: dropPos.posLeft } : { right: dropPos.posRight }),
+            width: 210,
+            maxWidth: 'calc(100vw - 16px)',
             border: `1px solid ${TL}`,
             boxShadow: '0 12px 36px rgba(0,0,0,0.13)',
           }}
           onClick={e => e.stopPropagation()}
         >
-          {/* Arrow */}
-          <div className="absolute -top-[5px] left-5 w-2.5 h-2.5 bg-white rotate-45 border-l border-t border-gray-200" />
+          <div
+            className="absolute -top-[5px] w-2.5 h-2.5 bg-white rotate-45 border-l border-t border-gray-200"
+            style={{ left: dropPos.arrowOffset }}
+          />
 
           <div className="pt-2 pb-1.5">
-            {/* All option */}
             <button
               onClick={() => { onChange('all'); setIsOpen(false); }}
               className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-medium transition-colors
@@ -147,10 +164,8 @@ const CustomDropdown = ({ value, onChange, options, placeholder }) => {
               {value === 'all' && <CheckCircle2 size={12} className="ml-auto opacity-60 text-teal-500" />}
             </button>
 
-            {/* Divider */}
             <div className="mx-3 my-1.5 border-t border-gray-100" />
 
-            {/* Options */}
             {options.map(opt => {
               const optValue = opt.value ?? opt;
               const optLabel = opt.label ?? opt;
