@@ -689,26 +689,14 @@ export default function Projects() {
                   {showTeamDrop && (
                     <div className="absolute left-0 right-0 z-[200] bg-white rounded-xl shadow-xl"
                       style={{ bottom:'100%', marginBottom:'4px', border:`1px solid ${TABLE_LINE}`, boxShadow:'0 -8px 24px rgba(0,0,0,0.13)', maxHeight:'180px', overflowY:'auto' }}>
-                      {filteredPool.length>0 && (
-                        <><p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pt-2.5 pb-1 sticky top-0 bg-white">Existing Members</p>
-                        {filteredPool.map(m=>(
-                          <button key={m} type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>selectMember(m)}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-teal-50 transition-colors text-left">
-                            <div className="w-6 h-6 rounded-full bg-teal-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">{m[0]?.toUpperCase()}</div>
-                            <span className="text-[13px] text-gray-700 font-medium">{m}</span>
-                          </button>
-                        ))}</>
-                      )}
-                      {teamInput.trim() && !memberPool.includes(teamInput.trim()) && (
-                        <>{filteredPool.length>0 && <div style={{ borderTop:`1px solid ${TABLE_LINE}` }}/>}
-                        <button type="button" onMouseDown={e=>e.preventDefault()} onClick={addNewMember}
-                          className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-teal-50 transition-colors text-left">
-                          <div className="w-6 h-6 rounded-full bg-gray-100 text-gray-500 text-sm font-bold flex items-center justify-center flex-shrink-0">+</div>
-                          <span className="text-[13px] text-gray-700">Add <span className="font-semibold text-teal-600">"{teamInput.trim()}"</span> as new member</span>
-                        </button></>
-                      )}
-                      {filteredPool.length===0 && !teamInput.trim() && (
-                        <p className="text-[12px] text-gray-400 px-3 py-4 text-center">Type a name to search or add new member</p>
+                      {filteredPool.map(m=>(
+                        <button key={m} type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>selectMember(m)}
+                          className="w-full px-3 py-2 text-left text-[13px] text-gray-700 font-medium hover:bg-teal-50 transition-colors">
+                          {m}
+                        </button>
+                      ))}
+                      {filteredPool.length===0 && (
+                        <p className="text-[12px] text-gray-400 px-3 py-3 text-center">No members found</p>
                       )}
                     </div>
                   )}
