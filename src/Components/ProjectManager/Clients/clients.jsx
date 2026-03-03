@@ -875,7 +875,6 @@ const Clients = () => {
           style={{
             overflowX: 'auto',
             WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'none',
             scrollbarColor: 'rgba(20,184,166,0.6) rgba(238,242,247,0.9)',
           }}>
           <style>{`

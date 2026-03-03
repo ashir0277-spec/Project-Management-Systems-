@@ -13,6 +13,7 @@ import ForgotPassword from "./Components/Pages/Forgotpassword";
 import LoginPage from "./Components/Pages/LoginPage";
 import { ToastContainer } from "react-toastify";
 import Dashboard from "./Components/ProjectManager/Dashboard/Dashboard";
+import DeveloperDashboard from "./DeveloperDashboard";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
       <Routes>
           <Route path="/" element={<LoginPage/>} /> 
           <Route path="/forgotpassword" element={<ForgotPassword/>} /> 
+          <Route path="/DeveloperDashboard" element={<DeveloperDashboard/>} /> 
         <Route element={<PMLayout />}>
           {/* <Route path="/dashboard" element={<Main/>} />Dashboard */}
           <Route path="/dashboard" element={<Dashboard/>}/>
