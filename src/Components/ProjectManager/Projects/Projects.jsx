@@ -24,14 +24,14 @@ const getPriorityStyle = (p) => {
 
 const COLUMN_DEFS = [
   { key:'index',       label:'#',            defaultW:44,  minW:40,  align:'center', hideable:false },
-  { key:'name',        label:'Project Name', defaultW:160, minW:80,  align:'left',   hideable:false },
-  { key:'description', label:'Description',  defaultW:200, minW:80,  align:'left',   hideable:true  },
-  { key:'startDate',   label:'Start Date',   defaultW:110, minW:80,  align:'center', hideable:true  },
-  { key:'deadline',    label:'End Date',     defaultW:110, minW:80,  align:'center', hideable:true  },
-  { key:'status',      label:'Status',       defaultW:175, minW:100, align:'center', hideable:true  },
-  { key:'priority',    label:'Priority',     defaultW:100, minW:70,  align:'center', hideable:true  },
-  { key:'progress',    label:'Progress',     defaultW:130, minW:80,  align:'center', hideable:true  },
-  { key:'team',        label:'Assigned To',  defaultW:160, minW:80,  align:'left',   hideable:true  },
+  { key:'name',        label:'Project Name', defaultW:160, minW:120, align:'left',   hideable:false },
+  { key:'description', label:'Description',  defaultW:200, minW:140, align:'left',   hideable:true  },
+  { key:'startDate',   label:'Start Date',   defaultW:110, minW:100, align:'center', hideable:true  },
+  { key:'deadline',    label:'End Date',     defaultW:110, minW:100, align:'center', hideable:true  },
+  { key:'status',      label:'Status',       defaultW:175, minW:140, align:'center', hideable:true  },
+  { key:'priority',    label:'Priority',     defaultW:100, minW:90,  align:'center', hideable:true  },
+  { key:'progress',    label:'Progress',     defaultW:130, minW:100, align:'center', hideable:true  },
+  { key:'team',        label:'Assigned To',  defaultW:160, minW:120, align:'left',   hideable:true  },
   { key:'actions',     label:'',             defaultW:52,  minW:52,  align:'center', hideable:false },
 ];
 
@@ -91,13 +91,7 @@ export default function Projects() {
   const [projectList, setProjectList] = useState([]);
   const [allMembers, setAllMembers]   = useState([]);
 
-  // responsive: detect if mobile
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
-  useEffect(() => {
-    const fn = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', fn);
-    return () => window.removeEventListener('resize', fn);
-  }, []);
+
 
   // column ratios & container width
   const [colRatios, setColRatios]     = useState(buildDefaultRatios);
@@ -425,8 +419,8 @@ export default function Projects() {
                 style={{ border:`1px solid ${TABLE_LINE}` }}/>
             </div>
 
-            {/* Columns btn — only on non-mobile */}
-            {!isMobile && (
+            {/* Columns btn — all screens */}
+            {(true) && (
               <div className="relative flex-shrink-0" ref={colMenuRef}>
                 <button onClick={()=>setShowColMenu(v=>!v)}
                   className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 shadow-sm whitespace-nowrap"
@@ -473,35 +467,33 @@ export default function Projects() {
           </div>
         </div>
 
-        {/* ── MOBILE: CARDS ── */}
-        {isMobile ? (
-          <div className="space-y-3">
-            {displayProjects.length === 0 ? (
-              <div className="bg-white rounded-2xl py-16 text-center" style={{ border:`1px solid ${TABLE_LINE}` }}>
-                <div className="flex justify-center mb-3"><Loader className="text-gray-300"/></div>
-                <p className="text-gray-400 text-sm">{filter==='all'?'No projects yet':`No "${filter}" projects`}</p>
-              </div>
-            ) : displayProjects.map((p,idx) => <MobileCard key={p.id} project={p} idx={idx}/>)}
-          </div>
-        ) : (
-        /* ── DESKTOP: TABLE ── */
+        {/* ── TABLE (all screen sizes, horizontal scroll on sm) ── */}
         <div className="bg-white rounded-2xl shadow-sm w-full" style={{ border:`1px solid ${TABLE_LINE}`, overflow:'hidden' }}>
           <div ref={tableWrapRef}
-            style={{ overflowX:'hidden', overflowY:'auto', maxHeight:'calc(100vh - 260px)' }}>
+            style={{ overflowX:'auto', overflowY:'auto', maxHeight:'calc(100vh - 260px)', WebkitOverflowScrolling:'touch' }}>
             <style>{`
               .proj-wrap { scrollbar-width:thin; scrollbar-color:rgba(20,184,166,0.4) transparent; }
-              .proj-wrap::-webkit-scrollbar { width:5px; }
+              .proj-wrap::-webkit-scrollbar { height:4px; width:4px; }
+              .proj-wrap::-webkit-scrollbar-track { background:transparent; }
               .proj-wrap::-webkit-scrollbar-thumb { background:rgba(20,184,166,0.4); border-radius:999px; }
+              .proj-wrap::-webkit-scrollbar-thumb:hover { background:rgba(20,184,166,0.75); }
               .col-rz { position:absolute; right:0; top:0; height:100%; width:6px; cursor:col-resize; z-index:20; }
               .col-rz:hover,.col-rz:active { background:rgba(20,184,166,0.35); }
             `}</style>
-            <table className="proj-wrap border-collapse" style={{ tableLayout:'fixed', width:'100%' }}>
+            {/*
+              On large screens: table fills 100% — no horizontal scroll.
+              On small screens: table has a minWidth so columns stay readable,
+              and the wrapper scrolls horizontally.
+            */}
+            {/* minWidth = sum of all visible col minWidths so headers never squish */}
+            <table className="proj-wrap border-collapse"
+              style={{ tableLayout:'fixed', width:'100%', minWidth:`${visibleCols.reduce((s,c)=>s+c.minW,0)}px` }}>
               <colgroup>{visibleCols.map(c=><col key={c.key} style={{ width:`${colWidths[c.key]}px` }}/>)}</colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#EEF2F7]" style={{ borderBottom:`2px solid ${TABLE_LINE_BOLD}` }}>
                   {visibleCols.map((col,i)=>(
                     <th key={col.key}
-                      style={{ position:'relative', textAlign:col.align, width:`${colWidths[col.key]}px`, borderRight:i<visibleCols.length-1?`1px solid ${TABLE_LINE}`:undefined, padding:'14px 12px', overflow:'hidden' }}
+                      style={{ position:'relative', textAlign:col.align, width:`${colWidths[col.key]}px`, borderRight:i<visibleCols.length-1?`1px solid ${TABLE_LINE}`:undefined, padding:'10px 8px', overflow:'hidden' }}
                       className="text-xs font-semibold text-gray-600 uppercase tracking-wider select-none whitespace-nowrap">
                       {col.label}
                       {i<visibleCols.length-1 && <span className="col-rz" onMouseDown={e=>onResizeMouseDown(e,col.key)}/>}
@@ -593,7 +585,6 @@ export default function Projects() {
             </table>
           </div>
         </div>
-        )}
       </div>
 
       {/* ── DESCRIPTION MODAL ── */}
@@ -697,7 +688,7 @@ export default function Projects() {
                   </div>
                   {showTeamDrop && (
                     <div className="absolute left-0 right-0 z-[200] bg-white rounded-xl shadow-xl"
-                      style={{ top:'100%', marginTop:'4px', border:`1px solid ${TABLE_LINE}`, boxShadow:'0 8px 24px rgba(0,0,0,0.13)', maxHeight:'180px', overflowY:'auto' }}>
+                      style={{ bottom:'100%', marginBottom:'4px', border:`1px solid ${TABLE_LINE}`, boxShadow:'0 -8px 24px rgba(0,0,0,0.13)', maxHeight:'180px', overflowY:'auto' }}>
                       {filteredPool.length>0 && (
                         <><p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pt-2.5 pb-1 sticky top-0 bg-white">Existing Members</p>
                         {filteredPool.map(m=>(
