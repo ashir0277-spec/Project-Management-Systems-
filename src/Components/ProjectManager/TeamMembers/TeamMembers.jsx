@@ -153,6 +153,18 @@ const DocumentsTab = ({ documents, onAdd, onRemove, onRemoveSelected }) => {
   const [selected,    setSelected]    = useState(new Set());
   const [previewFile, setPreviewFile] = useState(null); // {url, name}
   const fileInputRef = useRef(null);
+  const dragCounter  = useRef(0); // track enter/leave nesting
+
+  // ── Block browser from opening files globally while this tab is mounted ──
+  useEffect(() => {
+    const stop = e => { e.preventDefault(); e.stopPropagation(); };
+    window.addEventListener('dragover', stop);
+    window.addEventListener('drop',     stop);
+    return () => {
+      window.removeEventListener('dragover', stop);
+      window.removeEventListener('drop',     stop);
+    };
+  }, []);
 
   // Generate object URLs for previews (for images only)
   const urlCache = useRef({});
@@ -176,12 +188,27 @@ const DocumentsTab = ({ documents, onAdd, onRemove, onRemoveSelected }) => {
 
   const handleDrop = useCallback(e => {
     e.preventDefault(); e.stopPropagation();
+    dragCounter.current = 0;
     setIsDragging(false);
-    Array.from(e.dataTransfer.files).forEach(f => onAdd(f));
+    const files = Array.from(e.dataTransfer.files);
+    files.forEach(f => onAdd(f));
   }, [onAdd]);
 
-  const handleDragOver  = e => { e.preventDefault(); e.stopPropagation(); setIsDragging(true);  };
-  const handleDragLeave = e => { e.preventDefault(); setIsDragging(false); };
+  const handleDragEnterZone = e => {
+    e.preventDefault(); e.stopPropagation();
+    dragCounter.current++;
+    setIsDragging(true);
+  };
+  const handleDragOverZone  = e => { e.preventDefault(); e.stopPropagation(); };
+  const handleDragLeaveZone = e => {
+    e.preventDefault(); e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setIsDragging(false);
+  };
+
+  // keep old names as aliases so JSX below still works
+  const handleDragOver  = handleDragOverZone;
+  const handleDragLeave = handleDragLeaveZone;
 
   const handleFileSelect = e => {
     Array.from(e.target.files).forEach(f=>onAdd(f));
@@ -239,7 +266,10 @@ const DocumentsTab = ({ documents, onAdd, onRemove, onRemoveSelected }) => {
 
         {/* Drop zone */}
         <div
-          onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onDragEnter={handleDragEnterZone}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
           onClick={()=>fileInputRef.current?.click()}
           className={`relative rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200
             flex flex-col items-center justify-center py-6 gap-2
