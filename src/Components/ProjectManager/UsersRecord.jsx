@@ -5,7 +5,8 @@ import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Search, ChevronRight,
-  BarChart2, Mail, Phone, X, Building2
+  BarChart2, Mail, Phone, X, Building2,
+  User
 } from 'lucide-react';
 
 const TL  = 'rgba(51,51,51,0.12)';
@@ -137,7 +138,7 @@ const UsersRecord = () => {
 
           {filtered.length === 0 ? (
             <div className="py-20 text-center">
-              <div className="text-4xl mb-3">👤</div>
+              <div className="text-4xl mb-3"><User/></div>
               <p className="text-gray-500 font-semibold">No members found</p>
               <p className="text-gray-400 text-sm mt-1">Try adjusting your search or filters</p>
             </div>
