@@ -79,23 +79,11 @@ const UsersRecord = () => {
     <div className="min-h-screen bg-[#EEF2F7]">
       <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-5">
 
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">User Records</h1>
-            <p className="text-sm text-gray-400 mt-0.5">{members.length} total members registered</p>
-          </div>
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white shadow-sm"
-            style={{ border: `1px solid ${TL}` }}>
-            <Users size={15} className="text-teal-500" />
-            <span className="text-sm font-semibold text-gray-700">{members.length} Members</span>
-          </div>
-        </div>
-
-        {/* ── Search + Role Filter ── */}
+        {/* ── Search + Role Filter + Members Count ── */}
         <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-wrap items-center gap-3"
           style={{ border: `1px solid ${TL}` }}>
 
+          {/* Search Input */}
           <div className="flex items-center gap-2 flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-[#EEF2F7]"
             style={{ border: `1px solid ${TL}` }}>
             <Search size={14} className="text-gray-400 flex-shrink-0" />
@@ -111,6 +99,7 @@ const UsersRecord = () => {
             )}
           </div>
 
+          {/* Role Filter */}
           {roles.length > 1 && (
             <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
               className="text-[12px] font-semibold px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 outline-none cursor-pointer hover:border-teal-300 transition-colors">
@@ -118,7 +107,14 @@ const UsersRecord = () => {
             </select>
           )}
 
-          <span className="ml-auto text-xs text-gray-400 flex-shrink-0">
+          {/* Members Count Badge */}
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#EEF2F7] flex-shrink-0"
+            style={{ border: `1px solid ${TL}` }}>
+            <Users size={15} className="text-teal-500" />
+            <span className="text-sm font-semibold text-gray-700">{members.length} Members</span>
+          </div>
+
+          <span className="text-xs text-gray-400 flex-shrink-0">
             {filtered.length} of {members.length}
           </span>
         </div>

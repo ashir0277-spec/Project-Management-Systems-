@@ -9,16 +9,19 @@ const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNew
   const isProjects    = location.pathname.includes('projects');
   const isPayout      = location.pathname.includes('payout');
   const isSettings    = location.pathname.includes('settings');
-  const isDashboard   = !isTeamMembers && !isClients && !isProjects && !isPayout && !isSettings;
+  const isUserRecord  = location.pathname.includes('userrecord') || location.pathname.includes('users');
+  const isDashboard   = !isTeamMembers && !isClients && !isProjects && !isPayout && !isSettings && !isUserRecord;
 
   const pageTitle =
-    isTeamMembers ? 'Team Members' :
-    isClients     ? 'Clients'      :
-    isProjects    ? 'Projects'     :
-    isPayout      ? 'Payout'       :
-    isSettings    ? 'Settings'     : 'Dashboard';
+    isUserRecord  ? 'User Records'  :
+    isTeamMembers ? 'Team Members'  :
+    isClients     ? 'Clients'       :
+    isProjects    ? 'Projects'      :
+    isPayout      ? 'Payout'        :
+    isSettings    ? 'Settings'      : 'Dashboard';
 
   const pageSubtitle =
+    isUserRecord  ? 'Manage Your team members' :
     isTeamMembers ? 'View, add and manage your team members' :
     isClients     ? 'Manage your client relationships and documents' :
     isProjects    ? 'Track and manage all your projects' :
@@ -69,7 +72,6 @@ const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNew
               </button>
             )}
 
-            {/* ── Payout page: Add Client btn ── */}
             {isPayout && (
               <button onClick={onNewPayout}
                 className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 text-white font-semibold rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 transition-all shadow-lg text-xs sm:text-sm whitespace-nowrap">
