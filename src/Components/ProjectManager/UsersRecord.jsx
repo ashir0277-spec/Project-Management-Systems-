@@ -1,29 +1,37 @@
-// UsersRecord.jsx – All Team Members Table (matches Dashboard theme)
+// UsersRecord.jsx – Responsive All Team Members Table
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Search, ChevronRight,
-  BarChart2, Mail, Phone, X
+  BarChart2, Mail, Phone, X, Building2
 } from 'lucide-react';
 
 const TL  = 'rgba(51,51,51,0.12)';
 const TLB = 'rgba(51,51,51,0.18)';
 
 const statusColors = {
-  'Active':   { text: 'text-teal-600',  dot: 'bg-teal-500'  },
-  'Inactive': { text: 'text-gray-500',  dot: 'bg-gray-400'  },
-  'On Leave': { text: 'text-amber-600', dot: 'bg-amber-500' },
+  'Active':   { text: 'text-teal-600',  dot: 'bg-teal-500',  bg: 'bg-teal-50',  border: 'border-teal-200'  },
+  'Inactive': { text: 'text-gray-500',  dot: 'bg-gray-400',  bg: 'bg-gray-50',  border: 'border-gray-200'  },
+  'On Leave': { text: 'text-amber-600', dot: 'bg-amber-500', bg: 'bg-amber-50', border: 'border-amber-200' },
+  'Away':     { text: 'text-amber-600', dot: 'bg-amber-500', bg: 'bg-amber-50', border: 'border-amber-200' },
 };
 
 const roleColors = {
-  'Admin':     { text: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200' },
-  'Developer': { text: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-200'   },
-  'Designer':  { text: 'text-pink-600',   bg: 'bg-pink-50',   border: 'border-pink-200'   },
-  'Manager':   { text: 'text-teal-600',   bg: 'bg-teal-50',   border: 'border-teal-200'   },
-  'QA':        { text: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+  'Frontend Developer': { text: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-200'   },
+  'Backend Developer':  { text: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
+  'Flutter Developer':  { text: 'text-cyan-600',   bg: 'bg-cyan-50',   border: 'border-cyan-200'   },
+  'UI/UX Designer':     { text: 'text-pink-600',   bg: 'bg-pink-50',   border: 'border-pink-200'   },
+  'Project Manager':    { text: 'text-teal-600',   bg: 'bg-teal-50',   border: 'border-teal-200'   },
+  'QA Engineer':        { text: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+  'Admin':              { text: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200' },
+  'Developer':          { text: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-200'   },
+  'Designer':           { text: 'text-pink-600',   bg: 'bg-pink-50',   border: 'border-pink-200'   },
+  'Manager':            { text: 'text-teal-600',   bg: 'bg-teal-50',   border: 'border-teal-200'   },
+  'QA':                 { text: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
 };
+const defaultRoleColor = { text: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200' };
 
 const AVATAR_COLORS = [
   'from-teal-400 to-cyan-500',
@@ -80,20 +88,20 @@ const UsersRecord = () => {
       <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-5">
 
         {/* ── Search + Role Filter + Members Count ── */}
-        <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-wrap items-center gap-3"
+        <div className="bg-white rounded-2xl shadow-sm p-3 sm:p-4 flex flex-wrap items-center gap-2 sm:gap-3"
           style={{ border: `1px solid ${TL}` }}>
 
           {/* Search Input */}
-          <div className="flex items-center gap-2 flex-1 min-w-[200px] px-3.5 py-2 rounded-xl bg-[#EEF2F7]"
+          <div className="flex items-center gap-2 flex-1 min-w-[140px] px-3 py-2 rounded-xl bg-[#EEF2F7]"
             style={{ border: `1px solid ${TL}` }}>
-            <Search size={14} className="text-gray-400 flex-shrink-0" />
+            <Search size={13} className="text-gray-400 flex-shrink-0" />
             <input
               type="text" value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name, email, role..."
-              className="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none"
+              placeholder="Search name, email, role..."
+              className="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none min-w-0"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setSearch('')} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
                 <X size={13} />
               </button>
             )}
@@ -102,26 +110,26 @@ const UsersRecord = () => {
           {/* Role Filter */}
           {roles.length > 1 && (
             <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
-              className="text-[12px] font-semibold px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 outline-none cursor-pointer hover:border-teal-300 transition-colors">
+              className="text-[12px] font-semibold px-2.5 py-2 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 outline-none cursor-pointer hover:border-teal-300 transition-colors flex-shrink-0 max-w-[130px] sm:max-w-none">
               {roles.map(r => <option key={r}>{r}</option>)}
             </select>
           )}
 
           {/* Members Count Badge */}
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#EEF2F7] flex-shrink-0"
+          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#EEF2F7] flex-shrink-0"
             style={{ border: `1px solid ${TL}` }}>
-            <Users size={15} className="text-teal-500" />
+            <Users size={14} className="text-teal-500" />
             <span className="text-sm font-semibold text-gray-700">{members.length} Members</span>
           </div>
 
-          <span className="text-xs text-gray-400 flex-shrink-0">
+          <span className="text-xs text-gray-400 flex-shrink-0 hidden sm:block">
             {filtered.length} of {members.length}
           </span>
         </div>
 
-        {/* ── Members Table ── */}
+        {/* ── Members Table / Cards ── */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
-          <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+          <div className="flex items-center gap-2 px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
             <BarChart2 size={15} className="text-teal-500" />
             <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">All Members</h2>
             <span className="ml-auto text-xs text-gray-400">{filtered.length} records</span>
@@ -134,105 +142,174 @@ const UsersRecord = () => {
               <p className="text-gray-400 text-sm mt-1">Try adjusting your search or filters</p>
             </div>
           ) : (
-            <div className="overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-              <table className="w-full min-w-[800px]">
-                <colgroup>
-                  <col style={{ width: '5%'  }} />
-                  <col style={{ width: '22%' }} />
-                  <col style={{ width: '20%' }} />
-                  <col style={{ width: '13%' }} />
-                  <col style={{ width: '13%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '5%'  }} />
-                </colgroup>
-                <thead>
-                  <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
-                    {['#', 'Member', 'Email', 'Role', 'Department', 'Status', 'Tasks', ''].map((h, i) => (
-                      <th key={i}
-                        className="py-2.5 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-left"
-                        style={{ borderRight: i < 7 ? `1px solid ${TL}` : undefined }}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((member, idx) => {
-                    const sCfg  = statusColors[member.status] || statusColors['Inactive'];
-                    const rCfg  = roleColors[member.role]     || roleColors['Developer'];
-                    const tasks = member.tasks || [];
-                    const done  = tasks.filter(t => t.status === 'Done').length;
-                    const pend  = tasks.filter(t => t.status !== 'Done').length;
+            <>
+              {/* ─── MOBILE CARD LIST (hidden on md+) ─── */}
+              <div className="md:hidden">
+                {filtered.map((member, idx) => {
+                  const sCfg  = statusColors[member.status] || statusColors['Inactive'];
+                  const rCfg  = roleColors[member.role]     || defaultRoleColor;
+                  const tasks = member.tasks || [];
+                  const done  = tasks.filter(t => t.status === 'Done').length;
+                  const pend  = tasks.filter(t => t.status !== 'Done').length;
 
-                    return (
-                      <tr key={member.id}
-                        onClick={() => navigate(`/userdetails/${member.id}`)}
-                        className={`cursor-pointer transition-colors hover:bg-teal-50/40 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}
-                        style={{ borderBottom: `1px solid ${TL}` }}>
+                  return (
+                    <div
+                      key={member.id}
+                      onClick={() => navigate(`/userdetails/${member.id}`)}
+                      className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer transition-colors hover:bg-teal-50/40 active:bg-teal-50/60 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}
+                      style={{ borderBottom: `1px solid ${TL}` }}>
 
-                        <td className="px-4 py-3.5 text-center" style={{ borderRight: `1px solid ${TL}` }}>
-                          <span className="text-[12px] font-mono text-gray-400">{idx + 1}</span>
-                        </td>
+                      {/* Avatar */}
+                      <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center bg-gradient-to-br ${getAvatarColor(member.id)} text-white text-[13px] font-bold shadow-sm`}>
+                        {getInitials(member.name)}
+                      </div>
 
-                        <td className="px-4 py-3.5" style={{ borderRight: `1px solid ${TL}` }}>
-                          <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${getAvatarColor(member.id)} text-white text-[12px] font-bold shadow-sm`}>
-                              {getInitials(member.name)}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-[13px] font-semibold text-gray-900 truncate">{member.name || '—'}</p>
-                              <p className="text-[11px] text-gray-400 truncate flex items-center gap-1">
-                                <Phone size={9} />{member.phone || 'No phone'}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-3.5" style={{ borderRight: `1px solid ${TL}` }}>
-                          <div className="flex items-center gap-1.5">
-                            <Mail size={11} className="text-gray-400 flex-shrink-0" />
-                            <span className="text-[12px] text-gray-600 truncate">{member.email || '—'}</span>
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-3.5" style={{ borderRight: `1px solid ${TL}` }}>
-                          <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${rCfg.text} ${rCfg.bg} ${rCfg.border}`}>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        {/* Row 1: Name + Role badge */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-[13px] font-semibold text-gray-900 leading-tight">{member.name || '—'}</p>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border flex-shrink-0 ${rCfg.text} ${rCfg.bg} ${rCfg.border}`}>
                             {member.role || '—'}
                           </span>
-                        </td>
+                        </div>
 
-                        <td className="px-4 py-3.5" style={{ borderRight: `1px solid ${TL}` }}>
-                          <span className="text-[12px] text-gray-600">{member.department || '—'}</span>
-                        </td>
+                        {/* Row 2: Email */}
+                        <p className="text-[11px] text-gray-400 mt-0.5 truncate flex items-center gap-1">
+                          <Mail size={9} className="flex-shrink-0" />{member.email || '—'}
+                        </p>
 
-                        <td className="px-4 py-3.5" style={{ borderRight: `1px solid ${TL}` }}>
-                          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${sCfg.text}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`} />{member.status || 'Unknown'}
+                        {/* Row 3: Status · Dept · Tasks */}
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${sCfg.text}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sCfg.dot}`} />{member.status || 'Unknown'}
                           </span>
-                        </td>
+                          {member.department && (
+                            <>
+                              <span className="text-gray-200">·</span>
+                              <span className="text-[10px] text-gray-400 flex items-center gap-0.5 truncate">
+                                <Building2 size={9} className="flex-shrink-0" />{member.department}
+                              </span>
+                            </>
+                          )}
+                          {tasks.length > 0 && (
+                            <>
+                              <span className="text-gray-200">·</span>
+                              <span className="text-[10px] text-gray-500 font-semibold">{tasks.length} tasks</span>
+                              <span className="text-[10px] text-teal-500 font-semibold">{done}✓</span>
+                              {pend > 0 && <span className="text-[10px] text-amber-500 font-semibold">{pend}⏳</span>}
+                            </>
+                          )}
+                        </div>
+                      </div>
 
-                        <td className="px-4 py-3.5" style={{ borderRight: `1px solid ${TL}` }}>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[12px] font-bold text-gray-700">{tasks.length}</span>
-                            {tasks.length > 0 && (
-                              <div className="flex items-center gap-1">
-                                <span className="text-[10px] text-teal-500 font-semibold">{done}✓</span>
-                                {pend > 0 && <span className="text-[10px] text-amber-500 font-semibold">{pend}⏳</span>}
+                      <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ─── DESKTOP TABLE (shown on md+) ─── */}
+              <div className="hidden md:block overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
+                <table className="w-full" style={{ minWidth: 720 }}>
+                  <colgroup>
+                    <col style={{ width: '4%'  }} />
+                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '16%' }} />
+                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '11%' }} />
+                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '5%'  }} />
+                  </colgroup>
+                  <thead>
+                    <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
+                      {['#', 'Member', 'Email', 'Role', 'Department', 'Status', 'Tasks', ''].map((h, i) => (
+                        <th key={i}
+                          className="py-2.5 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-left whitespace-nowrap"
+                          style={{ borderRight: i < 7 ? `1px solid ${TL}` : undefined }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((member, idx) => {
+                      const sCfg  = statusColors[member.status] || statusColors['Inactive'];
+                      const rCfg  = roleColors[member.role]     || defaultRoleColor;
+                      const tasks = member.tasks || [];
+                      const done  = tasks.filter(t => t.status === 'Done').length;
+                      const pend  = tasks.filter(t => t.status !== 'Done').length;
+
+                      return (
+                        <tr key={member.id}
+                          onClick={() => navigate(`/userdetails/${member.id}`)}
+                          className={`cursor-pointer transition-colors hover:bg-teal-50/40 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}
+                          style={{ borderBottom: `1px solid ${TL}` }}>
+
+                          <td className="px-4 py-3.5 text-center" style={{ borderRight: `1px solid ${TL}` }}>
+                            <span className="text-[12px] font-mono text-gray-400">{idx + 1}</span>
+                          </td>
+
+                          <td className="px-4 py-3.5" style={{ borderRight: `1px solid ${TL}` }}>
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center bg-gradient-to-br ${getAvatarColor(member.id)} text-white text-[12px] font-bold shadow-sm`}>
+                                {getInitials(member.name)}
                               </div>
-                            )}
-                          </div>
-                        </td>
+                              <div className="min-w-0">
+                                <p className="text-[13px] font-semibold text-gray-900 truncate">{member.name || '—'}</p>
+                                <p className="text-[11px] text-gray-400 truncate flex items-center gap-1">
+                                  <Phone size={9} />{member.phone || 'No phone'}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
 
-                        <td className="px-4 py-3.5 text-center">
-                          <ChevronRight size={15} className="text-gray-300" />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <td className="px-4 py-3.5" style={{ borderRight: `1px solid ${TL}` }}>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Mail size={11} className="text-gray-400 flex-shrink-0" />
+                              <span className="text-[12px] text-gray-600 truncate">{member.email || '—'}</span>
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-3.5" style={{ borderRight: `1px solid ${TL}` }}>
+                            <span className={`inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full border whitespace-nowrap ${rCfg.text} ${rCfg.bg} ${rCfg.border}`}>
+                              {member.role || '—'}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3.5" style={{ borderRight: `1px solid ${TL}` }}>
+                            <span className="text-[12px] text-gray-600 truncate block">{member.department || '—'}</span>
+                          </td>
+
+                          <td className="px-4 py-3.5" style={{ borderRight: `1px solid ${TL}` }}>
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${sCfg.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sCfg.dot}`} />{member.status || 'Unknown'}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3.5" style={{ borderRight: `1px solid ${TL}` }}>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[12px] font-bold text-gray-700">{tasks.length}</span>
+                              {tasks.length > 0 && (
+                                <>
+                                  <span className="text-[10px] text-teal-500 font-semibold whitespace-nowrap">{done}✓</span>
+                                  {pend > 0 && <span className="text-[10px] text-amber-500 font-semibold whitespace-nowrap">{pend}⏳</span>}
+                                </>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-3.5 text-center">
+                            <ChevronRight size={15} className="text-gray-300" />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 

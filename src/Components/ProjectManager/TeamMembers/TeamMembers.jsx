@@ -2,7 +2,7 @@
 //  TeamMembers.jsx
 //  Add Member flow:
 //    Step 1 → Basic info (required)
-//    Step 2 → "Add details now?" YES → tabs  |  NO → save immediately
+//    Step 2 → Details tabs (Personal / Work / Bank) with Skip on each
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
@@ -14,7 +14,7 @@ import { db } from '../../firebase';
 import {
   Trash2, Search, Plus, Eye, AlertCircle,
   CheckCircle2, Circle, ChevronDown, ChevronUp,
-  Info, Clock, ArrowRight, Zap
+  Info, ArrowRight, SkipForward
 } from 'lucide-react';
 
 const TL  = 'rgba(51,51,51,0.20)';
@@ -65,8 +65,8 @@ const emptyMember = () => ({
   department: '', employeeId: '', joiningDate: '', employmentType: 'Full-Time',
   workLocation: '', manager: '', salary: '',
   bankName: '', accountNumber: '', accountTitle: '', iban: '',
-  branchCode: '', branchName: '', paymentMethod: 'Bank Transfer',
-  allowances: '', payCycle: 'Monthly', ntn: '',
+  paymentMethod: 'Bank Transfer',
+  payCycle: 'Monthly',
 });
 const getCompletion = (m) => {
   const fields = [
@@ -183,18 +183,17 @@ const Field = ({ label, required, children }) => (
 const Row = ({ children }) => <div className="grid grid-cols-2 gap-3">{children}</div>;
 
 // ─── ADD MEMBER MODAL ─────────────────────────────────────────────────────────
-// step: 'basic' | 'choice' | 'details'
+// step: 'basic' | 'details'
 // detailTab: 'personal' | 'work' | 'bank'
 const DETAIL_TABS = [
-  { key: 'personal', label: ' Personal' },
-  { key: 'work',     label: ' Work'     },
-  { key: 'bank',     label: ' Bank'     },
+  { key: 'personal', label: 'Personal' },
+  { key: 'work',     label: 'Work'     },
+  { key: 'bank',     label: 'Bank'     },
 ];
 
 const AddMemberModal = ({ data, onChange, onSave, onClose }) => {
-  const [step,      setStep]      = useState('basic');   // basic | choice | details
+  const [step,      setStep]      = useState('basic');
   const [detailTab, setDetailTab] = useState('personal');
-  const basicRef = useRef(null);
 
   const inp    = (f, t='text', ph='') => <input type={t} value={data[f]||''} onChange={e=>onChange(f,e.target.value)} placeholder={ph} className={mIopt} style={{border:`1px solid ${TL}`}} />;
   const inpReq = (f, t='text', ph='') => <input required type={t} value={data[f]||''} onChange={e=>onChange(f,e.target.value)} placeholder={ph} className={mI} style={{border:`1px solid ${TL}`}} />;
@@ -205,11 +204,20 @@ const AddMemberModal = ({ data, onChange, onSave, onClose }) => {
     </select>
   );
 
-  const detailIdx = DETAIL_TABS.findIndex(t=>t.key===detailTab);
+  const detailIdx  = DETAIL_TABS.findIndex(t => t.key === detailTab);
+  const isLastTab  = detailIdx === DETAIL_TABS.length - 1;
 
-  // Step indicator dots
-  const steps = ['basic','choice','details'];
-  const stepIdx = steps.indexOf(step);
+  const handleSkip = () => {
+    if (isLastTab) {
+      onSave(data);
+    } else {
+      setDetailTab(DETAIL_TABS[detailIdx + 1].key);
+    }
+  };
+
+  // Step indicator
+  const steps    = ['basic', 'details'];
+  const stepIdx  = steps.indexOf(step);
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
@@ -220,9 +228,8 @@ const AddMemberModal = ({ data, onChange, onSave, onClose }) => {
           <div>
             <h3 className="text-base font-bold text-gray-900">Add New Member</h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              {step==='basic'   && 'Enter basic information'}
-              {step==='choice'  && 'Would you like to add more details now?'}
-              {step==='details' && 'Fill optional details (can be skipped)'}
+              {step === 'basic'   && 'Enter required basic information'}
+              {step === 'details' && 'Optional details — skip anytime'}
             </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 text-xl flex-shrink-0">×</button>
@@ -230,7 +237,7 @@ const AddMemberModal = ({ data, onChange, onSave, onClose }) => {
 
         {/* Progress steps */}
         <div className="flex items-center gap-0 px-6 pt-4 pb-2 flex-shrink-0">
-          {['Basic Info', 'Choose', 'Details'].map((label, i) => (
+          {['Basic Info', 'Details'].map((label, i) => (
             <React.Fragment key={label}>
               <div className="flex items-center gap-1.5">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-all
@@ -239,14 +246,14 @@ const AddMemberModal = ({ data, onChange, onSave, onClose }) => {
                 </div>
                 <span className={`text-[11px] font-semibold hidden sm:block ${i === stepIdx ? 'text-teal-600' : i < stepIdx ? 'text-teal-400' : 'text-gray-300'}`}>{label}</span>
               </div>
-              {i < 2 && <div className={`flex-1 h-0.5 mx-2 rounded-full transition-all ${i < stepIdx ? 'bg-teal-400' : 'bg-gray-100'}`} />}
+              {i < 1 && <div className={`flex-1 h-0.5 mx-2 rounded-full transition-all ${i < stepIdx ? 'bg-teal-400' : 'bg-gray-100'}`} />}
             </React.Fragment>
           ))}
         </div>
 
         {/* ── STEP 1: BASIC ── */}
         {step === 'basic' && (
-          <form ref={basicRef} onSubmit={e => { e.preventDefault(); setStep('choice'); }}
+          <form onSubmit={e => { e.preventDefault(); setStep('details'); }}
             className="flex flex-col flex-1 min-h-0">
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4" style={{scrollbarWidth:'thin'}}>
               <Field label="Full Name" required>
@@ -275,67 +282,7 @@ const AddMemberModal = ({ data, onChange, onSave, onClose }) => {
           </form>
         )}
 
-        {/* ── STEP 2: NOW / LATER CHOICE ── */}
-        {step === 'choice' && (
-          <div className="flex flex-col flex-1 min-h-0">
-            <div className="px-6 py-6 space-y-4 flex-1">
-
-              {/* Member preview */}
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-teal-50 border border-teal-100">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-base font-bold flex-shrink-0">
-                  {generateAvatar(data.name)}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-gray-900 truncate">{data.name}</p>
-                  <p className="text-xs text-gray-500 truncate">{data.role} · {data.email}</p>
-                </div>
-                <span className={`ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${statusCfg[data.status]?.badge}`}>
-                  <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${statusCfg[data.status]?.dot}`}/>
-                  {data.status}
-                </span>
-              </div>
-
-              <p className="text-sm font-semibold text-gray-700 text-center">
-                Member added ✓ — Do you want to fill additional details now?
-              </p>
-
-              {/* NOW option */}
-              <button onClick={() => setStep('details')}
-                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-teal-400 bg-teal-50 hover:bg-teal-100 transition-all group">
-                <div className="w-10 h-10 rounded-xl bg-teal-500 flex items-center justify-center flex-shrink-0 group-hover:bg-teal-600 transition-colors">
-                  <Zap size={18} className="text-white"/>
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-bold text-teal-700">Add Details Now</p>
-                  <p className="text-xs text-teal-500 mt-0.5">Fill Personal, Work & Bank info immediately</p>
-                </div>
-                <ArrowRight size={16} className="ml-auto text-teal-400 group-hover:text-teal-600 transition-colors"/>
-              </button>
-
-              {/* LATER option */}
-              <button onClick={() => onSave(data)}
-                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-all group">
-                <div className="w-10 h-10 rounded-xl bg-gray-200 flex items-center justify-center flex-shrink-0 group-hover:bg-gray-300 transition-colors">
-                  <Clock size={18} className="text-gray-500"/>
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-bold text-gray-700">Do It Later</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Save with basic info only, complete profile later via Edit</p>
-                </div>
-                <CheckCircle2 size={16} className="ml-auto text-gray-300 group-hover:text-gray-500 transition-colors"/>
-              </button>
-            </div>
-
-            <div className="px-6 pb-4 flex-shrink-0">
-              <button onClick={() => setStep('basic')}
-                className="w-full py-2.5 rounded-xl text-xs font-semibold text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
-                ← Back to Basic Info
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── STEP 3: DETAILS (Personal / Work / Bank) ── */}
+        {/* ── STEP 2: DETAILS TABS ── */}
         {step === 'details' && (
           <div className="flex flex-col flex-1 min-h-0">
 
@@ -356,7 +303,7 @@ const AddMemberModal = ({ data, onChange, onSave, onClose }) => {
             <div className="mx-6 mt-4 flex-shrink-0">
               <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
                 <Info size={13} className="text-blue-400 flex-shrink-0"/>
-                <p className="text-[11px] text-blue-600">All fields are optional — fill what's available now.</p>
+                <p className="text-[11px] text-blue-600">All fields are optional — fill what's available or skip.</p>
               </div>
             </div>
 
@@ -383,7 +330,7 @@ const AddMemberModal = ({ data, onChange, onSave, onClose }) => {
                   </Row>
                   <Row>
                     <Field label="Joining Date">{inp('joiningDate','date')}</Field>
-                    <Field label="Employment Type">{inp('employmentType')}</Field>
+                    <Field label="Employment Type">{sel('employmentType',EMPLOYMENT_TYPES)}</Field>
                   </Row>
                   <Row>
                     <Field label="Work Location">{inp('workLocation','text','Office / Remote')}</Field>
@@ -393,32 +340,23 @@ const AddMemberModal = ({ data, onChange, onSave, onClose }) => {
                 </>
               )}
 
-              {/* Bank */}
+              {/* Bank — simplified fields only */}
               {detailTab === 'bank' && (
                 <>
                   <Row>
                     <Field label="Bank Name">{inp('bankName','text','e.g. HBL, MCB')}</Field>
-                    <Field label="Payment Method">{inp('paymentMethod')}</Field>
+                    <Field label="Payment Method">{sel('paymentMethod',PAYMENT_METHODS)}</Field>
                   </Row>
-                  <Field label="Account Title">{inp('accountTitle','text','Full name on account')}</Field>
+                  <Field label="Account Holder Name">{inp('accountTitle','text','Full name on account')}</Field>
                   <Field label="Account Number">{inp('accountNumber','text','0000000000000000')}</Field>
                   <Field label="IBAN">{inp('iban','text','PK00XXXX0000000000000000')}</Field>
-                  <Row>
-                    <Field label="Branch Code">{inp('branchCode','text','0000')}</Field>
-                    <Field label="Branch Name">{inp('branchName','text','e.g. Gulberg')}</Field>
-                  </Row>
-                  <Row>
-                    <Field label="Allowances (PKR)">{inp('allowances','number','0')}</Field>
-                    <Field label="Pay Cycle">{inp('payCycle')}</Field>
-                  </Row>
-                  <Field label="Tax ID / NTN">{inp('ntn','text','NTN or Tax number')}</Field>
                 </>
               )}
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 flex-shrink-0 space-y-2" style={{borderTop:`1px solid ${TL}`}}>
-              {/* Tab dots + prev/next */}
+            <div className="px-6 py-4 flex-shrink-0 space-y-2.5" style={{borderTop:`1px solid ${TL}`}}>
+              {/* Tab nav dots */}
               <div className="flex items-center gap-2">
                 {detailIdx > 0 && (
                   <button type="button" onClick={() => setDetailTab(DETAIL_TABS[detailIdx-1].key)}
@@ -432,21 +370,31 @@ const AddMemberModal = ({ data, onChange, onSave, onClose }) => {
                       className={`rounded-full transition-all ${detailTab===t.key?'w-5 h-2 bg-teal-500':'w-2 h-2 bg-gray-200 hover:bg-gray-300'}`}/>
                   ))}
                 </div>
-                {detailIdx < DETAIL_TABS.length - 1 && (
+                {!isLastTab && (
                   <button type="button" onClick={() => setDetailTab(DETAIL_TABS[detailIdx+1].key)}
                     className="px-4 py-2 rounded-xl text-xs font-semibold text-teal-600 bg-teal-50 border border-teal-200 hover:bg-teal-100 flex-shrink-0">
                     Next →
                   </button>
                 )}
               </div>
-              {/* Save */}
-              <button onClick={() => onSave(data)}
-                className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 shadow">
-                Save Member ✓
-              </button>
-              <button onClick={() => setStep('choice')}
+
+              {/* Save + Skip */}
+              <div className="flex gap-2.5">
+                <button type="button" onClick={handleSkip}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-500 bg-[#EEF2F7] hover:bg-gray-200 flex items-center justify-center gap-1.5 transition-colors"
+                  style={{border:`1px solid ${TL}`}}>
+                  <SkipForward size={14}/>
+                  {isLastTab ? 'Skip & Save' : 'Skip'}
+                </button>
+                <button type="button" onClick={() => onSave(data)}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 shadow">
+                  Save Member ✓
+                </button>
+              </div>
+
+              <button onClick={() => setStep('basic')}
                 className="w-full py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
-                ← Back
+                ← Back to Basic Info
               </button>
             </div>
           </div>
@@ -572,18 +520,9 @@ const EditMemberModal = ({ memberName, data, onChange, onSubmit, onClose, onDele
                   <Field label="Bank Name">{inp('bankName','text','e.g. HBL, MCB')}</Field>
                   <Field label="Payment Method">{sel('paymentMethod',PAYMENT_METHODS)}</Field>
                 </Row>
-                <Field label="Account Title">{inp('accountTitle','text','Full name on account')}</Field>
+                <Field label="Account Holder Name">{inp('accountTitle','text','Full name on account')}</Field>
                 <Field label="Account Number">{inp('accountNumber','text','0000000000000000')}</Field>
                 <Field label="IBAN">{inp('iban','text','PK00XXXX0000000000000000')}</Field>
-                <Row>
-                  <Field label="Branch Code">{inp('branchCode','text','0000')}</Field>
-                  <Field label="Branch Name">{inp('branchName','text','e.g. Gulberg')}</Field>
-                </Row>
-                <Row>
-                  <Field label="Allowances (PKR)">{inp('allowances','number','0')}</Field>
-                  <Field label="Pay Cycle">{sel('payCycle',['Monthly','Bi-Monthly','Weekly'])}</Field>
-                </Row>
-                <Field label="Tax ID / NTN">{inp('ntn','text','NTN or Tax number')}</Field>
               </>
             )}
           </div>
@@ -688,7 +627,6 @@ const TeamMembers = () => {
   const handleDrop      = (e,idx)=>{ e.preventDefault(); setDragOverIdx(null); dragItem.current=null; dragOverItem.current=null; };
   const handleDragEnd   = e=>{ if(e.target)e.target.style.opacity='1'; dragItem.current=null; dragOverItem.current=null; setDragOverIdx(null); };
 
-  // Save new member (called from AddMemberModal whether Now or Later)
   const handleSaveMember = async (data) => {
     try {
       await addDoc(collection(db,'teamMembers'), {
@@ -698,9 +636,8 @@ const TeamMembers = () => {
         employmentType:data.employmentType||'Full-Time', workLocation:data.workLocation||'',
         manager:data.manager||'', salary:data.salary?Number(data.salary):'',
         bankName:data.bankName||'', accountNumber:data.accountNumber||'', accountTitle:data.accountTitle||'',
-        iban:data.iban||'', branchCode:data.branchCode||'', branchName:data.branchName||'',
-        paymentMethod:data.paymentMethod||'Bank Transfer', allowances:data.allowances?Number(data.allowances):'',
-        payCycle:data.payCycle||'Monthly', ntn:data.ntn||'',
+        iban:data.iban||'', paymentMethod:data.paymentMethod||'Bank Transfer',
+        payCycle:data.payCycle||'Monthly',
         projects:0, avatar:generateAvatar(data.name), joinDate:getCurrentMonthYear(),
         tasks:[], createdAt:serverTimestamp(),
       });
@@ -720,9 +657,8 @@ const TeamMembers = () => {
         employmentType:d.employmentType||'Full-Time', workLocation:d.workLocation||'',
         manager:d.manager||'', salary:d.salary?Number(d.salary):'',
         bankName:d.bankName||'', accountNumber:d.accountNumber||'', accountTitle:d.accountTitle||'',
-        iban:d.iban||'', branchCode:d.branchCode||'', branchName:d.branchName||'',
-        paymentMethod:d.paymentMethod||'Bank Transfer', allowances:d.allowances?Number(d.allowances):'',
-        payCycle:d.payCycle||'Monthly', ntn:d.ntn||'',
+        iban:d.iban||'', paymentMethod:d.paymentMethod||'Bank Transfer',
+        payCycle:d.payCycle||'Monthly',
         avatar:generateAvatar(d.name),
       });
       setShowEditModal(false);
@@ -778,8 +714,7 @@ const TeamMembers = () => {
       department:m.department||'', employeeId:m.employeeId||'', joiningDate:m.joiningDate||'',
       employmentType:m.employmentType||'Full-Time', workLocation:m.workLocation||'', manager:m.manager||'', salary:m.salary||'',
       bankName:m.bankName||'', accountNumber:m.accountNumber||'', accountTitle:m.accountTitle||'',
-      iban:m.iban||'', branchCode:m.branchCode||'', branchName:m.branchName||'',
-      paymentMethod:m.paymentMethod||'Bank Transfer', allowances:m.allowances||'', payCycle:m.payCycle||'Monthly', ntn:m.ntn||'',
+      iban:m.iban||'', paymentMethod:m.paymentMethod||'Bank Transfer', payCycle:m.payCycle||'Monthly',
     });
     setShowEditModal(true);
   };
@@ -1005,7 +940,6 @@ const TeamMembers = () => {
               <button onClick={()=>{setShowDrawer(false);setShowAddTask(false);}} className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all text-xl">×</button>
             </div>
 
-            {/* Completion banner */}
             {(()=>{
               const comp=getCompletion(selected);
               if(comp===100) return null;
@@ -1037,14 +971,12 @@ const TeamMembers = () => {
                   ))}
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                {selected.department&&<span className="text-[11px] px-2.5 py-1 rounded-full bg-violet-50 text-violet-600 border border-violet-100 font-medium"> {selected.department}</span>}
-                {selected.workLocation&&<span className="text-[11px] px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100 font-medium"> {selected.workLocation}</span>}
-                {selected.employmentType&&<span className="text-[11px] px-2.5 py-1 rounded-full bg-teal-50 text-teal-600 border border-teal-100 font-medium"> {selected.employmentType}</span>}
-                {selected.salary&&<span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 font-medium"> PKR {selected.salary}</span>}
-                {selected.joiningDate&&<span className="text-[11px] px-2.5 py-1 rounded-full bg-gray-50 text-gray-500 border border-gray-100 font-medium"> {selected.joiningDate}</span>}
-                {selected.bankName&&<span className="text-[11px] px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100 font-medium">
-                  
-                   {selected.bankName}</span>}
+                {selected.department&&<span className="text-[11px] px-2.5 py-1 rounded-full bg-violet-50 text-violet-600 border border-violet-100 font-medium">{selected.department}</span>}
+                {selected.workLocation&&<span className="text-[11px] px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100 font-medium">{selected.workLocation}</span>}
+                {selected.employmentType&&<span className="text-[11px] px-2.5 py-1 rounded-full bg-teal-50 text-teal-600 border border-teal-100 font-medium">{selected.employmentType}</span>}
+                {selected.salary&&<span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 font-medium">PKR {selected.salary}</span>}
+                {selected.joiningDate&&<span className="text-[11px] px-2.5 py-1 rounded-full bg-gray-50 text-gray-500 border border-gray-100 font-medium">{selected.joiningDate}</span>}
+                {selected.bankName&&<span className="text-[11px] px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-100 font-medium">{selected.bankName}</span>}
               </div>
             </div>
 
