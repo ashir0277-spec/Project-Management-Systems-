@@ -1,30 +1,44 @@
-// Dashboard.jsx – Light/White theme with functional search
-import React, { useState, useEffect } from 'react';
+// Dashboard.jsx – Light/White theme with functional search + Calendar
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useOutletContext } from 'react-router-dom';
 import {
   FolderOpen, Users, CheckCircle2,
-  Clock, BarChart2, AlertTriangle, CalendarClock, Search
+  Clock, BarChart2, AlertTriangle, CalendarClock, Search,
+  ChevronLeft, ChevronRight, Calendar, X, ChevronDown, AlertCircle
 } from 'lucide-react';
 
 const TL  = 'rgba(51,51,51,0.12)';
 const TLB = 'rgba(51,51,51,0.18)';
 
 const statusColors = {
-  'In Progress': { text: 'text-blue-600',    dot: 'bg-blue-500'    },
-  'Planning':    { text: 'text-slate-500',   dot: 'bg-slate-400'   },
-  'Review':      { text: 'text-violet-600',  dot: 'bg-violet-500'  },
-  'Completed':   { text: 'text-teal-600',    dot: 'bg-teal-500'    },
-  'Overdue':     { text: 'text-red-600',     dot: 'bg-red-500'     },
+  'In Progress': { text: 'text-blue-600',    dot: 'bg-blue-500',    bg: 'bg-blue-50',    border: 'border-blue-200'    },
+  'Planning':    { text: 'text-slate-500',   dot: 'bg-slate-400',   bg: 'bg-slate-50',   border: 'border-slate-200'   },
+  'Review':      { text: 'text-violet-600',  dot: 'bg-violet-500',  bg: 'bg-violet-50',  border: 'border-violet-200'  },
+  'Completed':   { text: 'text-teal-600',    dot: 'bg-teal-500',    bg: 'bg-teal-50',    border: 'border-teal-200'    },
+  'Overdue':     { text: 'text-red-600',     dot: 'bg-red-500',     bg: 'bg-red-50',     border: 'border-red-200'     },
+  'Done':        { text: 'text-teal-600',    dot: 'bg-teal-500',    bg: 'bg-teal-50',    border: 'border-teal-200'    },
+  'Pending':     { text: 'text-gray-500',    dot: 'bg-gray-400',    bg: 'bg-gray-50',    border: 'border-gray-200'    },
 };
 
 const priorityColors = {
-  High:     { text: 'text-red-600',     dot: 'bg-red-500'     },
-  Medium:   { text: 'text-amber-600',   dot: 'bg-amber-500'   },
-  Low:      { text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  Critical: { text: 'text-red-600',     dot: 'bg-red-500'     },
+  High:     { text: 'text-red-600',     dot: 'bg-red-500',     bg: 'bg-red-50',     border: 'border-red-200'     },
+  Medium:   { text: 'text-amber-600',   dot: 'bg-amber-500',   bg: 'bg-amber-50',   border: 'border-amber-200'   },
+  Low:      { text: 'text-emerald-600', dot: 'bg-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+  Critical: { text: 'text-red-600',     dot: 'bg-red-500',     bg: 'bg-red-50',     border: 'border-red-200'     },
 };
+
+const DAYS   = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+const toYMD = (d) => {
+  const dt = d instanceof Date ? d : new Date(d);
+  if (isNaN(dt)) return '';
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+};
+const todayYMD = toYMD(new Date());
 
 const daysUntil = (dateStr) => {
   if (!dateStr) return null;
@@ -173,12 +187,220 @@ const UpcomingDeadlinesCard = ({ members }) => {
   );
 };
 
+// ── Calendar Dropdown (portal) ─────────────────────────────────────────────
+const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, onSelectDate, onClose }) => {
+  const dropRef = useRef(null);
+  const today   = new Date();
+  const [viewYear,       setViewYear]       = useState(() => selectedDate ? parseInt(selectedDate.slice(0,4)) : today.getFullYear());
+  const [viewMonth,      setViewMonth]      = useState(() => selectedDate ? parseInt(selectedDate.slice(5,7))-1 : today.getMonth());
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [pos,            setPos]            = useState({ top: 0, left: 0 });
+
+  const yearRange = Array.from({ length: 11 }, (_, i) => today.getFullYear() - 5 + i);
+
+  // Position dropdown below anchor
+  useEffect(() => {
+    if (!anchorRef.current) return;
+    const rect = anchorRef.current.getBoundingClientRect();
+    const dropW = 320;
+    let left = rect.right - dropW;
+    if (left < 8) left = 8;
+    setPos({ top: rect.bottom + 6, left });
+  }, [anchorRef]);
+
+  // Close on outside click / scroll
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (dropRef.current && !dropRef.current.contains(e.target) &&
+          anchorRef.current && !anchorRef.current.contains(e.target)) onClose();
+    };
+    const handleScroll = (e) => {
+      if (dropRef.current && dropRef.current.contains(e.target)) return;
+      onClose();
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('scroll', handleScroll, true);
+    return () => { document.removeEventListener('mousedown', handleClick); document.removeEventListener('scroll', handleScroll, true); };
+  }, [anchorRef, onClose]);
+
+  const activeDates = useMemo(() => {
+    const set = new Set();
+    members.forEach(m => (m.tasks||[]).forEach(t => { if (t.dueDate) set.add(toYMD(t.dueDate)); }));
+    projects.forEach(p => { if (p.deadline) set.add(toYMD(p.deadline)); if (p.startDate) set.add(toYMD(p.startDate)); });
+    return set;
+  }, [members, projects]);
+
+  const overdueDates = useMemo(() => {
+    const set = new Set();
+    members.forEach(m => (m.tasks||[]).forEach(t => {
+      if (t.dueDate && t.status !== 'Done' && toYMD(t.dueDate) < todayYMD) set.add(toYMD(t.dueDate));
+    }));
+    return set;
+  }, [members]);
+
+  const prevMonth = () => { if (viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else setViewMonth(m=>m-1); };
+  const nextMonth = () => { if (viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else setViewMonth(m=>m+1); };
+  const goToday   = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); onSelectDate(todayYMD); setShowYearPicker(false); };
+
+  const firstDay    = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+  const daysInPrev  = new Date(viewYear, viewMonth, 0).getDate();
+  const cells = [];
+  for (let i=firstDay-1;i>=0;i--)          cells.push({day:daysInPrev-i, month:'prev', ymd:toYMD(new Date(viewYear,viewMonth-1,daysInPrev-i))});
+  for (let d=1;d<=daysInMonth;d++)          cells.push({day:d,            month:'cur',  ymd:toYMD(new Date(viewYear,viewMonth,d))});
+  for (let d=1;d<=42-cells.length;d++)      cells.push({day:d,            month:'next', ymd:toYMD(new Date(viewYear,viewMonth+1,d))});
+  const weeks = Array.from({length:6},(_,i)=>cells.slice(i*7,i*7+7));
+
+  const yday = toYMD(new Date(Date.now()-86400000));
+  const tmrw = toYMD(new Date(Date.now()+86400000));
+  const quickFilters = [{label:'Yesterday',ymd:yday},{label:'Today',ymd:todayYMD},{label:'Tomorrow',ymd:tmrw}];
+
+  const selectedLabel = !selectedDate ? null :
+    selectedDate===todayYMD?'Today':selectedDate===yday?'Yesterday':selectedDate===tmrw?'Tomorrow':
+    (()=>{const d=new Date(selectedDate+'T00:00:00');return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;})();
+
+  return ReactDOM.createPortal(
+    <div ref={dropRef}
+      style={{
+        position: 'fixed', top: pos.top, left: pos.left, width: 320, zIndex: 9999,
+        background: '#fff', borderRadius: 18, border: `1px solid ${TL}`,
+        boxShadow: '0 16px 48px rgba(0,0,0,0.16)', overflow: 'hidden',
+      }}>
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3" style={{borderBottom:`1px solid ${TL}`}}>
+        <div className="flex items-center gap-2">
+          <Calendar size={14} className="text-teal-500"/>
+          <span className="text-[13px] font-bold text-gray-800">Filter by Date</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={goToday}
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-lg text-teal-600 bg-teal-50 hover:bg-teal-100 border border-teal-200 transition-colors">
+            Today
+          </button>
+          {selectedDate && (
+            <button onClick={()=>{onSelectDate(null);}} className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+              <X size={12}/>
+            </button>
+          )}
+          <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors ml-0.5">
+            <X size={12}/>
+          </button>
+        </div>
+      </div>
+
+      {/* Month + Year nav */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-1">
+        <button onClick={prevMonth} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+          <ChevronLeft size={14}/>
+        </button>
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm font-bold text-gray-800">{MONTHS[viewMonth].slice(0,3)}</span>
+          <div className="relative">
+            <button onClick={()=>setShowYearPicker(v=>!v)}
+              className={`flex items-center gap-0.5 px-2 py-0.5 rounded-lg text-sm font-bold border transition-all
+                ${showYearPicker?'bg-teal-500 text-white border-teal-500':'text-teal-600 bg-teal-50 hover:bg-teal-100 border-teal-200'}`}>
+              {viewYear}
+              <ChevronDown size={10} style={{transform:showYearPicker?'rotate(180deg)':'rotate(0)',transition:'transform .2s'}}/>
+            </button>
+            {showYearPicker && (
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-white rounded-xl shadow-xl overflow-hidden"
+                style={{border:`1px solid ${TL}`,width:130}}>
+                <div className="p-1 max-h-40 overflow-y-auto" style={{scrollbarWidth:'thin'}}>
+                  {yearRange.map(yr=>(
+                    <button key={yr} onClick={()=>{setViewYear(yr);setShowYearPicker(false);}}
+                      className={`w-full py-1.5 rounded-lg text-[12px] font-semibold transition-colors
+                        ${yr===viewYear?'bg-teal-500 text-white':yr===today.getFullYear()?'text-teal-600 bg-teal-50':'text-gray-700 hover:bg-gray-50'}`}>
+                      {yr}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        <button onClick={nextMonth} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+          <ChevronRight size={14}/>
+        </button>
+      </div>
+
+      {/* Day headers */}
+      <div className="grid grid-cols-7 px-3 pb-1">
+        {DAYS.map(d=>(
+          <div key={d} className="text-center text-[9px] font-bold text-gray-400 uppercase tracking-wider py-0.5">{d}</div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div className="px-2.5 pb-2 space-y-0.5">
+        {weeks.map((week,wi)=>(
+          <div key={wi} className="grid grid-cols-7 gap-0.5">
+            {week.map(cell=>{
+              const isTod=cell.ymd===todayYMD, isSel=cell.ymd===selectedDate, isCur=cell.month==='cur';
+              const hasAct=activeDates.has(cell.ymd), hasOvr=overdueDates.has(cell.ymd);
+              return (
+                <button key={cell.ymd}
+                  onClick={()=>{onSelectDate(isSel?null:cell.ymd);setShowYearPicker(false);}}
+                  className="relative flex flex-col items-center justify-center rounded-xl transition-all group"
+                  style={{
+                    height:32,
+                    background:isSel?'linear-gradient(135deg,#14b8a6,#06b6d4)':isTod&&!isSel?'rgba(20,184,166,0.08)':undefined,
+                    border:isTod&&!isSel?'1.5px solid rgba(20,184,166,0.3)':'1.5px solid transparent',
+                  }}>
+                  <span className={`text-[11px] font-semibold leading-none
+                    ${isSel?'text-white':isTod?'text-teal-600':!isCur?'text-gray-300':'text-gray-700 group-hover:text-gray-900'}`}>
+                    {cell.day}
+                  </span>
+                  {hasAct&&!isSel&&<span className={`absolute bottom-[2px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${hasOvr?'bg-red-400':'bg-teal-400'}`}/>}
+                  {hasAct&&isSel&&<span className="absolute bottom-[2px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white/70"/>}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Quick filters */}
+      <div className="px-3 pb-3 pt-2" style={{borderTop:`1px solid ${TL}`}}>
+        <div className="flex gap-1.5">
+          {quickFilters.map(f=>(
+            <button key={f.label}
+              onClick={()=>onSelectDate(selectedDate===f.ymd?null:f.ymd)}
+              className={`flex-1 py-1.5 rounded-xl text-[11px] font-semibold border transition-all
+                ${selectedDate===f.ymd?'bg-teal-500 text-white border-teal-500':'text-gray-600 bg-gray-50 border-gray-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50'}`}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Selected indicator */}
+      {selectedDate && (
+        <div className="px-3 pb-3 -mt-1">
+          <div className="rounded-xl px-3 py-1.5 flex items-center gap-2"
+            style={{background:'rgba(20,184,166,0.06)',border:'1px solid rgba(20,184,166,0.2)'}}>
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0"/>
+            <span className="text-[11px] font-semibold text-teal-700 truncate">Showing: {selectedLabel}</span>
+          </div>
+        </div>
+      )}
+    </div>,
+    document.body
+  );
+};
+
+
+
+
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { searchQuery = '' } = useOutletContext();
-  const [projects, setProjects] = useState([]);
-  const [members,  setMembers]  = useState([]);
-  const [loading,  setLoading]  = useState(true);
+  const [projects,     setProjects]     = useState([]);
+  const [members,      setMembers]      = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [selectedDate, setSelectedDate] = useState(todayYMD);
+  const [showCalDrop,  setShowCalDrop]  = useState(false);
+  const calBtnRef = useRef(null);
 
   useEffect(() => {
     let loaded = 0;
@@ -195,9 +417,24 @@ const Dashboard = () => {
   const pendingTasks   = allTasks.filter(t => t.status === 'Pending').length;
   const inProgTasks    = allTasks.filter(t => t.status === 'In Progress').length;
 
-  // ── Search filter ────────────────────────────────────────────────────────
+  // Today's deadlines
+  const todayDeadlines = useMemo(() =>
+    projects.filter(p => toYMD(p.deadline) === todayYMD),
+  [projects]);
+
+  // ── Search query ──────────────────────────────────────────────────────────
   const q = searchQuery.toLowerCase().trim();
 
+  // ── Date label for header badge ───────────────────────────────────────────
+  const yesterday = toYMD(new Date(Date.now() - 86400000));
+  const tomorrow  = toYMD(new Date(Date.now() + 86400000));
+  const dateBadgeLabel = !selectedDate ? null :
+    selectedDate === todayYMD  ? 'Today' :
+    selectedDate === yesterday ? 'Yesterday' :
+    selectedDate === tomorrow  ? 'Tomorrow' :
+    (() => { const d = new Date(selectedDate+'T00:00:00'); return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)} ${d.getFullYear()}`; })();
+
+  // ── Filtered by search ────────────────────────────────────────────────────
   const filteredProjects = q
     ? projects.filter(p =>
         p.name?.toLowerCase().includes(q) ||
@@ -205,7 +442,10 @@ const Dashboard = () => {
         p.priority?.toLowerCase().includes(q) ||
         p.description?.toLowerCase().includes(q)
       )
-    : [...projects].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5);
+    : selectedDate
+      // Calendar date filter: projects whose deadline OR startDate matches
+      ? projects.filter(p => toYMD(p.deadline) === selectedDate || toYMD(p.startDate) === selectedDate)
+      : [...projects].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5);
 
   const filteredTasks = q
     ? members.flatMap(m =>
@@ -218,12 +458,19 @@ const Dashboard = () => {
           )
           .map(t => ({ ...t, memberName: m.name, memberId: m.id }))
       )
-    : members
-        .flatMap(m => (m.tasks || []).map(t => ({ ...t, memberName: m.name, memberId: m.id })))
-        .filter(t => t.status !== 'Done')
-        .slice(0, 5);
+    : selectedDate
+      // Calendar date filter: tasks whose dueDate matches selected date
+      ? members.flatMap(m =>
+          (m.tasks || [])
+            .filter(t => toYMD(t.dueDate) === selectedDate)
+            .map(t => ({ ...t, memberName: m.name, memberId: m.id }))
+        )
+      : members
+          .flatMap(m => (m.tasks || []).map(t => ({ ...t, memberName: m.name, memberId: m.id })))
+          .filter(t => t.status !== 'Done')
+          .slice(0, 5);
 
-  const hasResults = filteredProjects.length > 0 || filteredTasks.length > 0;
+  const hasResults  = filteredProjects.length > 0 || filteredTasks.length > 0;
   const isSearching = q.length > 0;
 
   if (loading) return (
@@ -237,30 +484,22 @@ const Dashboard = () => {
     return (
       <div className="min-h-screen bg-[#EEF2F7]">
         <div className="p-6 max-w-[1600px] mx-auto space-y-6">
-
-          {/* Search header */}
           <div className="flex items-center gap-3">
             <Search size={18} className="text-teal-500" />
             <p className="text-sm text-gray-500">
               Results for <span className="font-semibold text-gray-800">"{searchQuery}"</span>
             </p>
-            <span className="text-xs text-gray-400">
-              {filteredProjects.length + filteredTasks.length} found
-            </span>
+            <span className="text-xs text-gray-400">{filteredProjects.length + filteredTasks.length} found</span>
           </div>
 
-          {/* No Results */}
           {!hasResults && (
             <div className="bg-white rounded-2xl shadow-sm p-16 text-center" style={{ border: `1px solid ${TL}` }}>
               <div className="text-5xl mb-4">🔍</div>
               <p className="text-lg font-semibold text-gray-700 mb-2">No results found</p>
-              <p className="text-sm text-gray-400">
-                Nothing matched "<span className="font-medium">{searchQuery}</span>". Try a different keyword.
-              </p>
+              <p className="text-sm text-gray-400">Nothing matched "<span className="font-medium">{searchQuery}</span>". Try a different keyword.</p>
             </div>
           )}
 
-          {/* Matching Projects */}
           {filteredProjects.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
               <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
@@ -271,15 +510,13 @@ const Dashboard = () => {
               <div className="overflow-x-auto w-full" style={{ scrollbarWidth: 'none' }}>
                 <table className="w-full min-w-[600px]">
                   <colgroup>
-                    <col style={{ width: '22%' }} />
-                    <col style={{ width: '18%' }} />
-                    <col style={{ width: '15%' }} />
-                    <col style={{ width: '30%' }} />
+                    <col style={{ width: '22%' }} /><col style={{ width: '18%' }} />
+                    <col style={{ width: '15%' }} /><col style={{ width: '30%' }} />
                     <col style={{ width: '15%' }} />
                   </colgroup>
                   <thead>
                     <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
-                      {['Project Name', 'Status', 'Priority', 'Description', 'Deadline'].map((h, i) => (
+                      {['Project Name','Status','Priority','Description','Deadline'].map((h,i) => (
                         <th key={h} className="py-2.5 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-left"
                           style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>{h}</th>
                       ))}
@@ -290,27 +527,16 @@ const Dashboard = () => {
                       const sCfg = statusColors[p.status]     || statusColors['Planning'];
                       const pCfg = priorityColors[p.priority] || priorityColors.Medium;
                       return (
-                        <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
-                          style={{ borderBottom: `1px solid ${TL}` }}>
+                        <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} style={{ borderBottom: `1px solid ${TL}` }}>
+                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><p className="text-[13px] font-semibold text-gray-900 truncate">{p.name}</p></td>
                           <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-                            <p className="text-[13px] font-semibold text-gray-900 truncate">{p.name}</p>
-                          </td>
-                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${sCfg.text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`} />{p.status}
-                            </span>
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${sCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`}/>{p.status}</span>
                           </td>
                           <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-                            <span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${pCfg.text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`} />{p.priority}
-                            </span>
+                            <span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${pCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`}/>{p.priority}</span>
                           </td>
-                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-                            <p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-[11px] font-mono text-gray-500 whitespace-nowrap">{p.deadline || '—'}</span>
-                          </td>
+                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p></td>
+                          <td className="px-4 py-3"><span className="text-[11px] font-mono text-gray-500 whitespace-nowrap">{p.deadline || '—'}</span></td>
                         </tr>
                       );
                     })}
@@ -320,7 +546,6 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Matching Tasks */}
           {filteredTasks.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
               <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
@@ -330,16 +555,10 @@ const Dashboard = () => {
               </div>
               <div className="p-5 space-y-2.5">
                 {filteredTasks.map(task => {
-                  const pCfg = priorityColors[task.priority] || priorityColors.Medium;
-                  const tsCfg = {
-                    'Done':        'text-emerald-600 bg-emerald-50 border-emerald-200',
-                    'In Progress': 'text-amber-600 bg-amber-50 border-amber-200',
-                    'Pending':     'text-gray-500 bg-gray-50 border-gray-200',
-                  }[task.status] || 'text-gray-500 bg-gray-50 border-gray-200';
+                  const pCfg  = priorityColors[task.priority] || priorityColors.Medium;
+                  const tsCfg = { 'Done':'text-emerald-600 bg-emerald-50 border-emerald-200', 'In Progress':'text-amber-600 bg-amber-50 border-amber-200', 'Pending':'text-gray-500 bg-gray-50 border-gray-200' }[task.status] || 'text-gray-500 bg-gray-50 border-gray-200';
                   return (
-                    <div key={`${task.memberId}-${task.id}`}
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
-                      style={{ border: `1px solid ${TL}` }}>
+                    <div key={`${task.memberId}-${task.id}`} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors" style={{ border: `1px solid ${TL}` }}>
                       <Clock size={14} className="text-amber-400 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-semibold text-gray-800 truncate">{task.title}</p>
@@ -349,9 +568,7 @@ const Dashboard = () => {
                           <span className={`text-[11px] font-semibold ${pCfg.text}`}>{task.priority}</span>
                         </div>
                       </div>
-                      <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${tsCfg}`}>
-                        {task.status}
-                      </span>
+                      <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${tsCfg}`}>{task.status}</span>
                       <span className="text-[11px] font-mono text-gray-400 flex-shrink-0">{task.dueDate || '—'}</span>
                     </div>
                   );
@@ -359,7 +576,6 @@ const Dashboard = () => {
               </div>
             </div>
           )}
-
         </div>
       </div>
     );
@@ -368,10 +584,10 @@ const Dashboard = () => {
   // ── Normal Dashboard View ─────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#EEF2F7]">
-      <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
+      <div className="p-4 sm:p-6 space-y-5 max-w-[1600px] mx-auto">
 
-        {/* ── STAT CARDS ─────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+        {/* ── ROW 1: 4 Stat Cards + Urgent ── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-teal-400 to-cyan-500">
               <FolderOpen size={18} className="text-white" />
@@ -379,15 +595,11 @@ const Dashboard = () => {
             <div>
               <p className="text-2xl font-bold text-gray-900">{projects.length}</p>
               <p className="text-sm font-medium text-gray-500 mt-0.5">Projects</p>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />{activeProjects} Active
-                </span>
-                <span className="text-[11px] text-gray-400">{projects.length - activeProjects} Other</span>
-              </div>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 mt-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-500"/>{activeProjects} Active
+              </span>
             </div>
           </StatCard>
-
           <StatCard>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-400 to-purple-500">
               <Users size={18} className="text-white" />
@@ -398,7 +610,6 @@ const Dashboard = () => {
               <p className="text-xs text-gray-400 mt-1">{activeMembers} active</p>
             </div>
           </StatCard>
-
           <StatCard>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-emerald-400 to-teal-500">
               <CheckCircle2 size={18} className="text-white" />
@@ -406,55 +617,124 @@ const Dashboard = () => {
             <div>
               <p className="text-2xl font-bold text-gray-900">{doneTasks}</p>
               <p className="text-sm font-medium text-gray-500 mt-0.5">Tasks Done</p>
-              <p className="text-xs text-gray-400 mt-1">{allTasks.length} total tasks</p>
+              <p className="text-xs text-gray-400 mt-1">{allTasks.length} total</p>
             </div>
           </StatCard>
-
           <StatCard>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500">
               <Clock size={18} className="text-white" />
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">{pendingTasks}</p>
-              <p className="text-sm font-medium text-gray-500 mt-0.5">Pending Tasks</p>
+              <p className="text-sm font-medium text-gray-500 mt-0.5">Pending</p>
               <p className="text-xs text-gray-400 mt-1">{inProgTasks} in progress</p>
             </div>
           </StatCard>
-
-          <UrgentCard members={members} />
         </div>
 
-        {/* ── MAIN ROW ───────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ── TODAY'S DEADLINES BANNER (only if any) ── */}
+        {todayDeadlines.length > 0 && (
+          <div className="rounded-2xl px-5 py-3.5 flex items-center gap-3 flex-wrap"
+            style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <AlertCircle size={15} className="text-red-500"/>
+              <span className="text-[13px] font-bold text-red-600">Today's Deadlines</span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap flex-1">
+              {todayDeadlines.map(p => {
+                const sCfg = statusColors[p.status] || statusColors['Planning'];
+                return (
+                  <span key={p.id} className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-[12px] font-semibold text-gray-800 border"
+                    style={{ border: '1px solid rgba(239,68,68,0.25)' }}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`}/>
+                    {p.name}
+                    <span className={`text-[10px] font-bold ml-0.5 ${sCfg.text}`}>{p.status}</span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── SECTION HEADER BAR — title left, calendar tag right ── */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-[15px] font-bold text-gray-800">
+              {selectedDate ? `Results for ${dateBadgeLabel}` : 'Projects & Tasks'}
+            </h2>
+            <p className="text-[12px] text-gray-400 mt-0.5">
+              {selectedDate
+                ? `${filteredProjects.length} project${filteredProjects.length!==1?'s':''} · ${filteredTasks.length} task${filteredTasks.length!==1?'s':''}`
+                : 'Recent projects and pending tasks'}
+            </p>
+          </div>
+
+          {/* Calendar tag button */}
+          <div className="flex items-center gap-2">
+            {selectedDate && (
+              <button onClick={() => setSelectedDate(null)}
+                className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-gray-600 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100">
+                <X size={11}/> Clear
+              </button>
+            )}
+            <button ref={calBtnRef}
+              onClick={() => setShowCalDrop(v => !v)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-[13px] transition-all border
+                ${showCalDrop || selectedDate
+                  ? 'bg-teal-500 text-white border-teal-500 shadow-md'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50 shadow-sm'}`}
+              style={{ boxShadow: showCalDrop || selectedDate ? '0 4px 14px rgba(20,184,166,0.3)' : undefined }}>
+              <Calendar size={14}/>
+              <span>{selectedDate ? dateBadgeLabel : 'Filter by Date'}</span>
+              <ChevronDown size={12} style={{ transform: showCalDrop ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform .2s' }}/>
+            </button>
+          </div>
+        </div>
+
+        {/* Calendar dropdown portal */}
+        {showCalDrop && (
+          <CalendarDropdown
+            anchorRef={calBtnRef}
+            members={members}
+            projects={projects}
+            selectedDate={selectedDate}
+            onSelectDate={(d) => { setSelectedDate(d); }}
+            onClose={() => setShowCalDrop(false)}
+          />
+        )}
+
+        {/* ── ROW 2: Recent Projects + Task Overview ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
           {/* Recent Projects Table */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
             <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
               <div className="flex items-center gap-2">
-                <BarChart2 size={16} className="text-teal-500" />
-                <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Recent Projects</h2>
+                <BarChart2 size={15} className="text-teal-500" />
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
+                  {selectedDate ? 'Projects' : 'Recent Projects'}
+                </h3>
               </div>
-              <span className="text-xs text-gray-400">{projects.length} total</span>
+              <span className="text-xs text-gray-400">{filteredProjects.length} {selectedDate ? 'found' : 'total'}</span>
             </div>
-
             {filteredProjects.length === 0 ? (
               <div className="py-16 text-center">
-                <div className="text-3xl mb-2">📁</div>
-                <p className="text-gray-400 text-sm">No projects yet</p>
+                <div className="text-3xl mb-2">{selectedDate ? '📭' : '📁'}</div>
+                <p className="text-gray-400 text-sm">
+                  {selectedDate ? `No projects on ${dateBadgeLabel}` : 'No projects yet'}
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto w-full" style={{ scrollbarWidth: 'none' }}>
                 <table className="w-full min-w-[600px]">
                   <colgroup>
-                    <col style={{ width: '22%' }} />
-                    <col style={{ width: '18%' }} />
-                    <col style={{ width: '15%' }} />
-                    <col style={{ width: '30%' }} />
+                    <col style={{ width: '22%' }} /><col style={{ width: '18%' }} />
+                    <col style={{ width: '15%' }} /><col style={{ width: '30%' }} />
                     <col style={{ width: '15%' }} />
                   </colgroup>
                   <thead>
                     <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
-                      {['Project Name', 'Status', 'Priority', 'Description', 'Deadline'].map((h, i) => (
+                      {['Project Name','Status','Priority','Description','Deadline'].map((h,i) => (
                         <th key={h} className="py-2.5 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-left"
                           style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>{h}</th>
                       ))}
@@ -464,27 +744,32 @@ const Dashboard = () => {
                     {filteredProjects.map((p, idx) => {
                       const sCfg = statusColors[p.status]     || statusColors['Planning'];
                       const pCfg = priorityColors[p.priority] || priorityColors.Medium;
+                      const isStart    = toYMD(p.startDate) === selectedDate;
+                      const isDeadline = toYMD(p.deadline)  === selectedDate;
+                      const isTodayDL  = toYMD(p.deadline)  === todayYMD;
                       return (
-                        <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
-                          style={{ borderBottom: `1px solid ${TL}` }}>
+                        <tr key={p.id}
+                          className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
+                          style={{ borderBottom: `1px solid ${TL}`, background: isTodayDL ? 'rgba(239,68,68,0.03)' : undefined }}>
                           <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-                            <p className="text-[13px] font-semibold text-gray-900 truncate">{p.name}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-[13px] font-semibold text-gray-900 truncate">{p.name}</p>
+                              {selectedDate && isStart    && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-200 flex-shrink-0">Start</span>}
+                              {selectedDate && isDeadline && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex-shrink-0">Deadline</span>}
+                              {!selectedDate && isTodayDL && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 flex-shrink-0">Due Today</span>}
+                            </div>
                           </td>
                           <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${sCfg.text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`} />{p.status}
-                            </span>
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${sCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`}/>{p.status}</span>
                           </td>
                           <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-                            <span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${pCfg.text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`} />{p.priority}
-                            </span>
+                            <span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${pCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`}/>{p.priority}</span>
                           </td>
-                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-                            <p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p>
-                          </td>
+                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p></td>
                           <td className="px-4 py-3">
-                            <span className="text-[11px] font-mono text-gray-500 whitespace-nowrap">{p.deadline || '—'}</span>
+                            <span className={`text-[11px] font-mono whitespace-nowrap ${isTodayDL ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+                              {p.deadline || '—'}
+                            </span>
                           </td>
                         </tr>
                       );
@@ -495,68 +780,90 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Right column */}
-          <div className="flex flex-col gap-6">
+          {/* Right column — Task Overview + Upcoming Deadlines */}
+          <div className="flex flex-col gap-5">
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
-              <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
-                <CheckCircle2 size={16} className="text-teal-500" />
-                <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Task Overview</h2>
-              </div>
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: 'Done',        count: doneTasks,    color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-                    { label: 'In Progress', count: inProgTasks,  color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-200'   },
-                    { label: 'Pending',     count: pendingTasks, color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200'    },
-                  ].map(({ label, count, color, bg, border }) => (
-                    <div key={label} className={`${bg} border ${border} rounded-xl p-3 text-center`}>
-                      <p className={`text-xl font-bold ${color}`}>{count}</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5 font-medium">{label}</p>
-                    </div>
-                  ))}
+              <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={15} className="text-teal-500" />
+                  <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
+                    {selectedDate ? 'Tasks' : 'Task Overview'}
+                  </h3>
                 </div>
-                {allTasks.length > 0 && (
-                  <div>
-                    <div className="flex justify-between mb-1.5">
-                      <span className="text-xs text-gray-500 font-medium">Completion Rate</span>
-                      <span className="text-xs font-bold text-teal-600">
-                        {Math.round((doneTasks / allTasks.length) * 100)}%
-                      </span>
+              </div>
+              <div className="p-5 space-y-4">
+                {!selectedDate && (
+                  <>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { label: 'Done',        count: doneTasks,    color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+                        { label: 'In Progress', count: inProgTasks,  color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-200'   },
+                        { label: 'Pending',     count: pendingTasks, color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200'    },
+                      ].map(({ label, count, color, bg, border }) => (
+                        <div key={label} className={`${bg} border ${border} rounded-xl p-3 text-center`}>
+                          <p className={`text-xl font-bold ${color}`}>{count}</p>
+                          <p className="text-[10px] text-gray-500 mt-0.5 font-medium">{label}</p>
+                        </div>
+                      ))}
                     </div>
-                    <div className="h-2 rounded-full bg-[#EEF2F7] overflow-hidden">
-                      <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-500"
-                        style={{ width: `${Math.round((doneTasks / allTasks.length) * 100)}%` }} />
+                    {allTasks.length > 0 && (
+                      <div>
+                        <div className="flex justify-between mb-1.5">
+                          <span className="text-xs text-gray-500 font-medium">Completion Rate</span>
+                          <span className="text-xs font-bold text-teal-600">{Math.round((doneTasks / allTasks.length) * 100)}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-[#EEF2F7] overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-500"
+                            style={{ width: `${Math.round((doneTasks / allTasks.length) * 100)}%` }}/>
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ borderTop: `1px solid ${TL}` }} className="pt-3">
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Pending Tasks</p>
                     </div>
+                  </>
+                )}
+
+                {filteredTasks.length === 0 ? (
+                  <div className="text-center py-6">
+                    <div className="text-2xl mb-2">{selectedDate ? '' : '🎉'}</div>
+                    <p className="text-xs text-gray-400">
+                      {selectedDate ? `No tasks on ${dateBadgeLabel}` : 'All caught up!'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {filteredTasks.map(task => {
+                      const pCfg  = priorityColors[task.priority] || priorityColors.Medium;
+                      const sCfg  = statusColors[task.status]     || statusColors['Pending'];
+                      const isTodayTask = toYMD(task.dueDate) === todayYMD;
+                      return (
+                        <div key={`${task.memberId}-${task.id}`}
+                          className="flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+                          style={{ border: selectedDate || isTodayTask ? `1px solid ${TL}` : 'none' }}>
+                          <Clock size={13} className={`flex-shrink-0 mt-0.5 ${isTodayTask ? 'text-red-400' : 'text-amber-400'}`}/>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[12px] font-medium text-gray-800 truncate">{task.title}</p>
+                            <p className="text-[10px] text-gray-400 mt-0.5">{task.memberName} · <span className={pCfg.text}>{task.priority}</span></p>
+                          </div>
+                          {selectedDate
+                            ? <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 border ${sCfg.text} ${sCfg.bg} ${sCfg.border}`}>{task.status}</span>
+                            : isTodayTask
+                              ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 bg-red-50 text-red-600 border border-red-200">Due Today</span>
+                              : <span className="text-[10px] font-mono text-gray-400 flex-shrink-0">{task.dueDate || '—'}</span>
+                          }
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
-                <div style={{ borderTop: `1px solid ${TL}` }} className="pt-4">
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Pending Tasks</p>
-                  {filteredTasks.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-4">All caught up! 🎉</p>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {filteredTasks.map(task => {
-                        const pCfg = priorityColors[task.priority] || priorityColors.Medium;
-                        return (
-                          <div key={`${task.memberId}-${task.id}`} className="flex items-start gap-2.5">
-                            <Clock size={13} className="text-amber-400 flex-shrink-0 mt-0.5" />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[12px] font-medium text-gray-800 truncate">{task.title}</p>
-                              <p className="text-[10px] text-gray-400">{task.memberName} · <span className={pCfg.text}>{task.priority}</span></p>
-                            </div>
-                            <span className="text-[10px] font-mono text-gray-400 flex-shrink-0">{task.dueDate || '—'}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
 
             <UpcomingDeadlinesCard members={members} />
           </div>
         </div>
+
       </div>
     </div>
   );

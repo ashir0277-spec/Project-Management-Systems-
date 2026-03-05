@@ -886,7 +886,7 @@ const Clients = () => {
           <table className="w-full" style={{ minWidth: '700px' }}>
             <thead className="bg-[#EEF2F7] border-b border-gray-200">
               <tr>
-                {['Client Name','Contact','Industry','Revenue','Status','Actions'].map(h => (
+                {['Client Name','Contact','Category','Revenue','Status','Actions'].map(h => (
                   <th key={h} className="px-4 md:px-6 py-4 text-left text-gray-500 text-xs font-semibold uppercase tracking-wider border-r border-black/20 last:border-r-0 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -899,7 +899,7 @@ const Clients = () => {
                     <div className="text-gray-500 text-xs">Since {client.since}</div>
                   </td>
                   <td className="px-4 md:px-6 py-4 border-r border-black/20">
-                    <div className="text-gray-900 text-sm">{client.contact}</div>
+                    <div className="text-gray-900 text-sm">{client.phone}</div>
                     <div className="text-gray-500 text-xs">{client.email}</div>
                   </td>
                   <td className="px-4 md:px-6 py-4 text-gray-900 text-sm border-r border-black/20 whitespace-nowrap">{client.industry}</td>

@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { File, Settings, DollarSign } from "lucide-react";
+import { File, Settings, DollarSign, UserPenIcon } from "lucide-react";
 import { MdDashboard } from "react-icons/md";
 import { FiUsers } from "react-icons/fi";
 import { User2Icon } from "lucide-react";
@@ -12,6 +12,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { id: "team", label: "Team Members", icon: <FiUsers size={18} />, path: "/team" },
     { id: "clients", label: "Clients", icon: <User2Icon size={18} />, path: "/clients" },
     { id: "payout", label: "Payout", icon: <DollarSign size={18}/>, path: "/payout" },
+    { id: "usersrecord", label: "User's Record", icon: <UserPenIcon size={18}/>, path: "/userrecord" },
     { id: "settings", label: "Settings", icon: <Settings size={18}/>, path: "/settings" },
   ];
 

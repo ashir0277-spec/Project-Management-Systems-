@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 import { db } from '../../firebase';
 import { Loader, Trash2, Columns, X, Users, ChevronDown } from 'lucide-react';
@@ -9,11 +10,11 @@ const TABLE_LINE_BOLD = 'rgba(51,51,51,0.30)';
 const AVATAR_COLORS   = ['#7B90A4','#8FA3AC','#7A9BAA','#909AAB','#8A9FAD','#8496A8'];
 
 const STATUS_OPTIONS = [
-  { value: 'In Progress',                 text: 'text-blue-700',    dot: 'bg-blue-500',    bg: 'bg-blue-50'    },
-  { value: 'Completed',                   text: 'text-emerald-700', dot: 'bg-emerald-500', bg: 'bg-emerald-50' },
-  { value: 'Testing Required',            text: 'text-violet-700',  dot: 'bg-violet-500',  bg: 'bg-violet-50'  },
-  { value: 'On Hold',                     text: 'text-amber-700',   dot: 'bg-amber-500',   bg: 'bg-amber-50'   },
-  { value: 'Waiting for Client Response', text: 'text-rose-700',    dot: 'bg-rose-500',    bg: 'bg-rose-50'    },
+  { value: 'In Progress',                 text: 'text-blue-700',    dot: 'bg-blue-500',    bg: ''    },
+  { value: 'Completed',                   text: 'text-emerald-700', dot: 'bg-emerald-500', bg: '' },
+  { value: 'Testing Required',            text: 'text-violet-700',  dot: 'bg-violet-500',  bg: ''  },
+  { value: 'On Hold',                     text: 'text-amber-700',   dot: 'bg-amber-500',   bg: ''   },
+  { value: 'Waiting for Client Response', text: 'text-rose-700',    dot: 'bg-rose-500',    bg: ''    },
 ];
 const getStatusStyle = (s) => STATUS_OPTIONS.find(o => o.value === s) ?? { text:'text-slate-600', dot:'bg-slate-400', bg:'bg-slate-50' };
 const getPriorityStyle = (p) => {
@@ -82,6 +83,142 @@ const TeamAvatars = ({ team = [] }) => (
   </div>
 );
 
+// ── Team Dropdown — rendered via portal into document.body ───────────────────
+const TeamDropdownPortal = ({ anchorEl, project, allMembers, onSave, onClose }) => {
+  const [selected, setSelected] = useState(project.team || []);
+  const dropRef = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 200 });
+
+  // Calculate position from anchor element
+  useEffect(() => {
+    if (!anchorEl) return;
+    const rect = anchorEl.getBoundingClientRect();
+    const dropH = 260;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow >= dropH
+      ? rect.bottom + 4
+      : rect.top - dropH - 4;
+    setPos({ top, left: rect.left, width: Math.max(rect.width, 210) });
+  }, [anchorEl]);
+
+  // Close on outside click or outside scroll
+  useEffect(() => {
+    const h = (e) => {
+      if (dropRef.current && !dropRef.current.contains(e.target) &&
+          anchorEl && !anchorEl.contains(e.target)) {
+        onSave(selected); onClose();
+      }
+    };
+    const onScroll = (e) => {
+     
+      if (dropRef.current && dropRef.current.contains(e.target)) return;
+      onSave(selected); onClose();
+    };
+    setTimeout(() => {
+      document.addEventListener('mousedown', h);
+      document.addEventListener('scroll', onScroll, true);
+    }, 0);
+    return () => {
+      document.removeEventListener('mousedown', h);
+      document.removeEventListener('scroll', onScroll, true);
+    };
+  }, [selected]);
+
+  const toggle = (m) =>
+    setSelected(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
+
+  return ReactDOM.createPortal(
+    <div ref={dropRef}
+      style={{
+        position: 'fixed',
+        top: pos.top,
+        left: pos.left,
+        width: pos.width,
+        zIndex: 99999,
+        background: '#fff',
+        border: `1px solid ${TABLE_LINE}`,
+        borderRadius: 14,
+        boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
+        maxHeight: 260,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+      onClick={e => e.stopPropagation()}>
+
+      {/* Header */}
+      <div style={{ padding: '8px 12px 6px', borderBottom: `1px solid ${TABLE_LINE}`, flexShrink: 0 }}>
+        <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+          Assigned To
+        </p>
+      </div>
+
+      {/* Member list */}
+      <div style={{ overflowY: 'auto', flex: 1 }}>
+        {allMembers.length === 0 && (
+          <p style={{ fontSize: 12, color: '#9ca3af', padding: '12px', textAlign: 'center', fontStyle: 'italic' }}>
+            No members found
+          </p>
+        )}
+        {allMembers.map((m, i) => {
+          const isChecked = selected.includes(m);
+          return (
+            <button key={m} type="button"
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => toggle(m)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                padding: '7px 12px', background: isChecked ? 'rgba(20,184,166,0.06)' : 'transparent',
+                border: 'none', cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = isChecked ? 'rgba(20,184,166,0.10)' : '#f0fdfa'}
+              onMouseLeave={e => e.currentTarget.style.background = isChecked ? 'rgba(20,184,166,0.06)' : 'transparent'}>
+              {/* Avatar */}
+              <div style={{
+                width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+                backgroundColor: AVATAR_COLORS[i % AVATAR_COLORS.length],
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11, fontWeight: 700, color: '#fff',
+              }}>
+                {m[0]?.toUpperCase()}
+              </div>
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {m}
+              </span>
+              {/* Checkbox */}
+              <span style={{
+                width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: `2px solid ${isChecked ? '#14b8a6' : '#d1d5db'}`,
+                background: isChecked ? '#14b8a6' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
+              }}>
+                {isChecked && (
+                  <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                    <path d="M1 3.5l2 2L8 1" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Apply footer */}
+      <div style={{ padding: '8px 10px', borderTop: `1px solid ${TABLE_LINE}`, flexShrink: 0 }}>
+        <button
+          onMouseDown={e => e.preventDefault()}
+          onClick={() => { onSave(selected); onClose(); }}
+          style={{
+            width: '100%', padding: '7px', borderRadius: 8, border: 'none', cursor: 'pointer',
+            background: 'linear-gradient(135deg,#14b8a6,#06b6d4)', color: '#fff',
+            fontSize: 12, fontWeight: 700, letterSpacing: '0.02em',
+          }}>
+          Apply
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
 export default function Projects() {
   const { showAddProjectModal, setShowAddProjectModal } = useOutletContext();
 
@@ -91,11 +228,10 @@ export default function Projects() {
   const [projectList, setProjectList] = useState([]);
   const [allMembers, setAllMembers]   = useState([]);
 
-
-
   // column ratios & container width
   const [colRatios, setColRatios]     = useState(buildDefaultRatios);
-  const [containerW, setContainerW]   = useState(1000);
+  // FIX: Start with 0, measure real width immediately — avoids wrong ratio on small screens
+  const [containerW, setContainerW]   = useState(0);
   const [hiddenCols, setHiddenCols]   = useState(new Set());
   const [showColMenu, setShowColMenu] = useState(false);
   const colMenuRef   = useRef(null);
@@ -109,13 +245,16 @@ export default function Projects() {
   const [editDisplay, setEditDisplay] = useState('');
   const cellInputRef = useRef(null);
 
+  // Team dropdown: store { id, anchorEl } so portal can position from cell rect
+  const [teamDrop, setTeamDrop] = useState(null);
+
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuPos, setMenuPos]       = useState({ top:0, right:0 });
   const menuRef = useRef(null);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // team dropdown
+  // team dropdown (modal)
   const [teamInput, setTeamInput]         = useState('');
   const [showTeamDrop, setShowTeamDrop]   = useState(false);
   const [sessionMembers, setSessionMembers] = useState([]);
@@ -166,18 +305,33 @@ export default function Projects() {
     });
   }, [projectList]);
 
-  // measure container
+  // FIX: measure container width correctly, use real clientWidth immediately
   useEffect(() => {
-    const measure = () => { if (tableWrapRef.current) setContainerW(tableWrapRef.current.clientWidth); };
-    measure();
+    const measure = () => {
+      if (tableWrapRef.current) {
+        const w = tableWrapRef.current.clientWidth;
+        if (w > 0) setContainerW(w);
+      }
+    };
+    // Small delay to ensure DOM is painted
+    const t = setTimeout(measure, 0);
     const ro = new ResizeObserver(measure);
     if (tableWrapRef.current) ro.observe(tableWrapRef.current);
-    return () => ro.disconnect();
+    return () => { clearTimeout(t); ro.disconnect(); };
   }, []);
 
-  // derived px widths
+  // FIX: Compute effective container width for table layout
+  // On small screens where table needs to scroll, use minWidth sum instead
+  const visMinW = COLUMN_DEFS
+    .filter(c => !hiddenCols.has(c.key))
+    .reduce((s, c) => s + c.minW, 0);
+
+  // Use max of actual container vs min required — this prevents columns from squishing
+  const effectiveW = containerW > 0 ? Math.max(containerW, visMinW) : visMinW;
+
+  // derived px widths — always based on effectiveW so ratios stay correct
   const colWidths = {};
-  COLUMN_DEFS.forEach(c => { colWidths[c.key] = colRatios[c.key] * containerW; });
+  COLUMN_DEFS.forEach(c => { colWidths[c.key] = colRatios[c.key] * effectiveW; });
 
   // ── Resize handle ─────────────────────────────────────────────────────────
   const onResizeMouseDown = useCallback((e, colKey) => {
@@ -186,10 +340,9 @@ export default function Projects() {
     const idx     = visCols.findIndex(c => c.key === colKey);
     const nextCol = visCols[idx+1];
     if (!nextCol) return;
-    const cW = tableWrapRef.current?.clientWidth || containerW;
     const colDef  = COLUMN_DEFS.find(c => c.key === colKey);
     const nextDef = COLUMN_DEFS.find(c => c.key === nextCol.key);
-    resizeState.current = { colKey, nextKey:nextCol.key, startX:e.clientX, startR:colRatios[colKey], startNR:colRatios[nextCol.key], cW };
+    resizeState.current = { colKey, nextKey:nextCol.key, startX:e.clientX, startR:colRatios[colKey], startNR:colRatios[nextCol.key], cW: effectiveW };
 
     const onMove = (ev) => {
       if (!resizeState.current) return;
@@ -213,7 +366,7 @@ export default function Projects() {
     document.body.style.userSelect = 'none';
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-  }, [colRatios, hiddenCols, containerW]);
+  }, [colRatios, hiddenCols, effectiveW]);
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const TABS = [
@@ -257,6 +410,11 @@ export default function Projects() {
   };
   const startEdit = (e,project,field) => {
     e.stopPropagation();
+    // Team cell: open portal dropdown with anchor element for positioning
+    if (field === 'team') {
+      setTeamDrop(prev => prev?.id === project.id ? null : { id: project.id, anchorEl: e.currentTarget });
+      return;
+    }
     if(editingCell?.projectId===project.id && editingCell?.field===field) return;
     if(editingCell) doCommit(editingCell.projectId,editingCell.field,editValueRef.current);
     const val=getFieldValue(project,field);
@@ -274,7 +432,7 @@ export default function Projects() {
     if(field==='status')      u={status:value};
     if(field==='priority')    u={priority:value};
     if(field==='progress')    u={progress:Math.min(100,Math.max(0,parseInt(value)||0))};
-    if(field==='team')        u={team:value.split(',').map(m=>m.trim()).filter(Boolean)};
+    if(field==='team')        u={team:Array.isArray(value)?value:value.split(',').map(m=>m.trim()).filter(Boolean)};
     if(!Object.keys(u).length) return;
     try { await updateDoc(doc(db,'projects',projectId),{...u,updatedAt:new Date().toISOString()}); }
     catch(err){console.error(err);}
@@ -292,7 +450,7 @@ export default function Projects() {
     setDeleteTarget(null);
   };
 
-  // ── Team dropdown ─────────────────────────────────────────────────────────
+  // ── Team dropdown (modal) ─────────────────────────────────────────────────
   const memberPool   = [...new Set([...allMembers,...sessionMembers,...newProject.team])].sort();
   const filteredPool = memberPool.filter(m => m.toLowerCase().includes(teamInput.toLowerCase()) && !newProject.team.includes(m));
   const selectMember = (name) => { setNewProject(prev=>({...prev,team:[...prev.team,name]})); setTeamInput(''); teamInputRef.current?.focus(); };
@@ -340,66 +498,6 @@ export default function Projects() {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // MOBILE CARD VIEW
-  // ─────────────────────────────────────────────────────────────────────────
-  const MobileCard = ({ project, idx }) => {
-    const sCfg = getStatusStyle(project.status);
-    const pCfg = getPriorityStyle(project.priority);
-    return (
-      <div className="bg-white rounded-2xl p-4 shadow-sm" style={{ border:`1px solid ${TABLE_LINE}` }}>
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold text-gray-900 truncate">{project.name}</p>
-            {project.description && (
-              <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2 cursor-pointer"
-                onDoubleClick={() => setExpandedDesc({ name:project.name, description:project.description })}>
-                {project.description}
-              </p>
-            )}
-          </div>
-          <button
-            onClick={e => {
-              e.stopPropagation();
-              const rect = e.currentTarget.getBoundingClientRect();
-              setMenuPos({ top:rect.bottom+6, right:window.innerWidth-rect.right });
-              setOpenMenuId(openMenuId===project.id ? null : project.id);
-            }}
-            className="w-8 h-8 rounded-lg flex flex-col items-center justify-center gap-[3px] flex-shrink-0 hover:bg-gray-100">
-            {[0,1,2].map(i=><span key={i} className="w-1 h-1 rounded-full bg-gray-300 block"/>)}
-          </button>
-        </div>
-
-        {/* Badges */}
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          <StatusBadge value={project.status}/>
-          <PriorityBadge value={project.priority}/>
-        </div>
-
-        {/* Progress */}
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] text-gray-400 font-medium">Progress</span>
-            <span className="text-[11px] font-bold text-gray-600">{project.progress||0}%</span>
-          </div>
-          <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-teal-400 to-cyan-500 rounded-full transition-all" style={{ width:`${project.progress||0}%` }}/>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-0.5">
-            {project.startDate && <span className="text-[10px] text-gray-400">Start: <span className="font-mono text-gray-600">{project.startDate}</span></span>}
-            {project.deadline  && <span className="text-[10px] text-gray-400">End: <span className="font-mono text-gray-600">{project.deadline}</span></span>}
-          </div>
-          <TeamAvatars team={project.team||[]}/>
-        </div>
-      </div>
-    );
-  };
-
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#EEF2F7]">
       <div className="p-3 sm:p-4 md:p-6 space-y-4">
@@ -419,35 +517,32 @@ export default function Projects() {
                 style={{ border:`1px solid ${TABLE_LINE}` }}/>
             </div>
 
-            {/* Columns btn — all screens */}
-            {(true) && (
-              <div className="relative flex-shrink-0" ref={colMenuRef}>
-                <button onClick={()=>setShowColMenu(v=>!v)}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 shadow-sm whitespace-nowrap"
-                  style={{ border:`1px solid ${TABLE_LINE}` }}>
-                  <Columns size={15}/> Columns
-                  {hiddenCols.size>0 && <span className="bg-teal-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{hiddenCols.size}</span>}
-                </button>
-                {showColMenu && (
-                  <div className="absolute right-0 top-full mt-2 z-[999] bg-white rounded-xl shadow-xl p-2 min-w-[190px]"
-                    style={{ border:`1px solid ${TABLE_LINE}`, boxShadow:'0 10px 30px rgba(0,0,0,0.12)' }}>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1 mb-1">Toggle Columns</p>
-                    {COLUMN_DEFS.filter(c=>c.hideable).map(col=>(
-                      <button key={col.key} onClick={()=>toggleCol(col.key)}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-gray-700 hover:bg-gray-50 transition-colors">
-                        <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-all ${hiddenCols.has(col.key)?'border-gray-300 bg-white':'border-teal-500 bg-teal-500'}`}>
-                          {!hiddenCols.has(col.key) && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                        </span>
-                        {col.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="relative flex-shrink-0" ref={colMenuRef}>
+              <button onClick={()=>setShowColMenu(v=>!v)}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 shadow-sm whitespace-nowrap"
+                style={{ border:`1px solid ${TABLE_LINE}` }}>
+                <Columns size={15}/> Columns
+                {hiddenCols.size>0 && <span className="bg-teal-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{hiddenCols.size}</span>}
+              </button>
+              {showColMenu && (
+                <div className="absolute right-0 top-full mt-2 z-[999] bg-white rounded-xl shadow-xl p-2 min-w-[190px]"
+                  style={{ border:`1px solid ${TABLE_LINE}`, boxShadow:'0 10px 30px rgba(0,0,0,0.12)' }}>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1 mb-1">Toggle Columns</p>
+                  {COLUMN_DEFS.filter(c=>c.hideable).map(col=>(
+                    <button key={col.key} onClick={()=>toggleCol(col.key)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-gray-700 hover:bg-gray-50 transition-colors">
+                      <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-all ${hiddenCols.has(col.key)?'border-gray-300 bg-white':'border-teal-500 bg-teal-500'}`}>
+                        {!hiddenCols.has(col.key) && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </span>
+                      {col.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Tabs row — horizontally scrollable */}
+          {/* Tabs row */}
           <div className="flex gap-1 rounded-xl p-1 bg-white shadow-sm overflow-x-auto"
             style={{ border:`1px solid ${TABLE_LINE}`, scrollbarWidth:'none', WebkitOverflowScrolling:'touch' }}>
             {TABS.map(tab => {
@@ -467,7 +562,7 @@ export default function Projects() {
           </div>
         </div>
 
-        {/* ── TABLE (all screen sizes, horizontal scroll on sm) ── */}
+        {/* ── TABLE ── */}
         <div className="bg-white rounded-2xl shadow-sm w-full" style={{ border:`1px solid ${TABLE_LINE}`, overflow:'hidden' }}>
           <div ref={tableWrapRef}
             style={{ overflowX:'auto', overflowY:'auto', maxHeight:'calc(100vh - 260px)', WebkitOverflowScrolling:'touch' }}>
@@ -480,15 +575,18 @@ export default function Projects() {
               .col-rz { position:absolute; right:0; top:0; height:100%; width:6px; cursor:col-resize; z-index:20; }
               .col-rz:hover,.col-rz:active { background:rgba(20,184,166,0.35); }
             `}</style>
-            {/*
-              On large screens: table fills 100% — no horizontal scroll.
-              On small screens: table has a minWidth so columns stay readable,
-              and the wrapper scrolls horizontally.
-            */}
-            {/* minWidth = sum of all visible col minWidths so headers never squish */}
             <table className="proj-wrap border-collapse"
-              style={{ tableLayout:'fixed', width:'100%', minWidth:`${visibleCols.reduce((s,c)=>s+c.minW,0)}px` }}>
-              <colgroup>{visibleCols.map(c=><col key={c.key} style={{ width:`${colWidths[c.key]}px` }}/>)}</colgroup>
+              style={{
+                tableLayout: 'fixed',
+                // FIX: width is effectiveW px on small screens, 100% on large
+                width: containerW > 0 && containerW >= visMinW ? '100%' : `${visMinW}px`,
+                minWidth: `${visMinW}px`,
+              }}>
+              <colgroup>
+                {visibleCols.map(c => (
+                  <col key={c.key} style={{ width: `${colWidths[c.key]}px` }}/>
+                ))}
+              </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#EEF2F7]" style={{ borderBottom:`2px solid ${TABLE_LINE_BOLD}` }}>
                   {visibleCols.map((col,i)=>(
@@ -512,56 +610,65 @@ export default function Projects() {
                   const isDragOver = dragOverIdx===idx && dragItem.current!==idx;
                   const rowBg      = idx%2===0?'bg-white':'';
                   const ed         = (f)=>isEditing(project,f);
-                  const sCfg       = getStatusStyle(project.status);
-                  const pCfg       = getPriorityStyle(project.priority);
 
                   const renderCell = (col,ci) => {
                     const tdS = makeTd(!['index','actions'].includes(col.key)?col.key:null, ci, ed(col.key), isDragOver);
+
                     if(col.key==='index') return (
-                      <td key={col.key} style={{...tdS,cursor:'grab'}}><div style={inner('center')}><span className="text-xs font-bold font-mono text-gray-300">{idx+1}</span></div></td>
+                      <td key={col.key} style={{...tdS,cursor:'grab',overflow:'hidden'}}><div style={inner('center')}><span className="text-xs font-bold font-mono text-gray-300">{idx+1}</span></div></td>
                     );
                     if(col.key==='name') return (
-                      <td key={col.key} style={tdS} onClick={e=>startEdit(e,project,'name')}>
+                      <td key={col.key} style={{...tdS,overflow:'hidden'}} onClick={e=>startEdit(e,project,'name')}>
                         <div style={inner()}>{ed('name')?<input ref={cellInputRef} value={editDisplay} onChange={e=>handleValueChange(e.target.value)} onBlur={commitEdit} onKeyDown={handleCellKeyDown} className={`${inlineInputCls} font-semibold text-[14px]`}/>:<p className="text-[14px] font-semibold text-gray-900 truncate w-full" title={project.name}>{project.name}</p>}</div>
                       </td>
                     );
                     if(col.key==='description') return (
-                      <td key={col.key} style={tdS} onClick={e=>startEdit(e,project,'description')} onDoubleClick={e=>{e.stopPropagation();if(project.description)setExpandedDesc({name:project.name,description:project.description});}}>
+                      <td key={col.key} style={{...tdS,overflow:'hidden'}} onClick={e=>startEdit(e,project,'description')} onDoubleClick={e=>{e.stopPropagation();if(project.description)setExpandedDesc({name:project.name,description:project.description});}}>
                         <div style={inner()}>{ed('description')?<input ref={cellInputRef} value={editDisplay} onChange={e=>handleValueChange(e.target.value)} onBlur={commitEdit} onKeyDown={handleCellKeyDown} placeholder="Add description..." className={`${inlineInputCls} text-[13px]`}/>:<p className="text-[12px] text-gray-500 truncate w-full">{project.description||<span className="text-gray-300 italic">No description</span>}</p>}</div>
                       </td>
                     );
                     if(col.key==='startDate') return (
-                      <td key={col.key} style={tdS} onClick={e=>startEdit(e,project,'startDate')}>
+                      <td key={col.key} style={{...tdS,overflow:'hidden'}} onClick={e=>startEdit(e,project,'startDate')}>
                         <div style={inner('center')}>{ed('startDate')?<input ref={cellInputRef} type="date" value={editDisplay} onChange={e=>handleValueChange(e.target.value)} onBlur={commitEdit} onKeyDown={handleCellKeyDown} className={`${inlineInputCls} font-mono text-[12px]`}/>:<span className="text-[12px] font-mono text-gray-900 whitespace-nowrap">{project.startDate||project.createdAt?.slice(0,10)||'—'}</span>}</div>
                       </td>
                     );
                     if(col.key==='deadline') return (
-                      <td key={col.key} style={tdS} onClick={e=>startEdit(e,project,'deadline')}>
+                      <td key={col.key} style={{...tdS,overflow:'hidden'}} onClick={e=>startEdit(e,project,'deadline')}>
                         <div style={inner('center')}>{ed('deadline')?<input ref={cellInputRef} type="date" value={editDisplay} onChange={e=>handleValueChange(e.target.value)} onBlur={commitEdit} onKeyDown={handleCellKeyDown} className={`${inlineInputCls} font-mono text-[12px]`}/>:<span className="text-[12px] font-mono text-gray-900 whitespace-nowrap">{project.deadline||'—'}</span>}</div>
                       </td>
                     );
                     if(col.key==='status') return (
-                      <td key={col.key} style={tdS} onClick={e=>startEdit(e,project,'status')}>
+                      <td key={col.key} style={{...tdS,overflow:'hidden'}} onClick={e=>startEdit(e,project,'status')}>
                         <div style={inner('center')}>{ed('status')?<select ref={cellInputRef} value={editDisplay} onChange={e=>handleValueChange(e.target.value)} onBlur={commitEdit} onKeyDown={handleCellKeyDown} className={`${inlineInputCls} cursor-pointer text-[12px]`}>{STATUS_OPTIONS.map(o=><option key={o.value}>{o.value}</option>)}</select>:<StatusBadge value={project.status}/>}</div>
                       </td>
                     );
                     if(col.key==='priority') return (
-                      <td key={col.key} style={tdS} onClick={e=>startEdit(e,project,'priority')}>
+                      <td key={col.key} style={{...tdS,overflow:'hidden'}} onClick={e=>startEdit(e,project,'priority')}>
                         <div style={inner('center')}>{ed('priority')?<select ref={cellInputRef} value={editDisplay} onChange={e=>handleValueChange(e.target.value)} onBlur={commitEdit} onKeyDown={handleCellKeyDown} className={`${inlineInputCls} cursor-pointer text-[13px]`}><option>Low</option><option>Medium</option><option>High</option></select>:<PriorityBadge value={project.priority}/>}</div>
                       </td>
                     );
                     if(col.key==='progress') return (
-                      <td key={col.key} style={tdS} onClick={e=>startEdit(e,project,'progress')}>
+                      <td key={col.key} style={{...tdS,overflow:'hidden'}} onClick={e=>startEdit(e,project,'progress')}>
                         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', padding:'0 12px', gap:'8px', overflow:'hidden' }}>
                           {ed('progress')?<input ref={cellInputRef} type="number" min="0" max="100" value={editDisplay} onChange={e=>handleValueChange(e.target.value)} onBlur={commitEdit} onKeyDown={handleCellKeyDown} className={`${inlineInputCls} font-mono text-sm w-14`}/>:<><div className="flex-1 h-1.5 rounded-full bg-[#EEF2F7] overflow-hidden"><div className="h-full bg-gradient-to-r from-teal-400 to-cyan-500 rounded-full transition-all" style={{ width:`${project.progress||0}%` }}/></div><span className="text-[12px] font-bold text-gray-600 min-w-[32px] text-right flex-shrink-0">{project.progress||0}%</span></>}
                         </div>
                       </td>
                     );
+
+                    // ── TEAM CELL — portal dropdown ─────────────────────────
                     if(col.key==='team') return (
-                      <td key={col.key} style={tdS} onClick={e=>startEdit(e,project,'team')}>
-                        <div style={inner()}>{ed('team')?<input ref={cellInputRef} value={editDisplay} onChange={e=>handleValueChange(e.target.value)} onBlur={commitEdit} onKeyDown={handleCellKeyDown} placeholder="Alice, Bob" className={`${inlineInputCls} text-[13px]`}/>:<TeamAvatars team={project.team||[]}/>}</div>
+                      <td key={col.key} style={tdS} onClick={e=>{ e.stopPropagation(); const anchor = e.currentTarget; setTeamDrop(prev => prev?.id===project.id ? null : { id: project.id, anchorEl: anchor }); }}>
+                        <div style={{ ...inner(), cursor:'pointer' }}>
+                          <div className="flex items-center gap-2 w-full">
+                            <TeamAvatars team={project.team||[]}/>
+                            <ChevronDown size={12}
+                              style={{ color: teamDrop?.id===project.id ? '#14b8a6' : '#d1d5db', flexShrink:0, marginLeft:'auto',
+                                transform: teamDrop?.id===project.id ? 'rotate(180deg)' : 'rotate(0deg)', transition:'transform 0.2s' }}/>
+                          </div>
+                        </div>
                       </td>
                     );
+
                     if(col.key==='actions') return (
                       <td key={col.key} style={{ height:'62px', padding:0, verticalAlign:'middle', borderBottom:`1px solid ${TABLE_LINE}` }}>
                         <div className="flex items-center justify-center h-full px-2">
@@ -733,6 +840,21 @@ export default function Projects() {
           </div>
         </div>
       )}
+
+      {/* ── TEAM DROPDOWN PORTAL ── */}
+      {teamDrop && (() => {
+        const project = projectList.find(p => p.id === teamDrop.id);
+        if (!project) return null;
+        return (
+          <TeamDropdownPortal
+            anchorEl={teamDrop.anchorEl}
+            project={project}
+            allMembers={allMembers}
+            onSave={(newTeam) => doCommit(project.id, 'team', newTeam)}
+            onClose={() => setTeamDrop(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
