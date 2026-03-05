@@ -4,17 +4,17 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, Search, ChevronRight, CheckCircle2,
-  UserCheck, UserX, BarChart2, Mail, Phone, Filter, X
+  Users, Search, ChevronRight,
+  BarChart2, Mail, Phone, X
 } from 'lucide-react';
 
 const TL  = 'rgba(51,51,51,0.12)';
 const TLB = 'rgba(51,51,51,0.18)';
 
 const statusColors = {
-  'Active':   { text: 'text-teal-600',  dot: 'bg-teal-500',  bg: 'bg-teal-50',  border: 'border-teal-200'  },
-  'Inactive': { text: 'text-gray-500',  dot: 'bg-gray-400',  bg: 'bg-gray-50',  border: 'border-gray-200'  },
-  'On Leave': { text: 'text-amber-600', dot: 'bg-amber-500', bg: 'bg-amber-50', border: 'border-amber-200' },
+  'Active':   { text: 'text-teal-600',  dot: 'bg-teal-500'  },
+  'Inactive': { text: 'text-gray-500',  dot: 'bg-gray-400'  },
+  'On Leave': { text: 'text-amber-600', dot: 'bg-amber-500' },
 };
 
 const roleColors = {
@@ -37,26 +37,12 @@ const AVATAR_COLORS = [
 const getInitials    = (name = '') => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 const getAvatarColor = (id   = '') => AVATAR_COLORS[id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length];
 
-const StatCard = ({ icon: Icon, iconBg, value, label, sub }) => (
-  <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-col gap-3" style={{ border: `1px solid ${TL}` }}>
-    <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br ${iconBg}`}>
-      <Icon size={18} className="text-white" />
-    </div>
-    <div>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-sm font-medium text-gray-500 mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
-    </div>
-  </div>
-);
-
 const UsersRecord = () => {
   const navigate = useNavigate();
-  const [members,      setMembers]      = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [search,       setSearch]       = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [roleFilter,   setRoleFilter]   = useState('All');
+  const [members,    setMembers]    = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [search,     setSearch]     = useState('');
+  const [roleFilter, setRoleFilter] = useState('All');
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -67,8 +53,7 @@ const UsersRecord = () => {
     return unsub;
   }, []);
 
-  const statuses = ['All', 'Active', 'Inactive', 'On Leave'];
-  const roles    = ['All', ...Array.from(new Set(members.map(m => m.role).filter(Boolean)))];
+  const roles = ['All', ...Array.from(new Set(members.map(m => m.role).filter(Boolean)))];
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -79,16 +64,10 @@ const UsersRecord = () => {
         m.role?.toLowerCase().includes(q) ||
         m.department?.toLowerCase().includes(q) ||
         m.phone?.toLowerCase().includes(q);
-      const matchStatus = statusFilter === 'All' || m.status === statusFilter;
-      const matchRole   = roleFilter   === 'All' || m.role   === roleFilter;
-      return matchSearch && matchStatus && matchRole;
+      const matchRole = roleFilter === 'All' || m.role === roleFilter;
+      return matchSearch && matchRole;
     });
-  }, [members, search, statusFilter, roleFilter]);
-
-  const activeCount   = members.filter(m => m.status === 'Active').length;
-  const inactiveCount = members.filter(m => m.status === 'Inactive').length;
-  const onLeaveCount  = members.filter(m => m.status === 'On Leave').length;
-  const totalTasks    = members.reduce((acc, m) => acc + (m.tasks?.length || 0), 0);
+  }, [members, search, roleFilter]);
 
   if (loading) return (
     <div className="min-h-screen bg-[#EEF2F7] flex items-center justify-center">
@@ -113,15 +92,7 @@ const UsersRecord = () => {
           </div>
         </div>
 
-        {/* ── Stat Cards ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard icon={Users}        iconBg="from-teal-400 to-cyan-500"    value={members.length} label="Total Members" sub={`${activeCount} active`} />
-          <StatCard icon={UserCheck}    iconBg="from-emerald-400 to-teal-500" value={activeCount}    label="Active"        sub="Currently working" />
-          <StatCard icon={UserX}        iconBg="from-gray-400 to-slate-500"   value={inactiveCount}  label="Inactive"      sub={`${onLeaveCount} on leave`} />
-          <StatCard icon={CheckCircle2} iconBg="from-amber-400 to-orange-500" value={totalTasks}     label="Total Tasks"   sub="Across all members" />
-        </div>
-
-        {/* ── Search + Filters ── */}
+        {/* ── Search + Role Filter ── */}
         <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-wrap items-center gap-3"
           style={{ border: `1px solid ${TL}` }}>
 
@@ -138,27 +109,6 @@ const UsersRecord = () => {
                 <X size={13} />
               </button>
             )}
-          </div>
-
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Filter size={13} className="text-gray-400" />
-            {statuses.map(s => {
-              const cfg    = statusColors[s] || {};
-              const active = statusFilter === s;
-              return (
-                <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`text-[12px] font-semibold px-3 py-1.5 rounded-xl border transition-all
-                    ${active
-                      ? s === 'All' ? 'bg-gray-800 text-white border-gray-800' : `${cfg.bg} ${cfg.text} ${cfg.border}`
-                      : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-300'}`}>
-                  {s === 'All' ? 'All Status' : (
-                    <span className="flex items-center gap-1">
-                      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />{s}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
           </div>
 
           {roles.length > 1 && (
