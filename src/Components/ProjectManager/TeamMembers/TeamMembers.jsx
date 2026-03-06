@@ -1031,7 +1031,8 @@ const AddMemberModal=({data,onChange,onSave,onClose})=>{
         createdAt: serverTimestamp(),
       };
       await setDoc(doc(db, 'invites', token), inviteData);
-      const link = `${window.location.origin}/invite/${token}`;
+     const SITE_URL = import.meta.env.VITE_SITE_URL || window.location.origin;
+     const link = `${SITE_URL}/invite/${token}`;
       setInviteLink(link);
       setShowInviteModal(true);
     } catch (err) {
