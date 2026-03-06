@@ -962,6 +962,27 @@ const Field = ({label,required,children})=>(
 );
 const Row=({children})=><div className="grid grid-cols-2 gap-3">{children}</div>;
 
+// ─── Helper for copying to clipboard ──────────────────────────────────────────
+const copyToClipboard = (text, onSuccess = () => alert('Copied!'), onError = () => alert('Failed to copy')) => {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(onSuccess).catch(onError);
+  } else {
+    // Fallback for older browsers
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy') ? onSuccess() : onError();
+    } catch (err) {
+      onError();
+    }
+    document.body.removeChild(textarea);
+  }
+};
+
 // ─── ADD MEMBER MODAL (modified with invite link on Basic step + WhatsApp) ────
 const DETAIL_TABS=[
   {key:'personal', label:'Personal'},
@@ -1071,7 +1092,7 @@ const AddMemberModal=({data,onChange,onSave,onClose})=>{
             </div>
             <div className="px-6 py-4 flex gap-3 flex-shrink-0" style={{borderTop:`1px solid ${TL}`}}>
               <button type="button" onClick={onClose}
-                className="flex-1 py- rounded-xl text-sm font-semibold text-gray-600 bg-[#EEF2F7] hover:opacity-80"
+                className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-[#EEF2F7] hover:opacity-80"
                 style={{border:`1px solid ${TL}`}}>Cancel</button>
               <button type="button" onClick={generateInvite} disabled={inviteLoading}
                 className="flex-1 whitespace-nowrap px-2 rounded-xl text-sm font-semibold text-teal-600 bg-teal-50 border border-teal-200 hover:bg-teal-100 flex items-center justify-center gap-1.5">
@@ -1217,16 +1238,16 @@ const AddMemberModal=({data,onChange,onSave,onClose})=>{
             <p className="text-xs text-gray-500 mb-4">Share this link with your new team member. It can only be used once.</p>
             <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl border border-gray-200 mb-4">
               <input type="text" value={inviteLink} readOnly className="flex-1 text-xs bg-transparent outline-none text-gray-700" />
-              <button onClick={() => { navigator.clipboard.writeText(inviteLink); alert('Copied!'); }} className="text-teal-500 hover:text-teal-600 p-1">
+              <button onClick={() => copyToClipboard(inviteLink)} className="text-teal-500 hover:text-teal-600 p-1">
                 <Copy size={16} />
               </button>
             </div>
             <div className="flex gap-3">
-              <a href={`mailto:?subject=Team Invitation&body=Please complete your profile using this link: ${inviteLink}`} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 text-xs font-semibold">
+              <a href={`mailto:?subject=Team Invitation&body=Please complete your profile using this link: ${encodeURIComponent(inviteLink)}`} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 text-xs font-semibold">
                 <Mail size={14} /> Email
               </a>
-              <a href={`https://wa.me/?text=${encodeURIComponent(`Please complete your team profile using this link: ${inviteLink}`)}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 text-xs font-semibold">
-                <span className="text-lg"><BsWhatsapp color='green'/></span> WhatsApp
+              <a href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Please complete your team profile using this link: ${inviteLink}`)}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 text-xs font-semibold">
+                <BsWhatsapp size={16} /> WhatsApp
               </a>
               <button onClick={() => setShowInviteModal(false)} className="flex-1 py-2.5 rounded-lg bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 text-xs font-semibold">
                 Close

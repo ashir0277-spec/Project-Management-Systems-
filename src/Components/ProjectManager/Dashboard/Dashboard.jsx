@@ -8,8 +8,6 @@ import {
   FolderOpen, Users, CheckCircle2,
   Clock, BarChart2, AlertTriangle, CalendarClock, Search,
   ChevronLeft, ChevronRight, Calendar, X, ChevronDown, AlertCircle,
-  BrushCleaning,
-  BrushCleaningIcon
 } from 'lucide-react';
 
 const TL  = 'rgba(51,51,51,0.12)';
@@ -36,6 +34,7 @@ const DAYS   = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 const toYMD = (d) => {
+  if (!d) return '';
   const dt = d instanceof Date ? d : new Date(d);
   if (isNaN(dt)) return '';
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
@@ -128,7 +127,6 @@ const UpcomingDeadlinesStatCard = ({ members }) => {
         <p className="text-sm font-bold text-gray-700 mb-2.5">Upcoming Deadlines</p>
         {upcoming.length === 0 ? (
           <div className="text-center py-3">
-            <p className="text-2xl mb-1 text-gray-400 flex justify-center"><BrushCleaning/></p>
             <p className="text-[11px] text-gray-400">No deadlines this week!</p>
           </div>
         ) : (
@@ -255,7 +253,6 @@ const UpcomingDeadlinesCard = ({ members }) => {
       <div className="p-5">
         {upcoming.length === 0 ? (
           <div className="text-center py-8">
-            <div className="text-3xl mb-2 flex justify-center text-gray-400"><BrushCleaningIcon/></div>
             <p className="text-sm text-gray-400">No deadlines in the next 7 days!</p>
           </div>
         ) : (
@@ -495,20 +492,52 @@ const Dashboard = () => {
   const [showCalDrop,  setShowCalDrop]  = useState(false);
   const calBtnRef = useRef(null);
 
+  // ── FIXED: Real-time Firebase listeners with proper loading state ──
   useEffect(() => {
-    let loaded = 0;
-    const done = () => { loaded++; if (loaded >= 2) setLoading(false); };
-    const u1 = onSnapshot(collection(db, 'projects'),    s => { setProjects(s.docs.map(d => ({ id: d.id, ...d.data() }))); done(); }, () => done());
-    const u2 = onSnapshot(collection(db, 'teamMembers'), s => { setMembers(s.docs.map(d => ({ id: d.id, ...d.data() }))); done(); }, () => done());
+    const loadState = { projects: false, members: false };
+
+    const checkDone = () => {
+      if (loadState.projects && loadState.members) setLoading(false);
+    };
+
+    const u1 = onSnapshot(
+      collection(db, 'projects'),
+      (snapshot) => {
+        setProjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        loadState.projects = true;
+        checkDone();
+      },
+      (err) => {
+        console.error('Projects listener error:', err);
+        loadState.projects = true;
+        checkDone();
+      }
+    );
+
+    const u2 = onSnapshot(
+      collection(db, 'teamMembers'),
+      (snapshot) => {
+        setMembers(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        loadState.members = true;
+        checkDone();
+      },
+      (err) => {
+        console.error('Members listener error:', err);
+        loadState.members = true;
+        checkDone();
+      }
+    );
+
     return () => { u1(); u2(); };
   }, []);
 
+  // ── Derived stats (live from state) ──
   const activeProjects = projects.filter(p => p.status === 'In Progress').length;
   const activeMembers  = members.filter(m => m.status === 'Active').length;
-  const allTasks       = members.flatMap(m => m.tasks || []);
-  const doneTasks      = allTasks.filter(t => t.status === 'Done').length;
-  const pendingTasks   = allTasks.filter(t => t.status === 'Pending').length;
-  const inProgTasks    = allTasks.filter(t => t.status === 'In Progress').length;
+  const allTasks       = useMemo(() => members.flatMap(m => m.tasks || []), [members]);
+  const doneTasks      = useMemo(() => allTasks.filter(t => t.status === 'Done').length,         [allTasks]);
+  const pendingTasks   = useMemo(() => allTasks.filter(t => t.status === 'Pending').length,      [allTasks]);
+  const inProgTasks    = useMemo(() => allTasks.filter(t => t.status === 'In Progress').length,  [allTasks]);
 
   const todayDeadlines = useMemo(() =>
     projects.filter(p => toYMD(p.deadline) === todayYMD),
@@ -524,19 +553,24 @@ const Dashboard = () => {
     selectedDate === tomorrow  ? 'Tomorrow' :
     (() => { const d = new Date(selectedDate+'T00:00:00'); return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)} ${d.getFullYear()}`; })();
 
-  const filteredProjects = q
-    ? projects.filter(p =>
+  const filteredProjects = useMemo(() => {
+    if (q) {
+      return projects.filter(p =>
         p.name?.toLowerCase().includes(q) ||
         p.status?.toLowerCase().includes(q) ||
         p.priority?.toLowerCase().includes(q) ||
         p.description?.toLowerCase().includes(q)
-      )
-    : selectedDate
-      ? projects.filter(p => toYMD(p.deadline) === selectedDate || toYMD(p.startDate) === selectedDate)
-      : [...projects].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5);
+      );
+    }
+    if (selectedDate) {
+      return projects.filter(p => toYMD(p.deadline) === selectedDate || toYMD(p.startDate) === selectedDate);
+    }
+    return [...projects].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5);
+  }, [projects, q, selectedDate]);
 
-  const filteredTasks = q
-    ? members.flatMap(m =>
+  const filteredTasks = useMemo(() => {
+    if (q) {
+      return members.flatMap(m =>
         (m.tasks || [])
           .filter(t =>
             t.title?.toLowerCase().includes(q) ||
@@ -545,17 +579,20 @@ const Dashboard = () => {
             m.name?.toLowerCase().includes(q)
           )
           .map(t => ({ ...t, memberName: m.name, memberId: m.id }))
-      )
-    : selectedDate
-      ? members.flatMap(m =>
-          (m.tasks || [])
-            .filter(t => toYMD(t.dueDate) === selectedDate)
-            .map(t => ({ ...t, memberName: m.name, memberId: m.id }))
-        )
-      : members
-          .flatMap(m => (m.tasks || []).map(t => ({ ...t, memberName: m.name, memberId: m.id })))
-          .filter(t => t.status !== 'Done')
-          .slice(0, 5);
+      );
+    }
+    if (selectedDate) {
+      return members.flatMap(m =>
+        (m.tasks || [])
+          .filter(t => toYMD(t.dueDate) === selectedDate)
+          .map(t => ({ ...t, memberName: m.name, memberId: m.id }))
+      );
+    }
+    return members
+      .flatMap(m => (m.tasks || []).map(t => ({ ...t, memberName: m.name, memberId: m.id })))
+      .filter(t => t.status !== 'Done')
+      .slice(0, 5);
+  }, [members, q, selectedDate]);
 
   const hasResults  = filteredProjects.length > 0 || filteredTasks.length > 0;
   const isSearching = q.length > 0;
@@ -570,8 +607,8 @@ const Dashboard = () => {
   if (isSearching) {
     return (
       <div className="min-h-screen bg-[#EEF2F7]">
-        <div className="p-6 max-w-[1600px] mx-auto space-y-6">
-          <div className="flex items-center gap-3">
+        <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-6">
+          <div className="flex items-center gap-3 flex-wrap">
             <Search size={18} className="text-teal-500" />
             <p className="text-sm text-gray-500">
               Results for <span className="font-semibold text-gray-800">"{searchQuery}"</span>
@@ -580,7 +617,7 @@ const Dashboard = () => {
           </div>
 
           {!hasResults && (
-            <div className="bg-white rounded-2xl shadow-sm p-16 text-center" style={{ border: `1px solid ${TL}` }}>
+            <div className="bg-white rounded-2xl shadow-sm p-12 sm:p-16 text-center" style={{ border: `1px solid ${TL}` }}>
               <div className="text-5xl mb-4">🔍</div>
               <p className="text-lg font-semibold text-gray-700 mb-2">No results found</p>
               <p className="text-sm text-gray-400">Nothing matched "<span className="font-medium">{searchQuery}</span>". Try a different keyword.</p>
@@ -589,13 +626,13 @@ const Dashboard = () => {
 
           {filteredProjects.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
-              <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+              <div className="flex items-center gap-2 px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
                 <BarChart2 size={16} className="text-teal-500" />
                 <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Projects</h2>
                 <span className="ml-auto text-xs text-gray-400">{filteredProjects.length} found</span>
               </div>
               <div className="overflow-x-auto w-full" style={{ scrollbarWidth: 'none' }}>
-                <table className="w-full min-w-[600px]">
+                <table className="w-full min-w-[500px]">
                   <colgroup>
                     <col style={{ width: '22%' }} /><col style={{ width: '18%' }} />
                     <col style={{ width: '15%' }} /><col style={{ width: '30%' }} />
@@ -604,7 +641,7 @@ const Dashboard = () => {
                   <thead>
                     <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
                       {['Project Name','Status','Priority','Description','Deadline'].map((h,i) => (
-                        <th key={h} className="py-2.5 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-left"
+                        <th key={h} className="py-2.5 px-3 sm:px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-left"
                           style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>{h}</th>
                       ))}
                     </tr>
@@ -615,15 +652,15 @@ const Dashboard = () => {
                       const pCfg = priorityColors[p.priority] || priorityColors.Medium;
                       return (
                         <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} style={{ borderBottom: `1px solid ${TL}` }}>
-                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><p className="text-[13px] font-semibold text-gray-900 truncate">{p.name}</p></td>
-                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><p className="text-[13px] font-semibold text-gray-900 truncate">{p.name}</p></td>
+                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
                             <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${sCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`}/>{p.status}</span>
                           </td>
-                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
                             <span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${pCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`}/>{p.priority}</span>
                           </td>
-                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p></td>
-                          <td className="px-4 py-3"><span className="text-[11px] font-mono text-gray-500 whitespace-nowrap">{p.deadline || '—'}</span></td>
+                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p></td>
+                          <td className="px-3 sm:px-4 py-3"><span className="text-[11px] font-mono text-gray-500 whitespace-nowrap">{p.deadline || '—'}</span></td>
                         </tr>
                       );
                     })}
@@ -635,28 +672,36 @@ const Dashboard = () => {
 
           {filteredTasks.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
-              <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+              <div className="flex items-center gap-2 px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
                 <CheckCircle2 size={16} className="text-teal-500" />
                 <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Tasks</h2>
                 <span className="ml-auto text-xs text-gray-400">{filteredTasks.length} found</span>
               </div>
-              <div className="p-5 space-y-2.5">
+              <div className="p-4 sm:p-5 space-y-2.5">
                 {filteredTasks.map(task => {
                   const pCfg  = priorityColors[task.priority] || priorityColors.Medium;
-                  const tsCfg = { 'Done':'text-emerald-600 bg-emerald-50 border-emerald-200', 'In Progress':'text-amber-600 bg-amber-50 border-amber-200', 'Pending':'text-gray-500 bg-gray-50 border-gray-200' }[task.status] || 'text-gray-500 bg-gray-50 border-gray-200';
+                  const tsCfg = {
+                    'Done':        'text-emerald-600 bg-emerald-50 border-emerald-200',
+                    'In Progress': 'text-amber-600 bg-amber-50 border-amber-200',
+                    'Pending':     'text-gray-500 bg-gray-50 border-gray-200',
+                  }[task.status] || 'text-gray-500 bg-gray-50 border-gray-200';
                   return (
-                    <div key={`${task.memberId}-${task.id}`} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors" style={{ border: `1px solid ${TL}` }}>
+                    <div key={`${task.memberId}-${task.id}`}
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+                      style={{ border: `1px solid ${TL}` }}>
                       <Clock size={14} className="text-amber-400 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-semibold text-gray-800 truncate">{task.title}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           <span className="text-[11px] text-gray-400">{task.memberName}</span>
                           <span className="text-gray-300">·</span>
                           <span className={`text-[11px] font-semibold ${pCfg.text}`}>{task.priority}</span>
                         </div>
                       </div>
-                      <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${tsCfg}`}>{task.status}</span>
-                      <span className="text-[11px] font-mono text-gray-400 flex-shrink-0">{task.dueDate || '—'}</span>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${tsCfg}`}>{task.status}</span>
+                        <span className="text-[10px] font-mono text-gray-400">{task.dueDate || '—'}</span>
+                      </div>
                     </div>
                   );
                 })}
@@ -702,7 +747,7 @@ const Dashboard = () => {
             </div>
           </StatCard>
 
-          {/* Card 3 — Task Overview (Done / In Progress / Pending) */}
+          {/* Card 3 — Task Overview */}
           <TasksStatCard
             doneTasks={doneTasks}
             inProgTasks={inProgTasks}
@@ -717,7 +762,7 @@ const Dashboard = () => {
 
         {/* ── TODAY'S DEADLINES BANNER ── */}
         {todayDeadlines.length > 0 && (
-          <div className="rounded-2xl px-5 py-3.5 flex items-center gap-3 flex-wrap"
+          <div className="rounded-2xl px-4 sm:px-5 py-3.5 flex items-center gap-3 flex-wrap"
             style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
             <div className="flex items-center gap-2 flex-shrink-0">
               <AlertCircle size={15} className="text-red-500"/>
@@ -727,7 +772,7 @@ const Dashboard = () => {
               {todayDeadlines.map(p => {
                 const sCfg = statusColors[p.status] || statusColors['Planning'];
                 return (
-                  <span key={p.id} className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-[12px] font-semibold text-gray-800 border"
+                  <span key={p.id} className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-[12px] font-semibold text-gray-800"
                     style={{ border: '1px solid rgba(239,68,68,0.25)' }}>
                     <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`}/>
                     {p.name}
@@ -740,7 +785,7 @@ const Dashboard = () => {
         )}
 
         {/* ── SECTION HEADER BAR ── */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-[15px] font-bold text-gray-800">
               {selectedDate ? `Results for ${dateBadgeLabel}` : 'Projects & Tasks'}
@@ -761,13 +806,14 @@ const Dashboard = () => {
             )}
             <button ref={calBtnRef}
               onClick={() => setShowCalDrop(v => !v)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-[13px] transition-all border
+              className={`flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl font-semibold text-[12px] sm:text-[13px] transition-all border
                 ${showCalDrop || selectedDate
                   ? 'bg-teal-500 text-white border-teal-500 shadow-md'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50 shadow-sm'}`}
               style={{ boxShadow: showCalDrop || selectedDate ? '0 4px 14px rgba(20,184,166,0.3)' : undefined }}>
               <Calendar size={14}/>
-              <span>{selectedDate ? dateBadgeLabel : 'Filter by Date'}</span>
+              <span className="hidden xs:inline sm:inline">{selectedDate ? dateBadgeLabel : 'Filter by Date'}</span>
+              <span className="inline xs:hidden sm:hidden">{selectedDate ? dateBadgeLabel : 'Date'}</span>
               <ChevronDown size={12} style={{ transform: showCalDrop ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform .2s' }}/>
             </button>
           </div>
@@ -789,7 +835,7 @@ const Dashboard = () => {
 
           {/* Recent Projects Table */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
-            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
               <div className="flex items-center gap-2">
                 <BarChart2 size={15} className="text-teal-500" />
                 <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
@@ -800,14 +846,13 @@ const Dashboard = () => {
             </div>
             {filteredProjects.length === 0 ? (
               <div className="py-16 text-center">
-                <div className="text-3xl font-semibold mb-2">{selectedDate ? '' : '📁'}</div>
                 <p className="text-gray-400 text-sm">
                   {selectedDate ? `No projects on ${dateBadgeLabel}` : 'No projects yet'}
                 </p>
               </div>
             ) : (
               <div className="overflow-x-auto w-full" style={{ scrollbarWidth: 'none' }}>
-                <table className="w-full min-w-[600px]">
+                <table className="w-full min-w-[500px]">
                   <colgroup>
                     <col style={{ width: '22%' }} /><col style={{ width: '18%' }} />
                     <col style={{ width: '15%' }} /><col style={{ width: '30%' }} />
@@ -816,7 +861,7 @@ const Dashboard = () => {
                   <thead>
                     <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
                       {['Project Name','Status','Priority','Description','Deadline'].map((h,i) => (
-                        <th key={h} className="py-2.5 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-left"
+                        <th key={h} className="py-2.5 px-3 sm:px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-left"
                           style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>{h}</th>
                       ))}
                     </tr>
@@ -832,7 +877,7 @@ const Dashboard = () => {
                         <tr key={p.id}
                           className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
                           style={{ borderBottom: `1px solid ${TL}`, background: isTodayDL ? 'rgba(239,68,68,0.03)' : undefined }}>
-                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="text-[13px] font-semibold text-gray-900 truncate">{p.name}</p>
                               {selectedDate && isStart    && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-200 flex-shrink-0">Start</span>}
@@ -840,14 +885,14 @@ const Dashboard = () => {
                               {!selectedDate && isTodayDL && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 flex-shrink-0">Due Today</span>}
                             </div>
                           </td>
-                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
                             <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${sCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`}/>{p.status}</span>
                           </td>
-                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
                             <span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${pCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`}/>{p.priority}</span>
                           </td>
-                          <td className="px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p></td>
-                          <td className="px-4 py-3">
+                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p></td>
+                          <td className="px-3 sm:px-4 py-3">
                             <span className={`text-[11px] font-mono whitespace-nowrap ${isTodayDL ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
                               {p.deadline || '—'}
                             </span>
@@ -864,26 +909,28 @@ const Dashboard = () => {
           {/* Right column — Task Overview + Upcoming Deadlines */}
           <div className="flex flex-col gap-5">
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
-              <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+              <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 size={15} className="text-teal-500" />
                   <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
                     {selectedDate ? 'Tasks' : 'Task Overview'}
                   </h3>
                 </div>
+                {/* Live count badge */}
+                <span className="text-xs text-gray-400">{filteredTasks.length} {selectedDate ? 'found' : 'active'}</span>
               </div>
-              <div className="p-5 space-y-4">
+              <div className="p-4 sm:p-5 space-y-4">
                 {!selectedDate && (
                   <>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
                       {[
                         { label: 'Done',        count: doneTasks,    color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
                         { label: 'In Progress', count: inProgTasks,  color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-200'   },
                         { label: 'Pending',     count: pendingTasks, color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200'    },
                       ].map(({ label, count, color, bg, border }) => (
-                        <div key={label} className={`${bg} border ${border} rounded-xl p-3 text-center`}>
+                        <div key={label} className={`${bg} border ${border} rounded-xl p-2 sm:p-3 text-center`}>
                           <p className={`text-xl font-bold ${color}`}>{count}</p>
-                          <p className="text-[10px] text-gray-500 mt-0.5 font-medium">{label}</p>
+                          <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5 font-medium leading-tight">{label}</p>
                         </div>
                       ))}
                     </div>
@@ -894,7 +941,7 @@ const Dashboard = () => {
                           <span className="text-xs font-bold text-teal-600">{Math.round((doneTasks / allTasks.length) * 100)}%</span>
                         </div>
                         <div className="h-2 rounded-full bg-[#EEF2F7] overflow-hidden">
-                          <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-500"
+                          <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-500 transition-all"
                             style={{ width: `${Math.round((doneTasks / allTasks.length) * 100)}%` }}/>
                         </div>
                       </div>
@@ -905,6 +952,7 @@ const Dashboard = () => {
                   </>
                 )}
 
+                {/* ── FIXED: Task list — responsive with proper layout ── */}
                 {filteredTasks.length === 0 ? (
                   <div className="text-center py-6">
                     <div className="text-2xl mb-2">{selectedDate ? '' : '🎉'}</div>
@@ -913,26 +961,40 @@ const Dashboard = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     {filteredTasks.map(task => {
                       const pCfg  = priorityColors[task.priority] || priorityColors.Medium;
                       const sCfg  = statusColors[task.status]     || statusColors['Pending'];
                       const isTodayTask = toYMD(task.dueDate) === todayYMD;
                       return (
                         <div key={`${task.memberId}-${task.id}`}
-                          className="flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-gray-50 transition-colors"
-                          style={{ border: selectedDate || isTodayTask ? `1px solid ${TL}` : 'none' }}>
+                          className="flex items-start gap-2 sm:gap-2.5 p-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+                          style={{ border: `1px solid ${TL}` }}>
                           <Clock size={13} className={`flex-shrink-0 mt-0.5 ${isTodayTask ? 'text-red-400' : 'text-amber-400'}`}/>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[12px] font-medium text-gray-800 truncate">{task.title}</p>
-                            <p className="text-[10px] text-gray-400 mt-0.5">{task.memberName} · <span className={pCfg.text}>{task.priority}</span></p>
+                            <p className="text-[12px] font-semibold text-gray-800 truncate">{task.title}</p>
+                            <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                              <span className="text-[10px] text-gray-400 truncate max-w-[80px]">{task.memberName}</span>
+                              <span className="text-gray-300 text-[10px]">·</span>
+                              <span className={`text-[10px] font-semibold ${pCfg.text}`}>{task.priority}</span>
+                            </div>
                           </div>
-                          {selectedDate
-                            ? <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 border ${sCfg.text} ${sCfg.bg} ${sCfg.border}`}>{task.status}</span>
-                            : isTodayTask
-                              ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 bg-red-50 text-red-600 border border-red-200">Due Today</span>
-                              : <span className="text-[10px] font-mono text-gray-400 flex-shrink-0">{task.dueDate || '—'}</span>
-                          }
+                          {/* Status / Due badge — responsive */}
+                          <div className="flex-shrink-0 flex flex-col items-end gap-1">
+                            {selectedDate ? (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${sCfg.text} ${sCfg.bg} ${sCfg.border}`}>
+                                {task.status}
+                              </span>
+                            ) : isTodayTask ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 whitespace-nowrap">
+                                Due Today
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-mono text-gray-400 whitespace-nowrap">
+                                {task.dueDate || '—'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
