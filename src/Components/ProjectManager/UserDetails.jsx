@@ -1,36 +1,22 @@
-// UserDetails.jsx – Individual Member Profile Page (matches Dashboard theme)
+// UserDetails.jsx – Individual Member Profile Page
 import React, { useState, useEffect } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, User, Mail, Phone, MapPin, Calendar,
-  Briefcase, CheckCircle2, Clock,
-  CreditCard, FileText, Image, Building2, Hash,
+  Briefcase, CreditCard, FileText, Image, Building2, Hash,
   Shield, Star, ExternalLink, X
+
 } from 'lucide-react';
 
-const TL  = 'rgba(51,51,51,0.12)';
+const TL = 'rgba(51,51,51,0.12)';
 
 const statusColors = {
   'Active':   { text: 'text-teal-600',  dot: 'bg-teal-500',  bg: 'bg-teal-50',  border: 'border-teal-200'  },
   'Inactive': { text: 'text-gray-500',  dot: 'bg-gray-400',  bg: 'bg-gray-50',  border: 'border-gray-200'  },
   'On Leave': { text: 'text-amber-600', dot: 'bg-amber-500', bg: 'bg-amber-50', border: 'border-amber-200' },
-};
-
-const priorityColors = {
-  High:     { text: 'text-red-600',     dot: 'bg-red-500',     bg: 'bg-red-50',     border: 'border-red-200'     },
-  Medium:   { text: 'text-amber-600',   dot: 'bg-amber-500',   bg: 'bg-amber-50',   border: 'border-amber-200'   },
-  Low:      { text: 'text-emerald-600', dot: 'bg-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-  Critical: { text: 'text-red-600',     dot: 'bg-red-500',     bg: 'bg-red-50',     border: 'border-red-200'     },
-};
-
-const taskStatusColors = {
-  'Done':        { text: 'text-teal-600',   bg: 'bg-teal-50',   border: 'border-teal-200'   },
-  'In Progress': { text: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-200'   },
-  'Pending':     { text: 'text-gray-500',   bg: 'bg-gray-50',   border: 'border-gray-200'   },
-  'Review':      { text: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200' },
-  'Overdue':     { text: 'text-red-600',    bg: 'bg-red-50',    border: 'border-red-200'    },
+  'Away':     { text: 'text-amber-600', dot: 'bg-amber-500', bg: 'bg-amber-50', border: 'border-amber-200' },
 };
 
 const AVATAR_COLORS = [
@@ -45,7 +31,7 @@ const AVATAR_COLORS = [
 const getInitials    = (name = '') => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 const getAvatarColor = (id   = '') => AVATAR_COLORS[id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length];
 
-// ── Reusable Section ──────────────────────────────────────────────────────────
+// ── Section ───────────────────────────────────────────────────────────────────
 const Section = ({ icon: Icon, iconColor = 'text-teal-500', title, badge, children }) => (
   <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
     <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
@@ -86,12 +72,12 @@ const Lightbox = ({ src, onClose }) => (
 
 // ── Main Component ────────────────────────────────────────────────────────────
 const UserDetails = () => {
-  const { id }      = useParams();          // ✅ reads :id from /userdetails/:id
-  const navigate    = useNavigate();
-  const [member,    setMember]    = useState(null);
-  const [loading,   setLoading]   = useState(true);
-  const [lightbox,  setLightbox]  = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const { id }     = useParams();
+  const navigate   = useNavigate();
+  const [member,   setMember]   = useState(null);
+  const [loading,  setLoading]  = useState(true);
+  const [lightbox, setLightbox] = useState(null);
+  const [activeTab,setActiveTab]= useState('overview');
 
   useEffect(() => {
     if (!id) return;
@@ -122,22 +108,16 @@ const UserDetails = () => {
     </div>
   );
 
-  const tasks      = member.tasks     || [];
-  const docs       = member.documents || [];
-  const media      = member.media     || member.images || [];
-  const bankInfo   = member.bankInfo  || {};
-  const sCfg       = statusColors[member.status] || statusColors['Inactive'];
-  const doneTasks  = tasks.filter(t => t.status === 'Done').length;
-  const pendingT   = tasks.filter(t => t.status !== 'Done' && t.status !== 'In Progress').length;
-  const inProgT    = tasks.filter(t => t.status === 'In Progress').length;
-  const completion = tasks.length > 0 ? Math.round((doneTasks / tasks.length) * 100) : 0;
+  const docs     = member.documents || [];
+  const media    = member.media     || member.images || [];
+  const bankInfo = member.bankInfo  || {};
+  const sCfg     = statusColors[member.status] || statusColors['Inactive'];
 
   const TABS = [
-    { key: 'overview', label: 'Overview',  icon: User,         },
-    { key: 'tasks',    label: 'Tasks',     icon: CheckCircle2, count: tasks.length },
-    { key: 'bank',     label: 'Bank Info', icon: CreditCard,   },
-    { key: 'docs',     label: 'Documents', icon: FileText,     count: docs.length  },
-    { key: 'media',    label: 'Media',     icon: Image,        count: media.length },
+    { key: 'overview', label: 'Overview',  icon: User        },
+    { key: 'bank',     label: 'Bank Info', icon: CreditCard  },
+    { key: 'docs',     label: 'Documents', icon: FileText,   count: docs.length  },
+    { key: 'media',    label: 'Media',     icon: Image,      count: media.length },
   ];
 
   return (
@@ -160,75 +140,99 @@ const UserDetails = () => {
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
           <div className={`h-2 bg-gradient-to-r ${getAvatarColor(member.id)}`} />
           <div className="p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+            <div className="flex flex-col sm:flex-row items-start gap-5">
 
-              {/* Avatar */}
-              <div className="relative flex-shrink-0">
-                {member.profileImage ? (
-                  <img src={member.profileImage} alt={member.name}
-                    className="w-20 h-20 rounded-2xl object-cover shadow-md cursor-pointer border-2 border-white"
-                    onClick={() => setLightbox(member.profileImage)} />
-                ) : (
-                  <div className={`w-20 h-20 rounded-2xl flex items-center justify-center bg-gradient-to-br ${getAvatarColor(member.id)} text-white text-2xl font-bold shadow-md`}>
-                    {getInitials(member.name)}
+              {/* ── LEFT: Avatar + Core Info ── */}
+              <div className="flex items-start gap-4 flex-1 min-w-0">
+
+                {/* Avatar */}
+                <div className="relative flex-shrink-0">
+                  {member.profileImage ? (
+                    <img src={member.profileImage} alt={member.name}
+                      className="w-20 h-20 rounded-2xl object-cover shadow-md cursor-pointer border-2 border-white"
+                      onClick={() => setLightbox(member.profileImage)} />
+                  ) : (
+                    <div className={`w-20 h-20 rounded-2xl flex items-center justify-center bg-gradient-to-br ${getAvatarColor(member.id)} text-white text-2xl font-bold shadow-md`}>
+                      {getInitials(member.name)}
+                    </div>
+                  )}
+                  <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${sCfg.dot}`} />
+                </div>
+
+                {/* Name / Email / Role / Experience */}
+                <div className="min-w-0">
+                  {/* Name only */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h1 className="text-xl font-bold text-gray-900">{member.name || 'Unknown'}</h1>
                   </div>
-                )}
-                <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${sCfg.dot}`} />
+
+                  {/* Email */}
+                  {member.email && (
+                    <p className="text-[13px] text-gray-400 mt-1.5 flex items-center gap-1.5">
+                      <Mail size={12} className="flex-shrink-0" />{member.email}
+                    </p>
+                  )}
+
+                  {/* Role badge only */}
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {member.role && (
+                      <span className="text-[12px] font-semibold px-2.5 py-1 rounded-lg bg-teal-50 text-teal-700 border border-teal-200">
+                        {member.role}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Phone */}
+                  {member.phone && (
+                    <p className="text-[12px] mt-2 flex items-center gap-1.5">
+                      <Phone size={11} className="text-teal-400 flex-shrink-0" />
+                      <span className="font-semibold text-gray-700">{member.phone}</span>
+                    </p>
+                  )}
+                </div>
               </div>
 
-              {/* Name + meta */}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <h1 className="text-xl font-bold text-gray-900">{member.name || 'Unknown'}</h1>
-                  <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border ${sCfg.text} ${sCfg.bg} ${sCfg.border}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`} />{member.status || 'Unknown'}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-3 mt-1.5">
-                  {member.role       && <span className="text-sm font-semibold text-teal-600">{member.role}</span>}
-                  {member.department && <><span className="text-gray-300">·</span><span className="text-sm text-gray-500">{member.department}</span></>}
-                  {member.employeeId && <><span className="text-gray-300">·</span><span className="text-xs font-mono text-gray-400">#{member.employeeId}</span></>}
-                </div>
-                {member.email && (
-                  <p className="text-sm text-gray-400 mt-1 flex items-center gap-1">
-                    <Mail size={12} />{member.email}
-                  </p>
-                )}
-              </div>
-
-              {/* Quick stats */}
-              <div className="flex items-center gap-3 flex-shrink-0">
-                {[
-                  { label: 'Total Tasks', value: tasks.length, color: 'text-gray-800'  },
-                  { label: 'Done',        value: doneTasks,    color: 'text-teal-600'  },
-                  { label: 'Pending',     value: pendingT,     color: 'text-amber-600' },
-                ].map(s => (
-                  <div key={s.label} className="text-center px-3 py-2 rounded-xl bg-[#EEF2F7]"
+              {/* ── RIGHT: Employment Type + Experience + Address ── */}
+              <div className="flex flex-col gap-2.5 flex-shrink-0 w-full sm:w-auto">
+                {member.employmentType && (
+                  <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-[#EEF2F7]"
                     style={{ border: `1px solid ${TL}` }}>
-                    <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
-                    <p className="text-[10px] text-gray-400 font-medium">{s.label}</p>
+                    <Briefcase size={13} className="text-violet-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Employment Type</p>
+                      <p className="text-[12px] font-semibold text-gray-700">{member.employmentType}</p>
+                    </div>
                   </div>
-                ))}
+                )}
+                {member.experience && (
+                  <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-[#EEF2F7]"
+                    style={{ border: `1px solid ${TL}` }}>
+                    <Star size={13} className="text-amber-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Experience</p>
+                      <p className="text-[12px] font-semibold text-gray-700">{member.experience}</p>
+                    </div>
+                  </div>
+                )}
+                {member.address && (
+                  <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl bg-[#EEF2F7]"
+                    style={{ border: `1px solid ${TL}` }}>
+                    <MapPin size={13} className="text-rose-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Address</p>
+                      <p className="text-[12px] font-semibold text-gray-700 max-w-[200px] leading-snug">{member.address}</p>
+                    </div>
+                  </div>
+                )}
               </div>
+
             </div>
-
-            {/* Progress bar */}
-            {tasks.length > 0 && (
-              <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${TL}` }}>
-                <div className="flex justify-between mb-1.5">
-                  <span className="text-xs text-gray-500 font-medium">Task Completion</span>
-                  <span className="text-xs font-bold text-teal-600">{completion}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-[#EEF2F7] overflow-hidden">
-                  <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-500 transition-all duration-700"
-                    style={{ width: `${completion}%` }} />
-                </div>
-              </div>
-            )}
           </div>
+        </div>
 
-          {/* ── Tabs ── */}
-          <div className="flex overflow-x-auto" style={{ borderTop: `1px solid ${TL}`, scrollbarWidth: 'none' }}>
+        {/* ── Tabs — SEPARATE from profile card ── */}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
+          <div className="flex overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             {TABS.map(tab => {
               const active = activeTab === tab.key;
               return (
@@ -257,25 +261,25 @@ const UserDetails = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Section icon={User} title="Personal Information">
               <div className="-mt-2.5">
-                <InfoRow icon={User}     label="Full Name"           value={member.name}             />
-                <InfoRow icon={Mail}     label="Email Address"       value={member.email}            />
-                <InfoRow icon={Phone}    label="Phone Number"        value={member.phone}            />
-                <InfoRow icon={MapPin}   label="Address"             value={member.address}          />
-                <InfoRow icon={Calendar} label="Date of Birth"       value={member.dob}              />
-                <InfoRow icon={Hash}     label="National ID / CNIC"  value={member.cnic}             />
-                <InfoRow icon={Shield}   label="Emergency Contact"   value={member.emergencyContact} />
+                <InfoRow icon={User}     label="Full Name"          value={member.name}             />
+                <InfoRow icon={Mail}     label="Email Address"      value={member.email}            />
+                <InfoRow icon={Phone}    label="Phone Number"       value={member.phone}            />
+                <InfoRow icon={MapPin}   label="Address"            value={member.address}          />
+                <InfoRow icon={Calendar} label="Date of Birth"      value={member.dob}              />
+                <InfoRow icon={Hash}     label="National ID / CNIC" value={member.cnic}             />
+                <InfoRow icon={Shield}   label="Emergency Contact"  value={member.emergencyContact} />
               </div>
             </Section>
 
             <Section icon={Briefcase} title="Work Information" iconColor="text-violet-500">
               <div className="-mt-2.5">
-                <InfoRow icon={Briefcase} label="Role / Position"    value={member.role}            />
-                <InfoRow icon={Building2} label="Department"         value={member.department}       />
-                <InfoRow icon={Hash}      label="Employee ID"        value={member.employeeId}       />
-                <InfoRow icon={Calendar}  label="Joining Date"       value={member.joiningDate}      />
-                <InfoRow icon={Star}      label="Employment Type"    value={member.employmentType}   />
-                <InfoRow icon={MapPin}    label="Work Location"      value={member.workLocation}     />
-                <InfoRow icon={User}      label="Reporting Manager"  value={member.manager}          />
+                <InfoRow icon={Briefcase} label="Role / Position"   value={member.role}           />
+                <InfoRow icon={Building2} label="Department"        value={member.department}      />
+                <InfoRow icon={Star}      label="Experience"        value={member.experience}      />
+                <InfoRow icon={Calendar}  label="Joining Date"      value={member.joiningDate}     />
+                <InfoRow icon={Star}      label="Employment Type"   value={member.employmentType}  />
+                <InfoRow icon={MapPin}    label="Work Location"     value={member.workLocation}    />
+                <InfoRow icon={User}      label="Reporting Manager" value={member.manager}         />
                 {member.salary && (
                   <InfoRow icon={CreditCard} label="Salary" value={`PKR ${member.salary}`} valueClass="text-teal-600 font-bold" />
                 )}
@@ -285,91 +289,19 @@ const UserDetails = () => {
         )}
 
         {/* ══════════════════════════════
-            TAB: TASKS
-        ══════════════════════════════ */}
-        {activeTab === 'tasks' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'Total',       value: tasks.length, color: 'text-gray-800', bg: 'bg-white'   },
-                { label: 'Done',        value: doneTasks,    color: 'text-teal-600', bg: 'bg-teal-50' },
-                { label: 'In Progress', value: inProgT,      color: 'text-blue-600', bg: 'bg-blue-50' },
-              ].map(s => (
-                <div key={s.label} className={`${s.bg} rounded-2xl p-4 text-center shadow-sm`}
-                  style={{ border: `1px solid ${TL}` }}>
-                  <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                  <p className="text-xs text-gray-500 mt-1 font-medium">{s.label}</p>
-                </div>
-              ))}
-            </div>
-
-            <Section icon={CheckCircle2} title="All Tasks"
-              badge={<span className="text-xs text-gray-400">{tasks.length} tasks</span>}>
-              {tasks.length === 0 ? (
-                <div className="text-center py-10">
-                  <div className="text-3xl mb-2">📋</div>
-                  <p className="text-gray-400 text-sm">No tasks assigned yet</p>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {tasks.map((task, i) => {
-                    const pCfg  = priorityColors[task.priority] || priorityColors.Medium;
-                    const tsCfg = taskStatusColors[task.status] || taskStatusColors['Pending'];
-                    return (
-                      <div key={task.id || i}
-                        className="flex items-start gap-3 p-3.5 rounded-xl hover:bg-gray-50 transition-colors"
-                        style={{ border: `1px solid ${TL}` }}>
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${pCfg.dot}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-gray-800">{task.title}</p>
-                          {task.description && (
-                            <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">{task.description}</p>
-                          )}
-                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                            <span className={`text-[11px] font-semibold ${pCfg.text}`}>{task.priority}</span>
-                            {task.dueDate && (
-                              <span className="flex items-center gap-1 text-[11px] text-gray-400">
-                                <Clock size={10} />{task.dueDate}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${tsCfg.text} ${tsCfg.bg} ${tsCfg.border}`}>
-                          {task.status}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </Section>
-          </div>
-        )}
-
-        {/* ══════════════════════════════
             TAB: BANK INFO
         ══════════════════════════════ */}
         {activeTab === 'bank' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5">
             <Section icon={CreditCard} title="Bank Details" iconColor="text-emerald-500">
               <div className="-mt-2.5">
-                <InfoRow icon={Building2}  label="Bank Name"       value={bankInfo.bankName      || member.bankName}      />
-                <InfoRow icon={Hash}       label="Account Number"  value={bankInfo.accountNumber || member.accountNumber} />
-                <InfoRow icon={User}       label="Account Title"   value={bankInfo.accountTitle  || member.accountTitle}  />
-                <InfoRow icon={Hash}       label="IBAN"            value={bankInfo.iban           || member.iban}          />
-                <InfoRow icon={Building2}  label="Branch Code"     value={bankInfo.branchCode    || member.branchCode}    />
-                <InfoRow icon={MapPin}     label="Branch Name"     value={bankInfo.branchName    || member.branchName}    />
-                <InfoRow icon={CreditCard} label="Payment Method"  value={bankInfo.paymentMethod || member.paymentMethod} />
-              </div>
-            </Section>
-
-            <Section icon={Star} title="Compensation" iconColor="text-amber-500">
-              <div className="-mt-2.5">
-                <InfoRow icon={CreditCard} label="Basic Salary"   value={member.salary     ? `PKR ${member.salary}`     : null} valueClass="text-teal-600 font-bold" />
-                <InfoRow icon={CreditCard} label="Allowances"     value={member.allowances ? `PKR ${member.allowances}` : null} />
-                <InfoRow icon={Calendar}   label="Pay Cycle"      value={member.payCycle   || 'Monthly'} />
-                <InfoRow icon={Calendar}   label="Last Pay Date"  value={member.lastPayDate}              />
-                <InfoRow icon={Hash}       label="Tax ID / NTN"   value={member.ntn        || member.taxId} />
+                <InfoRow icon={Building2}  label="Bank Name"      value={bankInfo.bankName      || member.bankName}      />
+                <InfoRow icon={Hash}       label="Account Number" value={bankInfo.accountNumber || member.accountNumber} />
+                <InfoRow icon={User}       label="Account Title"  value={bankInfo.accountTitle  || member.accountTitle}  />
+                <InfoRow icon={Hash}       label="IBAN"           value={bankInfo.iban           || member.iban}          />
+                <InfoRow icon={Building2}  label="Branch Code"    value={bankInfo.branchCode    || member.branchCode}    />
+                <InfoRow icon={MapPin}     label="Branch Name"    value={bankInfo.branchName    || member.branchName}    />
+                <InfoRow icon={CreditCard} label="Payment Method" value={bankInfo.paymentMethod || member.paymentMethod} />
               </div>
             </Section>
           </div>
@@ -392,7 +324,7 @@ const UserDetails = () => {
                 {docs.map((docItem, i) => {
                   const name = docItem.name || docItem.fileName || `Document ${i + 1}`;
                   const url  = docItem.url  || docItem.link    || docItem;
-                  const ext  = typeof url === 'string' ? url.split('.').pop()?.toUpperCase().slice(0, 4) : 'FILE';
+                  const ext  = name.split('.').pop()?.toUpperCase().slice(0, 4) || 'FILE';
                   return (
                     <div key={i} className="flex items-center gap-3 p-3.5 rounded-xl hover:bg-gray-50 transition-colors"
                       style={{ border: `1px solid ${TL}` }}>
@@ -401,9 +333,9 @@ const UserDetails = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-semibold text-gray-800 truncate">{name}</p>
-                        <p className="text-[11px] text-gray-400">{ext} file</p>
+                        <p className="text-[11px] text-gray-400">{ext} · {docItem.size ? (docItem.size / 1024).toFixed(1) + ' KB' : 'file'}</p>
                       </div>
-                      {typeof url === 'string' && (
+                      {typeof url === 'string' && url.startsWith('http') && (
                         <a href={url} target="_blank" rel="noreferrer"
                           className="w-8 h-8 rounded-lg flex items-center justify-center bg-teal-50 hover:bg-teal-100 border border-teal-200 transition-colors flex-shrink-0">
                           <ExternalLink size={13} className="text-teal-600" />
@@ -421,13 +353,13 @@ const UserDetails = () => {
             TAB: MEDIA
         ══════════════════════════════ */}
         {activeTab === 'media' && (
-          <Section icon={Image} title="Media & Images"
+          <Section icon={Image} title="Media & Files"
             badge={<span className="text-xs text-gray-400">{media.length} files</span>}>
             {media.length === 0 && !member.profileImage ? (
               <div className="text-center py-12">
                 <div className="text-4xl mb-3">🖼️</div>
                 <p className="text-gray-500 font-semibold">No media uploaded</p>
-                <p className="text-gray-400 text-sm mt-1">Images and photos will appear here</p>
+                <p className="text-gray-400 text-sm mt-1">Images, videos and audio will appear here</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -446,14 +378,18 @@ const UserDetails = () => {
                   </div>
                 )}
                 {media.map((item, i) => {
-                  const url  = item.url  || item;
-                  const name = item.name || `Image ${i + 1}`;
+                  const url      = item.url  || item;
+                  const name     = item.name || `Media ${i + 1}`;
+                  const isImage  = item.type?.startsWith('image/') || (typeof url === 'string' && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url));
+                  const isVideo  = item.type?.startsWith('video/');
+                  const isAudio  = item.type?.startsWith('audio/');
+
                   return (
                     <div key={i}
                       className="relative group cursor-pointer rounded-xl overflow-hidden aspect-square shadow-sm"
                       style={{ border: `1px solid ${TL}` }}
-                      onClick={() => typeof url === 'string' && setLightbox(url)}>
-                      {typeof url === 'string' ? (
+                      onClick={() => isImage && typeof url === 'string' && setLightbox(url)}>
+                      {isImage && typeof url === 'string' && url.startsWith('http') ? (
                         <>
                           <img src={url} alt={name}
                             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
@@ -462,10 +398,19 @@ const UserDetails = () => {
                           </div>
                         </>
                       ) : (
-                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                          <Image size={24} className="text-gray-400" />
+                        <div className="w-full h-full bg-gray-50 flex flex-col items-center justify-center gap-2">
+                          {isVideo && <span className="text-2xl">🎬</span>}
+                          {isAudio && <span className="text-2xl">🎵</span>}
+                          {!isVideo && !isAudio && <Image size={24} className="text-gray-400" />}
+                          <span className="text-[9px] font-bold text-gray-400 uppercase px-2 text-center truncate w-full">
+                            {name.split('.').pop()}
+                          </span>
                         </div>
                       )}
+                      {/* Name tooltip on hover */}
+                      <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-[9px] text-white font-semibold truncate">{name}</p>
+                      </div>
                     </div>
                   );
                 })}

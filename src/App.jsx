@@ -12,7 +12,8 @@ import LoginPage from "./Components/Pages/LoginPage";
 import { ToastContainer } from "react-toastify";
 import Dashboard from "./Components/ProjectManager/Dashboard/Dashboard";
 import UsersRecord from "./Components/ProjectManager/UsersRecord";
-import UserDetails from "./Components/ProjectManager/UserDetails";  // ✅ correct import name
+import UserDetails from "./Components/ProjectManager/UserDetails";
+import { InvitePage } from './Components/ProjectManager/TeamMembers/TeamMembers';
 
 function App() {
   return (
@@ -22,7 +23,7 @@ function App() {
         <Routes>
           <Route path="/"               element={<LoginPage />} />
           <Route path="/forgotpassword" element={<ForgotPassword />} />
-
+           <Route path="/invite/:token" element={<InvitePage />} />
           <Route element={<PMLayout />}>
             <Route path="/dashboard"           element={<Dashboard />} />
             <Route path="/projects"            element={<Projects />} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
   collection, addDoc, updateDoc, deleteDoc, doc,
@@ -7,40 +7,79 @@ import {
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../firebase';
 import {
-  Edit, Plus, Table, ArrowLeft, Image, FileText, Link2,
+  Edit, Plus, ArrowLeft, Image, FileText, Link2,
   Trash2, X, FolderPlus, Upload, AlertCircle,
   MoreVertical, ExternalLink, CheckSquare, Square, Folder, Search,
-  Loader, Pencil,
-  Loader2,
-  FolderArchive
+  Loader, Pencil, GripVertical,
 } from 'lucide-react';
 import { GoFileMedia } from 'react-icons/go';
 import { SiGoogledocs } from 'react-icons/si';
-import { LiaGrinSquintTears, LiaLinkSolid } from 'react-icons/lia';
 import { PiLinkSimpleLight } from 'react-icons/pi';
 
+// ─── Constants ────────────────────────────────────────────────────────────────
 const MEDIA_TYPES = ['jpg','jpeg','png','gif','webp','svg','mp4','mov','avi','mkv'];
 const DOC_TYPES   = ['pdf','doc','docx','xls','xlsx','ppt','pptx','txt','csv','zip','rar'];
+const TL          = 'rgba(0,0,0,0.10)';
+const TLB         = 'rgba(0,0,0,0.18)';
 
+// ─── Column definitions ───────────────────────────────────────────────────────
+const INIT_COLS = [
+  { key: 'drag',     label: '',            width: 32,  fixed: true },
+  { key: 'idx',      label: '#',           width: 42,  fixed: true, align: 'center' },
+  { key: 'name',     label: 'Client Name', width: 170, align: 'left',   editable: true, field: 'name' },
+  { key: 'contact',  label: 'Contact',     width: 140, align: 'left',   editable: true, field: 'contact' },
+  { key: 'phone',    label: 'Phone',       width: 130, align: 'left',   editable: true, field: 'phone' },
+  { key: 'email',    label: 'Email',       width: 185, align: 'left',   editable: true, field: 'email' },
+  { key: 'industry', label: 'Industry',    width: 125, align: 'left',   editable: true, field: 'industry' },
+  { key: 'revenue',  label: 'Revenue',     width: 100, align: 'right',  editable: true, field: 'revenue' },
+
+  { key: 'actions',  label: 'Actions',     width: 130, fixed: true, align: 'center' },
+];
+
+const INDUSTRIES = ['Technology','Consulting','Marketing','Design','Finance','Healthcare','Education','Real Estate','Manufacturing','Retail'];
+const STATUSES   = ['Active','Pending','Inactive'];
+
+const statusCls = s => ({
+  Active:   'bg-emerald-50 text-emerald-600 border-emerald-200',
+  Inactive: 'bg-gray-100 text-gray-500 border-gray-200',
+  Pending:  'bg-amber-50 text-amber-600 border-amber-200',
+})[s] || 'bg-gray-100 text-gray-500 border-gray-200';
+
+// ─── Main component ───────────────────────────────────────────────────────────
 const Clients = () => {
   const { showAddClientModal, setShowAddClientModal } = useOutletContext();
 
-  const [clientsList, setClientsList]         = useState([]);
+  const [clientsList, setClientsList]       = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
-  const [searchTerm, setSearchTerm]           = useState('');
-  const [loading, setLoading]                 = useState(true);
+  const [searchTerm, setSearchTerm]         = useState('');
+  const [loading, setLoading]               = useState(true);
+  const [rowOrder, setRowOrder]             = useState([]);
 
-  const [showEditModal, setShowEditModal]     = useState(false);
-  const [selectedClient, setSelectedClient]   = useState(null);
+  // ── Excel table state ──
+  const [cols, setCols]             = useState(INIT_COLS);
+  const [editCell, setEditCell]     = useState(null);   // { id, field }
+  const [editVal, setEditVal]       = useState('');
+  const [selectedRow, setSelectedRow] = useState(null);
+  const [dragOverCol, setDragOverCol] = useState(null);
+  const [dragOverRow, setDragOverRow] = useState(null);
+  const dragColRef   = useRef(null);
+  const dragRowRef   = useRef(null);
+  const isResizing   = useRef(false);
+  const lastTapRef   = useRef({ id: null, time: 0 });
+
+  // ── Modal state ──
+  const [showEditModal, setShowEditModal]   = useState(false);
+  const [selectedClient, setSelectedClient] = useState(null);
   const [selectedClientId, setSelectedClientId] = useState(null);
-  const [editClient, setEditClient] = useState({ name:'', contact:'', email:'', phone:'', industry:'', status:'', revenue:'', projects:0 });
-  const [newClient, setNewClient]   = useState({ name:'', contact:'', email:'', phone:'', industry:'Technology', status:'Active', revenue:'' });
+  const [editClient, setEditClient] = useState({ name:'',contact:'',email:'',phone:'',industry:'',status:'',revenue:'',projects:0 });
+  const [newClient, setNewClient]   = useState({ name:'',contact:'',email:'',phone:'',industry:'Technology',status:'Active',revenue:'' });
 
-  const [showMediaPage, setShowMediaPage]     = useState(false);
-  const [mediaTab, setMediaTab]               = useState('media');
-  const [currentFolder, setCurrentFolder]     = useState(null);
-  const [dragActive, setDragActive]           = useState(false);
-  const [uploading, setUploading]             = useState(false);
+  // ── Media manager state ──
+  const [showMediaPage, setShowMediaPage]   = useState(false);
+  const [mediaTab, setMediaTab]             = useState('media');
+  const [currentFolder, setCurrentFolder]   = useState(null);
+  const [dragActive, setDragActive]         = useState(false);
+  const [uploading, setUploading]           = useState(false);
   const [showAddLinkModal, setShowAddLinkModal]           = useState(false);
   const [showAddTextModal, setShowAddTextModal]           = useState(false);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
@@ -48,26 +87,29 @@ const Clients = () => {
   const [linkData, setLinkData]   = useState({ name:'', url:'' });
   const [textData, setTextData]   = useState({ name:'', content:'' });
   const [folderName, setFolderName] = useState('');
-  const [selectMode, setSelectMode]       = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState(new Set());
-  const [openMenuId, setOpenMenuId]       = useState(null);
-  const [viewTextFile, setViewTextFile]   = useState(null);
+  const [selectMode, setSelectMode]         = useState(false);
+  const [selectedFiles, setSelectedFiles]   = useState(new Set());
+  const [openMenuId, setOpenMenuId]         = useState(null);
+  const [viewTextFile, setViewTextFile]     = useState(null);
   const [deleteProgress, setDeleteProgress] = useState(null);
   const [confirmDialog, setConfirmDialog]   = useState(null);
-
   const [showEditFileModal, setShowEditFileModal] = useState(false);
   const [editFileData, setEditFileData]           = useState(null);
   const [editFileName, setEditFileName]           = useState('');
   const [editFileContent, setEditFileContent]     = useState('');
   const [savingFile, setSavingFile]               = useState(false);
 
-  const industries = ['Technology','Consulting','Marketing','Design','Finance','Healthcare','Education','Real Estate','Manufacturing','Retail'];
-
+  // ── Firestore ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const q = query(collection(db, 'clients'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, snap => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setClientsList(data);
+      setRowOrder(prev => {
+        const kept   = prev.filter(id => data.some(c => c.id === id));
+        const newIds = data.filter(c => !prev.includes(c.id)).map(c => c.id);
+        return [...kept, ...newIds];
+      });
       if (selectedClientId) {
         const updated = data.find(c => c.id === selectedClientId);
         if (updated) setSelectedClient(updated);
@@ -89,17 +131,21 @@ const Clients = () => {
   }, [searchTerm, clientsList]);
 
   useEffect(() => {
-    const handler = () => setOpenMenuId(null);
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
+    const h = () => setOpenMenuId(null);
+    document.addEventListener('click', h);
+    return () => document.removeEventListener('click', h);
   }, []);
 
   useEffect(() => {
-    setSelectMode(false);
-    setSelectedFiles(new Set());
-    setOpenMenuId(null);
+    setSelectMode(false); setSelectedFiles(new Set()); setOpenMenuId(null);
   }, [mediaTab, currentFolder]);
 
+  // ── Ordered + filtered rows ───────────────────────────────────────────────
+  const orderedFiltered = rowOrder
+    .map(id => filteredClients.find(c => c.id === id))
+    .filter(Boolean);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
   const getCurrentDate      = () => new Date().toISOString().split('T')[0];
   const getCurrentMonthYear = () => {
     const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -118,76 +164,219 @@ const Clients = () => {
     if (t==='pdf') return '📄';
     if (['doc','docx'].includes(t)) return '📝';
     if (['xls','xlsx'].includes(t)) return '📊';
-    if (['ppt','pptx'].includes(t)) return '📊';
     if (t==='link') return '🔗';
     if (t==='text') return '📋';
     if (['zip','rar'].includes(t)) return '📦';
     return '📎';
   };
 
-  const getFilesInCurrentView = () => {
-    if (!selectedClient?.files) return [];
-    const allFiles = currentFolder
-      ? (selectedClient.files.folders||[]).find(f=>f.id===currentFolder.id)?.files || []
-      : (selectedClient.files.root||[]);
-    if (mediaTab === 'media') return allFiles.filter(f => MEDIA_TYPES.includes((f.type||'').toLowerCase()));
-    if (mediaTab === 'docs')  return allFiles.filter(f => DOC_TYPES.includes((f.type||'').toLowerCase()) || f.type === 'text');
-    if (mediaTab === 'links') return allFiles.filter(f => f.type === 'link');
-    return allFiles;
-  };
-  const getAllFolders = () => selectedClient?.files?.folders || [];
+  // ── Column Resize ─────────────────────────────────────────────────────────
+  const startResize = useCallback((e, key) => {
+    e.preventDefault(); e.stopPropagation();
+    isResizing.current = true;
+    const startX = e.clientX;
+    const startW = cols.find(c => c.key === key)?.width || 100;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const onMove = ev => {
+      const w = Math.max(60, startW + ev.clientX - startX);
+      setCols(prev => prev.map(c => c.key === key ? { ...c, width: w } : c));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setTimeout(() => { isResizing.current = false; }, 50);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [cols]);
 
-  const toggleFileSelect = (fileId) => {
-    setSelectedFiles(prev => {
-      const next = new Set(prev);
-      next.has(fileId) ? next.delete(fileId) : next.add(fileId);
-      return next;
+  // ── Column DnD ────────────────────────────────────────────────────────────
+  const onColDragStart = (e, key) => { if (isResizing.current) { e.preventDefault(); return; } dragColRef.current = key; e.dataTransfer.effectAllowed = 'move'; };
+  const onColDragOver  = (e, key) => { if (!dragColRef.current || key === dragColRef.current) return; e.preventDefault(); setDragOverCol(key); };
+  const onColDrop = (e, target) => {
+    e.preventDefault();
+    const src = dragColRef.current;
+    if (!src || src === target) { dragColRef.current = null; setDragOverCol(null); return; }
+    setCols(prev => {
+      const arr = [...prev];
+      const si = arr.findIndex(c => c.key === src);
+      const di = arr.findIndex(c => c.key === target);
+      const [m] = arr.splice(si, 1);
+      arr.splice(di, 0, m);
+      return arr;
     });
+    dragColRef.current = null; setDragOverCol(null);
   };
-  const toggleSelectAll = (files) => {
-    if (selectedFiles.size === files.length) setSelectedFiles(new Set());
-    else setSelectedFiles(new Set(files.map(f => f.id)));
-  };
+  const onColDragEnd = () => { dragColRef.current = null; setDragOverCol(null); };
 
-  const openEditFile = (file, e) => {
+  // ── Row DnD ───────────────────────────────────────────────────────────────
+  const onRowDragStart = (e, id) => { dragRowRef.current = id; e.dataTransfer.effectAllowed = 'move'; };
+  const onRowDragOver  = (e, id) => { e.preventDefault(); if (dragRowRef.current && dragRowRef.current !== id) setDragOverRow(id); };
+  const onRowDrop = (e, targetId) => {
+    e.preventDefault();
+    const src = dragRowRef.current;
+    if (!src || src === targetId) { dragRowRef.current = null; setDragOverRow(null); return; }
+    setRowOrder(prev => {
+      const arr = [...prev];
+      const si  = arr.indexOf(src);
+      const di  = arr.indexOf(targetId);
+      arr.splice(si, 1); arr.splice(di, 0, src);
+      return arr;
+    });
+    dragRowRef.current = null; setDragOverRow(null);
+  };
+  const onRowDragEnd = () => { dragRowRef.current = null; setDragOverRow(null); };
+
+  // ── Cell edit ─────────────────────────────────────────────────────────────
+  const openEdit = useCallback((e, id, field, val) => {
     e.stopPropagation();
-    setOpenMenuId(null);
-    setEditFileData(file);
-    setEditFileName(file.name);
-    setEditFileContent(file.content || '');
-    setShowEditFileModal(true);
-  };
+    if (isResizing.current) return;
+    setEditCell({ id, field }); setEditVal(val ?? '');
+  }, []);
 
-  const handleSaveEditFile = async () => {
-    if (!editFileName.trim()) return;
-    setSavingFile(true);
+  const commitEdit = useCallback(async (id, field, val) => {
+    setEditCell(null);
+    if (val == null) return;
     try {
-      const updatedFiles = {
-        folders: JSON.parse(JSON.stringify(selectedClient.files?.folders || [])),
-        root:    JSON.parse(JSON.stringify(selectedClient.files?.root    || [])),
-      };
-      const applyEdit = (fileList) => fileList.map(f => {
-        if (f.id !== editFileData.id) return f;
-        const updated = { ...f, name: editFileName.trim() };
-        if (f.type === 'text') updated.content = editFileContent;
-        return updated;
-      });
-      if (currentFolder) {
-        const folder = updatedFiles.folders.find(f => f.id === currentFolder.id);
-        if (folder) folder.files = applyEdit(folder.files);
-      } else {
-        updatedFiles.root = applyEdit(updatedFiles.root);
+      const trimmed = val.trim();
+      if (!trimmed) return;
+      const update = { [field]: field === 'revenue' && !trimmed.startsWith('$') ? `$${trimmed}` : trimmed };
+      await updateDoc(doc(db, 'clients', id), update);
+    } catch (err) { console.error(err); }
+  }, []);
+
+  const onKeyDown = useCallback((e, id, field) => {
+    if (e.key === 'Escape') { e.preventDefault(); setEditCell(null); return; }
+    if (e.key === 'Enter')  { e.preventDefault(); commitEdit(id, field, editVal); return; }
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      commitEdit(id, field, editVal);
+      const editables = cols.filter(c => c.editable).map(c => c.key);
+      const ri = orderedFiltered.findIndex(c => c.id === id);
+      const ci = editables.indexOf(field);
+      if (!e.shiftKey && ci < editables.length - 1) {
+        const nf = editables[ci + 1];
+        setTimeout(() => { setEditCell({ id, field: nf }); setEditVal(orderedFiltered[ri]?.[nf] ?? ''); }, 0);
+      } else if (!e.shiftKey && ri < orderedFiltered.length - 1) {
+        const nm = orderedFiltered[ri + 1];
+        setTimeout(() => { setEditCell({ id: nm.id, field: editables[0] }); setEditVal(nm[editables[0]] ?? ''); }, 0);
+      } else if (e.shiftKey && ci > 0) {
+        const nf = editables[ci - 1];
+        setTimeout(() => { setEditCell({ id, field: nf }); setEditVal(orderedFiltered[ri]?.[nf] ?? ''); }, 0);
       }
-      await updateDoc(doc(db, 'clients', selectedClientId), { files: updatedFiles });
-      setShowEditFileModal(false);
-      setEditFileData(null);
-    } catch (err) {
-      alert('Error saving changes');
-      console.error(err);
     }
-    setSavingFile(false);
+  }, [cols, orderedFiltered, editVal, commitEdit]);
+
+  // Mobile double-tap
+  const handleMobileTap = useCallback((id) => {
+    const now = Date.now();
+    if (lastTapRef.current.id === id && now - lastTapRef.current.time < 300) {
+      lastTapRef.current = { id: null, time: 0 };
+      const client = clientsList.find(c => c.id === id);
+      if (client) openMediaManager(client, { stopPropagation: () => {} });
+    } else {
+      lastTapRef.current = { id, time: now };
+    }
+  }, [clientsList]);
+
+  // ── Render cell ───────────────────────────────────────────────────────────
+  const renderCell = (col, client, idx) => {
+    const isEditing = editCell?.id === client.id && editCell?.field === col.key;
+    const inputCls2 = 'w-full h-full px-3 text-[13px] bg-white outline-none border-0 text-gray-800 font-medium';
+
+    const justifyMap = { center: 'center', right: 'flex-end', left: 'flex-start' };
+    const justify = justifyMap[col.align] || 'flex-start';
+    const cellInner = { display: 'flex', alignItems: 'center', height: '100%', width: '100%', padding: '0 12px', overflow: 'hidden', boxSizing: 'border-box', justifyContent: justify };
+
+    if (isEditing) {
+      if (col.key === 'industry') return (
+        <select autoFocus value={editVal} onChange={e => setEditVal(e.target.value)}
+          onBlur={() => commitEdit(client.id, col.key, editVal)}
+          onKeyDown={e => onKeyDown(e, client.id, col.key)}
+          onClick={e => e.stopPropagation()}
+          className={inputCls2} style={{ height: '100%' }}>
+          {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
+        </select>
+      );
+      if (col.key === 'status') return (
+        <select autoFocus value={editVal} onChange={e => setEditVal(e.target.value)}
+          onBlur={() => commitEdit(client.id, col.key, editVal)}
+          onKeyDown={e => onKeyDown(e, client.id, col.key)}
+          onClick={e => e.stopPropagation()}
+          className={inputCls2} style={{ height: '100%' }}>
+          {STATUSES.map(s => <option key={s}>{s}</option>)}
+        </select>
+      );
+      return (
+        <input autoFocus type="text" value={editVal}
+          onChange={e => setEditVal(e.target.value)}
+          onBlur={() => commitEdit(client.id, col.key, editVal)}
+          onKeyDown={e => onKeyDown(e, client.id, col.key)}
+          onClick={e => e.stopPropagation()}
+          className={inputCls2}
+          placeholder={`Enter ${col.label.toLowerCase()}...`}
+        />
+      );
+    }
+
+    switch (col.key) {
+      case 'drag':
+        return (
+          <div style={{ ...cellInner, justifyContent: 'center' }} className="opacity-0 group-hover:opacity-60 transition-opacity cursor-grab active:cursor-grabbing">
+            <GripVertical size={14} className="text-gray-400" />
+          </div>
+        );
+      case 'idx':
+        return <div style={{ ...cellInner, justifyContent: 'center' }}><span className="text-[11px] font-mono text-gray-400">{idx + 1}</span></div>;
+
+      case 'name':
+        return (
+          <div style={cellInner}>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[13px] font-semibold text-gray-900 truncate">{client.name || '—'}</span>
+              <span className="text-[10px] text-gray-400 truncate">Since {client.since}</span>
+            </div>
+          </div>
+        );
+      case 'contact':
+        return <div style={cellInner}><span className="text-[13px] text-gray-700 truncate">{client.contact || '—'}</span></div>;
+      case 'phone':
+        return <div style={cellInner}><span className="text-[12px] text-gray-600 truncate">{client.phone || '—'}</span></div>;
+      case 'email':
+        return <div style={cellInner}><span className="text-[12px] text-gray-500 truncate">{client.email || '—'}</span></div>;
+      case 'industry':
+        return <div style={cellInner}><span className="text-[12px] text-gray-600 truncate">{client.industry || '—'}</span></div>;
+      case 'revenue':
+        return <div style={cellInner}><span className="text-[13px] font-bold font-mono text-teal-600 whitespace-nowrap">{client.revenue || '—'}</span></div>;
+      case 'status':
+        return (
+          <div style={cellInner}>
+            <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border whitespace-nowrap ${statusCls(client.status)}`}>
+              {client.status || '—'}
+            </span>
+          </div>
+        );
+      case 'actions':
+        return (
+          <div style={{ ...cellInner, justifyContent: 'center', gap: 6 }}>
+            <button onClick={e => { e.stopPropagation(); openEditModal(client, e); }}
+              className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 bg-white transition-all">
+              <Edit size={13} />
+            </button>
+            <button onClick={e => { e.stopPropagation(); openMediaManager(client, e); }}
+              className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:opacity-90 transition-all whitespace-nowrap">
+              View More
+            </button>
+          </div>
+        );
+      default: return null;
+    }
   };
 
+  // ── Client CRUD ───────────────────────────────────────────────────────────
   const handleAddSubmit = async e => {
     e.preventDefault();
     try {
@@ -195,7 +384,7 @@ const Clients = () => {
         ...newClient, projects: 0,
         revenue: newClient.revenue.startsWith('$') ? newClient.revenue : `$${newClient.revenue}`,
         since: getCurrentMonthYear(),
-        files: { folders:[], root:[] },
+        files: { folders: [], root: [] },
         createdAt: serverTimestamp()
       });
       setNewClient({ name:'',contact:'',email:'',phone:'',industry:'Technology',status:'Active',revenue:'' });
@@ -203,7 +392,7 @@ const Clients = () => {
     } catch(err) { alert('Error adding client'); console.error(err); }
   };
 
-  const openEdit = (client, e) => {
+  const openEditModal = (client, e) => {
     e.stopPropagation();
     setSelectedClient(client); setSelectedClientId(client.id);
     setEditClient({ name:client.name, contact:client.contact, email:client.email, phone:client.phone, industry:client.industry, status:client.status, revenue:(client.revenue||'').replace('$',''), projects:client.projects||0 });
@@ -223,7 +412,7 @@ const Clients = () => {
   };
 
   const handleDeleteClient = async (client, e) => {
-    e.stopPropagation();
+    e?.stopPropagation();
     if (!window.confirm(`Remove ${client.name}?`)) return;
     try {
       const promises = [];
@@ -241,30 +430,67 @@ const Clients = () => {
     setSelectMode(false); setSelectedFiles(new Set());
   };
 
+  // ── Media helpers ─────────────────────────────────────────────────────────
+  const getFilesInCurrentView = () => {
+    if (!selectedClient?.files) return [];
+    const allFiles = currentFolder
+      ? (selectedClient.files.folders||[]).find(f=>f.id===currentFolder.id)?.files || []
+      : (selectedClient.files.root||[]);
+    if (mediaTab === 'media') return allFiles.filter(f => MEDIA_TYPES.includes((f.type||'').toLowerCase()));
+    if (mediaTab === 'docs')  return allFiles.filter(f => DOC_TYPES.includes((f.type||'').toLowerCase()) || f.type === 'text');
+    if (mediaTab === 'links') return allFiles.filter(f => f.type === 'link');
+    return allFiles;
+  };
+  const getAllFolders = () => selectedClient?.files?.folders || [];
+
+  const toggleFileSelect = (fileId) => {
+    setSelectedFiles(prev => { const next = new Set(prev); next.has(fileId) ? next.delete(fileId) : next.add(fileId); return next; });
+  };
+  const toggleSelectAll = (files) => {
+    if (selectedFiles.size === files.length) setSelectedFiles(new Set());
+    else setSelectedFiles(new Set(files.map(f => f.id)));
+  };
+
+  const openEditFile = (file, e) => {
+    e.stopPropagation(); setOpenMenuId(null);
+    setEditFileData(file); setEditFileName(file.name);
+    setEditFileContent(file.content || ''); setShowEditFileModal(true);
+  };
+
+  const handleSaveEditFile = async () => {
+    if (!editFileName.trim()) return;
+    setSavingFile(true);
+    try {
+      const updatedFiles = { folders: JSON.parse(JSON.stringify(selectedClient.files?.folders||[])), root: JSON.parse(JSON.stringify(selectedClient.files?.root||[])) };
+      const applyEdit = (list) => list.map(f => {
+        if (f.id !== editFileData.id) return f;
+        const u = { ...f, name: editFileName.trim() };
+        if (f.type === 'text') u.content = editFileContent;
+        return u;
+      });
+      if (currentFolder) { const folder = updatedFiles.folders.find(f=>f.id===currentFolder.id); if (folder) folder.files = applyEdit(folder.files); }
+      else { updatedFiles.root = applyEdit(updatedFiles.root); }
+      await updateDoc(doc(db,'clients',selectedClientId),{files:updatedFiles});
+      setShowEditFileModal(false); setEditFileData(null);
+    } catch(err) { alert('Error saving'); console.error(err); }
+    setSavingFile(false);
+  };
+
   const handleFiles = async files => {
     if (!files?.length || !storage || !selectedClientId) return;
     for (const file of files) {
       const ext = file.name.split('.').pop().toLowerCase();
-      if (mediaTab === 'media' && !MEDIA_TYPES.includes(ext)) {
-        setShowWrongTypeMsg(`"${file.name}" media file nahi hai!`);
-        setTimeout(() => setShowWrongTypeMsg(''), 4000); return;
-      }
-      if (mediaTab === 'docs' && !DOC_TYPES.includes(ext)) {
-        setShowWrongTypeMsg(`"${file.name}" document nahi hai!`);
-        setTimeout(() => setShowWrongTypeMsg(''), 4000); return;
-      }
+      if (mediaTab === 'media' && !MEDIA_TYPES.includes(ext)) { setShowWrongTypeMsg(`"${file.name}" media file nahi hai!`); setTimeout(()=>setShowWrongTypeMsg(''),4000); return; }
+      if (mediaTab === 'docs'  && !DOC_TYPES.includes(ext))   { setShowWrongTypeMsg(`"${file.name}" document nahi hai!`);  setTimeout(()=>setShowWrongTypeMsg(''),4000); return; }
     }
     setUploading(true);
     try {
-      const updatedFiles = {
-        folders: JSON.parse(JSON.stringify(selectedClient.files?.folders||[])),
-        root:    JSON.parse(JSON.stringify(selectedClient.files?.root||[]))
-      };
+      const updatedFiles = { folders: JSON.parse(JSON.stringify(selectedClient.files?.folders||[])), root: JSON.parse(JSON.stringify(selectedClient.files?.root||[])) };
       for (const file of files) {
         const ts = Date.now(), rid = Math.floor(Math.random()*10000);
         const storagePath = `clients/${selectedClientId}/files/${ts}_${rid}_${file.name}`;
-        await uploadBytes(ref(storage, storagePath), file);
-        const url = await getDownloadURL(ref(storage, storagePath));
+        await uploadBytes(ref(storage,storagePath),file);
+        const url = await getDownloadURL(ref(storage,storagePath));
         const newFile = { id:`file${ts}_${rid}`, name:file.name, size:formatFileSize(file.size), type:file.name.split('.').pop().toLowerCase(), uploadedOn:getCurrentDate(), url, storagePath };
         if (currentFolder) { const folder = updatedFiles.folders.find(f=>f.id===currentFolder.id); if (folder) folder.files.push(newFile); }
         else { updatedFiles.root.push(newFile); }
@@ -311,26 +537,26 @@ const Clients = () => {
 
   const handleDeleteFile = (fileId) => {
     askConfirm('Are you sure you want to delete this file?', async () => {
-      setDeleteProgress({ label: 'Deleting file...', pct: 20 });
+      setDeleteProgress({ label:'Deleting file...', pct:20 });
       try {
         const updatedFiles = { folders: JSON.parse(JSON.stringify(selectedClient.files?.folders||[])), root: JSON.parse(JSON.stringify(selectedClient.files?.root||[])) };
         let fileToDelete;
         if (currentFolder) { const folder = updatedFiles.folders.find(f=>f.id===currentFolder.id); fileToDelete = folder.files.find(f=>f.id===fileId); folder.files = folder.files.filter(f=>f.id!==fileId); }
         else { fileToDelete = updatedFiles.root.find(f=>f.id===fileId); updatedFiles.root = updatedFiles.root.filter(f=>f.id!==fileId); }
-        setDeleteProgress({ label: 'Removing from storage...', pct: 50 });
+        setDeleteProgress({ label:'Removing from storage...', pct:50 });
         if (fileToDelete?.storagePath) await deleteObject(ref(storage,fileToDelete.storagePath)).catch(()=>{});
-        setDeleteProgress({ label: 'Saving changes...', pct: 80 });
+        setDeleteProgress({ label:'Saving changes...', pct:80 });
         await updateDoc(doc(db,'clients',selectedClientId),{files:updatedFiles});
-        setDeleteProgress({ label: 'Done!', pct: 100 });
-        setTimeout(() => setDeleteProgress(null), 800);
+        setDeleteProgress({ label:'Done!', pct:100 });
+        setTimeout(()=>setDeleteProgress(null),800);
       } catch(err) { setDeleteProgress(null); alert('Error deleting file'); }
     });
   };
 
   const handleDeleteSelected = () => {
     if (!selectedFiles.size) return;
-    askConfirm(`Are you sure you want to delete ${selectedFiles.size} selected file(s)?`, async () => {
-      setDeleteProgress({ label: 'Preparing deletion...', pct: 10 });
+    askConfirm(`Delete ${selectedFiles.size} selected file(s)?`, async () => {
+      setDeleteProgress({ label:'Preparing deletion...', pct:10 });
       try {
         const updatedFiles = { folders: JSON.parse(JSON.stringify(selectedClient.files?.folders||[])), root: JSON.parse(JSON.stringify(selectedClient.files?.root||[])) };
         const ids = Array.from(selectedFiles);
@@ -343,12 +569,12 @@ const Clients = () => {
           ids.forEach(id => { const f = updatedFiles.root.find(fi=>fi.id===id); if (f?.storagePath) storagePromises.push(deleteObject(ref(storage,f.storagePath)).catch(()=>{})); });
           updatedFiles.root = updatedFiles.root.filter(f=>!ids.includes(f.id));
         }
-        setDeleteProgress({ label: `Deleting ${ids.length} files...`, pct: 50 });
+        setDeleteProgress({ label:`Deleting ${ids.length} files...`, pct:50 });
         await Promise.all(storagePromises);
-        setDeleteProgress({ label: 'Saving changes...', pct: 80 });
+        setDeleteProgress({ label:'Saving changes...', pct:80 });
         await updateDoc(doc(db,'clients',selectedClientId),{files:updatedFiles});
-        setDeleteProgress({ label: 'Done!', pct: 100 });
-        setTimeout(() => setDeleteProgress(null), 800);
+        setDeleteProgress({ label:'Done!', pct:100 });
+        setTimeout(()=>setDeleteProgress(null),800);
         setSelectedFiles(new Set()); setSelectMode(false);
       } catch(err) { setDeleteProgress(null); alert('Error deleting files'); }
     });
@@ -356,20 +582,20 @@ const Clients = () => {
 
   const handleDeleteFolder = (folderId, folderName) => {
     askConfirm(`Delete folder "${folderName}" and all its contents?`, async () => {
-      setDeleteProgress({ label: 'Preparing folder deletion...', pct: 10 });
+      setDeleteProgress({ label:'Preparing folder deletion...', pct:10 });
       try {
         const updatedFiles = { folders: JSON.parse(JSON.stringify(selectedClient.files?.folders||[])), root: selectedClient.files?.root||[] };
         const folder = updatedFiles.folders.find(f=>f.id===folderId);
         const filesToDelete = (folder?.files||[]).filter(f=>f.storagePath);
         if (filesToDelete.length > 0) {
-          setDeleteProgress({ label: `Deleting ${filesToDelete.length} file(s)...`, pct: 40 });
+          setDeleteProgress({ label:`Deleting ${filesToDelete.length} file(s)...`, pct:40 });
           await Promise.all(filesToDelete.map(f=>deleteObject(ref(storage,f.storagePath)).catch(()=>{})));
         }
-        setDeleteProgress({ label: 'Removing folder...', pct: 75 });
+        setDeleteProgress({ label:'Removing folder...', pct:75 });
         updatedFiles.folders = updatedFiles.folders.filter(f=>f.id!==folderId);
         await updateDoc(doc(db,'clients',selectedClientId),{files:updatedFiles});
-        setDeleteProgress({ label: 'Done!', pct: 100 });
-        setTimeout(() => setDeleteProgress(null), 800);
+        setDeleteProgress({ label:'Done!', pct:100 });
+        setTimeout(()=>setDeleteProgress(null),800);
         if (currentFolder?.id===folderId) setCurrentFolder(null);
       } catch(err) { setDeleteProgress(null); alert('Error deleting folder'); }
     });
@@ -377,12 +603,12 @@ const Clients = () => {
 
   const handleDrag = e => {
     e.preventDefault(); e.stopPropagation();
-    if (mediaTab === 'links' || mediaTab === 'folders') return;
+    if (mediaTab==='links'||mediaTab==='folders') return;
     setDragActive(e.type==='dragenter'||e.type==='dragover');
   };
-  const handleDrop = e => {
+  const handleDrop2 = e => {
     e.preventDefault(); e.stopPropagation(); setDragActive(false);
-    if (mediaTab==='links' || mediaTab==='folders') return;
+    if (mediaTab==='links'||mediaTab==='folders') return;
     const dropped = Array.from(e.dataTransfer.files||[]);
     if (dropped.length) handleFiles(dropped);
   };
@@ -391,7 +617,7 @@ const Clients = () => {
 
   if (loading) return (
     <div className="p-8 min-h-screen bg-[#EEF2F7] flex items-center justify-center">
-      <div className="text-center"><div className="w-12 h-12 rounded-full border-4 border-teal-500/20 border-t-teal-500 animate-spin mx-auto mb-4"></div><div className="text-lg font-semibold text-gray-600">Loading clients...</div></div>
+      <div className="text-center"><div className="w-12 h-12 rounded-full border-4 border-teal-500/20 border-t-teal-500 animate-spin mx-auto mb-4"/><div className="text-lg font-semibold text-gray-600">Loading clients...</div></div>
     </div>
   );
 
@@ -405,7 +631,7 @@ const Clients = () => {
 
     return (
       <div className="min-h-screen bg-[#EEF2F7] flex flex-col"
-        onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}>
+        onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop2}>
 
         {dragActive && (
           <div className="fixed inset-0 bg-teal-500/10 border-4 border-dashed border-teal-400 flex items-center justify-center z-50 pointer-events-none">
@@ -413,7 +639,6 @@ const Clients = () => {
           </div>
         )}
 
-        {/* ── Media Manager Header ── */}
         <div className="bg-white border-b border-gray-200 px-4 md:px-8 py-3 md:py-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
             <button onClick={()=>{ setShowMediaPage(false); setCurrentFolder(null); setSelectMode(false); setSelectedFiles(new Set()); }}
@@ -428,12 +653,8 @@ const Clients = () => {
             {selectMode && selectedFiles.size > 0 && (
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm text-gray-500 whitespace-nowrap">{selectedFiles.size} selected</span>
-                <button onClick={handleDeleteSelected} className="flex items-center gap-1.5 px-3 py-2 bg-red-100 text-red-400 border border-red-200 rounded-lg text-xs font-semibold hover:bg-red-500/30 transition-all">
-                  <Trash2 size={13}/> Delete
-                </button>
-                <button onClick={()=>{ setSelectMode(false); setSelectedFiles(new Set()); }} className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-xs hover:bg-gray-200 transition-all font-medium">
-                  Cancel
-                </button>
+                <button onClick={handleDeleteSelected} className="flex items-center gap-1.5 px-3 py-2 bg-red-100 text-red-400 border border-red-200 rounded-lg text-xs font-semibold hover:bg-red-500/30 transition-all"><Trash2 size={13}/> Delete</button>
+                <button onClick={()=>{ setSelectMode(false); setSelectedFiles(new Set()); }} className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-xs hover:bg-gray-200 transition-all font-medium">Cancel</button>
               </div>
             )}
           </div>
@@ -448,72 +669,52 @@ const Clients = () => {
         )}
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* ── Tabs + Actions row ── */}
           <div className="px-4 md:px-8 pt-4 md:pt-6 pb-3 md:pb-4">
-            {/* Tabs — horizontally scrollable on mobile */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 flex-shrink-0"
-                style={{ scrollbarWidth: 'none' }}>
-                <style>{`.tabs-scroll::-webkit-scrollbar{display:none}`}</style>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 flex-shrink-0" style={{ scrollbarWidth:'none' }}>
                 {[
-                  { id:'media',   label:'Media',   icon:<Image size={15}/> },
-                  { id:'docs',    label:'Docs',    icon:<FileText size={15}/> },
-                  { id:'links',   label:'Links',   icon:<Link2 size={15}/> },
+                  { id:'media', label:'Media', icon:<Image size={15}/> },
+                  { id:'docs',  label:'Docs',  icon:<FileText size={15}/> },
+                  { id:'links', label:'Links', icon:<Link2 size={15}/> },
                   { id:'folders', label:'Folders', icon:<Folder size={15}/> },
                 ].map(t=>(
                   <button key={t.id} onClick={()=>{ setMediaTab(t.id); setCurrentFolder(null); }}
-                    className={`flex items-center gap-1.5 px-3 md:px-5 py-2 md:py-2.5 rounded-lg font-semibold text-xs md:text-sm transition-all whitespace-nowrap flex-shrink-0
-                      ${mediaTab===t.id ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg' : 'bg-white text-gray-500 hover:text-gray-900'}`}>
+                    className={`flex items-center gap-1.5 px-3 md:px-5 py-2 md:py-2.5 rounded-lg font-semibold text-xs md:text-sm transition-all whitespace-nowrap flex-shrink-0 ${mediaTab===t.id ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg' : 'bg-white text-gray-500 hover:text-gray-900'}`}>
                     {t.icon}{t.label}
                   </button>
                 ))}
               </div>
-
-              {/* Action buttons */}
               <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
-                {mediaTab === 'media' && (
-                  <>
-                    {files.length > 0 && (
-                      <button onClick={()=>{ setSelectMode(true); toggleSelectAll(files); }}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-300 rounded-lg text-xs md:text-sm transition-all whitespace-nowrap">
-                        {allSelected ? <CheckSquare size={14} className="text-teal-500"/> : <Square size={14}/>} Select All
-                      </button>
-                    )}
-                    <label className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-semibold cursor-pointer transition-all whitespace-nowrap ${uploading ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-500' : 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:opacity-90'}`}>
-                      {uploading ? <>⏳ Uploading...</> : <><Plus size={14}/> Add Media</>}
-                      <input type="file" multiple className="hidden" disabled={uploading} accept="image/*,video/*" onChange={e=>handleFiles(Array.from(e.target.files))}/>
-                    </label>
-                  </>
-                )}
-                {mediaTab === 'docs' && (
-                  <>
-                    <button onClick={()=>setShowAddTextModal(true)}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-semibold bg-white border border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-300 transition-all whitespace-nowrap">
-                      <Plus size={14}/> Add Text
+                {mediaTab==='media' && (<>
+                  {files.length > 0 && (
+                    <button onClick={()=>{ setSelectMode(true); toggleSelectAll(files); }}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-300 rounded-lg text-xs md:text-sm transition-all whitespace-nowrap">
+                      {allSelected ? <CheckSquare size={14} className="text-teal-500"/> : <Square size={14}/>} Select All
                     </button>
-                    <label className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-semibold cursor-pointer transition-all whitespace-nowrap ${uploading ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-500' : 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:opacity-90'}`}>
-                      {uploading ? <>⏳ Uploading...</> : <><Upload size={14}/> Upload Doc</>}
-                      <input type="file" multiple className="hidden" disabled={uploading} accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar" onChange={e=>handleFiles(Array.from(e.target.files))}/>
-                    </label>
-                  </>
+                  )}
+                  <label className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-semibold cursor-pointer transition-all whitespace-nowrap ${uploading ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-500' : 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:opacity-90'}`}>
+                    {uploading ? <>⏳ Uploading...</> : <><Plus size={14}/> Add Media</>}
+                    <input type="file" multiple className="hidden" disabled={uploading} accept="image/*,video/*" onChange={e=>handleFiles(Array.from(e.target.files))}/>
+                  </label>
+                </>)}
+                {mediaTab==='docs' && (<>
+                  <button onClick={()=>setShowAddTextModal(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-semibold bg-white border border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-300 transition-all whitespace-nowrap"><Plus size={14}/> Add Text</button>
+                  <label className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-semibold cursor-pointer transition-all whitespace-nowrap ${uploading ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-500' : 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:opacity-90'}`}>
+                    {uploading ? <>⏳ Uploading...</> : <><Upload size={14}/> Upload Doc</>}
+                    <input type="file" multiple className="hidden" disabled={uploading} accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar" onChange={e=>handleFiles(Array.from(e.target.files))}/>
+                  </label>
+                </>)}
+                {mediaTab==='links' && (
+                  <button onClick={()=>setShowAddLinkModal(true)} className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-lg text-xs md:text-sm font-semibold hover:opacity-90 transition-all whitespace-nowrap"><Link2 size={14}/> Add Link</button>
                 )}
-                {mediaTab === 'links' && (
-                  <button onClick={()=>setShowAddLinkModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-lg text-xs md:text-sm font-semibold hover:opacity-90 transition-all whitespace-nowrap">
-                    <Link2 size={14}/> Add Link
-                  </button>
-                )}
-                {mediaTab === 'folders' && (
-                  <button onClick={()=>setShowCreateFolderModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-lg text-xs md:text-sm font-semibold hover:opacity-90 transition-all whitespace-nowrap">
-                    <FolderPlus size={14}/> New Folder
-                  </button>
+                {mediaTab==='folders' && (
+                  <button onClick={()=>setShowCreateFolderModal(true)} className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-lg text-xs md:text-sm font-semibold hover:opacity-90 transition-all whitespace-nowrap"><FolderPlus size={14}/> New Folder</button>
                 )}
               </div>
             </div>
           </div>
 
-          {currentFolder && mediaTab !== 'folders' && (
+          {currentFolder && mediaTab!=='folders' && (
             <div className="px-4 md:px-8 pb-3 flex items-center gap-2 text-sm">
               <button onClick={()=>setCurrentFolder(null)} className="text-teal-600 hover:underline font-medium">🏠 Root</button>
               <span className="text-gray-400">/</span>
@@ -522,29 +723,26 @@ const Clients = () => {
           )}
 
           <div className="flex-1 px-4 md:px-8 pb-8 overflow-y-auto">
-            {mediaTab === 'media' && (
+            {mediaTab==='media' && (
               files.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
                   {files.map(file => {
                     const isImg = ['jpg','jpeg','png','gif','webp','svg'].includes((file.type||'').toLowerCase());
-                    const isSelected = selectedFiles.has(file.id);
+                    const isSel = selectedFiles.has(file.id);
                     return (
                       <div key={file.id}
-                        className={`group relative bg-white border rounded-xl overflow-hidden transition-all cursor-pointer shadow-sm ${isSelected ? 'border-teal-500 ring-2 ring-teal-500/20' : 'border-gray-200 hover:border-teal-400 hover:shadow-md'}`}
+                        className={`group relative bg-white border rounded-xl overflow-hidden transition-all cursor-pointer shadow-sm ${isSel ? 'border-teal-500 ring-2 ring-teal-500/20' : 'border-gray-200 hover:border-teal-400 hover:shadow-md'}`}
                         onClick={()=>{ if(selectMode) toggleFileSelect(file.id); }}>
-                        {isImg
-                          ? <img src={file.url} alt={file.name} className="w-full h-28 md:h-36 object-cover"/>
-                          : <div className="w-full h-28 md:h-36 flex items-center justify-center bg-[#EEF2F7] text-5xl">🎬</div>}
-                        <div className={`absolute top-2 left-2 z-10 transition-opacity ${selectMode || isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                        {isImg ? <img src={file.url} alt={file.name} className="w-full h-28 md:h-36 object-cover"/> : <div className="w-full h-28 md:h-36 flex items-center justify-center bg-[#EEF2F7] text-5xl">🎬</div>}
+                        <div className={`absolute top-2 left-2 z-10 transition-opacity ${selectMode||isSel ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                           onClick={e=>{ e.stopPropagation(); setSelectMode(true); toggleFileSelect(file.id); }}>
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${isSelected ? 'bg-teal-500 border-teal-500' : 'bg-white/70 border-gray-300 hover:border-teal-500'}`}>
-                            {isSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${isSel ? 'bg-teal-500 border-teal-500' : 'bg-white/70 border-gray-300 hover:border-teal-500'}`}>
+                            {isSel && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                           </div>
                         </div>
                         <div className={`absolute top-2 right-2 z-10 transition-opacity ${openMenuId===file.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} onClick={e=>e.stopPropagation()}>
-                          <button onClick={e=>{ e.stopPropagation(); setOpenMenuId(openMenuId===file.id ? null : file.id); }}
-                            className="p-1.5 bg-black/60 text-white rounded-lg hover:bg-black/80"><MoreVertical size={14}/></button>
-                          {openMenuId === file.id && (
+                          <button onClick={e=>{ e.stopPropagation(); setOpenMenuId(openMenuId===file.id?null:file.id); }} className="p-1.5 bg-black/60 text-white rounded-lg hover:bg-black/80"><MoreVertical size={14}/></button>
+                          {openMenuId===file.id && (
                             <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden min-w-[140px]">
                               <button onClick={()=>{ window.open(file.url,'_blank'); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-900 hover:bg-gray-100"><ExternalLink size={13}/> Open</button>
                               <button onClick={()=>{ handleDeleteFile(file.id); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-50"><Trash2 size={13}/> Delete</button>
@@ -567,8 +765,7 @@ const Clients = () => {
                 </div>
               )
             )}
-
-            {mediaTab === 'docs' && (
+            {mediaTab==='docs' && (
               files.length > 0 ? (
                 <div className="space-y-2">
                   {files.map(file => (
@@ -578,22 +775,15 @@ const Clients = () => {
                       <div className="text-2xl md:text-3xl flex-shrink-0">{getFileIcon(file.type)}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-gray-900 font-semibold text-sm truncate">{file.name}</p>
-                        <p className="text-gray-400 text-xs mt-0.5">{file.type !== 'text' ? `${file.size} · ` : ''}📅 {file.uploadedOn}</p>
+                        <p className="text-gray-400 text-xs mt-0.5">{file.type!=='text'?`${file.size} · `:''} 📅 {file.uploadedOn}</p>
                       </div>
                       <div className="flex-shrink-0 relative" onClick={e=>e.stopPropagation()}>
-                        <button onClick={e=>{ e.stopPropagation(); setOpenMenuId(openMenuId===file.id ? null : file.id); }}
-                          className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100">
-                          <MoreVertical size={16}/>
-                        </button>
-                        {openMenuId === file.id && (
+                        <button onClick={e=>{ e.stopPropagation(); setOpenMenuId(openMenuId===file.id?null:file.id); }} className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100"><MoreVertical size={16}/></button>
+                        {openMenuId===file.id && (
                           <div className="absolute right-0 top-8 bg-[#EEF2F7] border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden min-w-[150px]">
-                            <button onClick={e=>openEditFile(file, e)} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-900 hover:bg-white transition-colors">
-                              <Pencil size={13} className="text-teal-500"/> Edit
-                            </button>
+                            <button onClick={e=>openEditFile(file,e)} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-900 hover:bg-white transition-colors"><Pencil size={13} className="text-teal-500"/> Edit</button>
                             <div className="border-t border-gray-200"/>
-                            <button onClick={()=>{ handleDeleteFile(file.id); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-50 transition-colors">
-                              <Trash2 size={13}/> Delete
-                            </button>
+                            <button onClick={()=>{ handleDeleteFile(file.id); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-50 transition-colors"><Trash2 size={13}/> Delete</button>
                           </div>
                         )}
                       </div>
@@ -608,13 +798,12 @@ const Clients = () => {
                 </div>
               )
             )}
-
-            {mediaTab === 'links' && (
+            {mediaTab==='links' && (
               files.length > 0 ? (
                 <div className="space-y-2">
                   {files.map(file => (
                     <div key={file.id} className="group relative flex items-start gap-3 md:gap-4 bg-white border border-gray-200 rounded-xl p-3 md:p-4 hover:border-teal-400 hover:shadow-sm transition-all">
-                      <div className="text-2xl md:text-3xl flex-shrink-0"></div>
+                      <div className="text-2xl md:text-3xl flex-shrink-0">🔗</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-gray-900 font-semibold text-sm truncate">{file.name}</p>
                         <div className="flex flex-wrap gap-2 text-xs mt-0.5">
@@ -623,9 +812,8 @@ const Clients = () => {
                         </div>
                       </div>
                       <div className="flex-shrink-0 relative" onClick={e=>e.stopPropagation()}>
-                        <button onClick={e=>{ e.stopPropagation(); setOpenMenuId(openMenuId===file.id ? null : file.id); }}
-                          className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100 opacity-0 group-hover:opacity-100"><MoreVertical size={16}/></button>
-                        {openMenuId === file.id && (
+                        <button onClick={e=>{ e.stopPropagation(); setOpenMenuId(openMenuId===file.id?null:file.id); }} className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100 opacity-0 group-hover:opacity-100"><MoreVertical size={16}/></button>
+                        {openMenuId===file.id && (
                           <div className="absolute right-0 top-8 bg-[#EEF2F7] border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden min-w-[140px]">
                             <button onClick={()=>{ window.open(file.link,'_blank'); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-900 hover:bg-gray-100"><ExternalLink size={13}/> Open</button>
                             <button onClick={()=>{ handleDeleteFile(file.id); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-50"><Trash2 size={13}/> Delete</button>
@@ -643,8 +831,7 @@ const Clients = () => {
                 </div>
               )
             )}
-
-            {mediaTab === 'folders' && (
+            {mediaTab==='folders' && (
               folders.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                   {folders.map(folder => (
@@ -654,12 +841,10 @@ const Clients = () => {
                       <div className="flex items-start justify-between mb-3">
                         <div className="text-3xl md:text-4xl">📁</div>
                         <div className="relative" onClick={e=>e.stopPropagation()}>
-                          <button onClick={e=>{ e.stopPropagation(); setOpenMenuId(openMenuId===folder.id ? null : folder.id); }}
-                            className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-all"><MoreVertical size={15}/></button>
-                          {openMenuId === folder.id && (
+                          <button onClick={e=>{ e.stopPropagation(); setOpenMenuId(openMenuId===folder.id?null:folder.id); }} className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-all"><MoreVertical size={15}/></button>
+                          {openMenuId===folder.id && (
                             <div className="absolute right-0 top-8 bg-[#EEF2F7] border border-gray-200 rounded-xl shadow-xl z-30 overflow-hidden min-w-[140px]">
-                              <button onClick={()=>{ handleDeleteFolder(folder.id, folder.name); setOpenMenuId(null); }}
-                                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-50"><Trash2 size={13}/> Delete</button>
+                              <button onClick={()=>{ handleDeleteFolder(folder.id,folder.name); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-50"><Trash2 size={13}/> Delete</button>
                             </div>
                           )}
                         </div>
@@ -687,47 +872,40 @@ const Clients = () => {
           </div>
         </div>
 
-        {/* ── Modals (unchanged) ── */}
+        {/* Modals */}
         {showEditFileModal && editFileData && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl border border-gray-200 w-full max-w-lg shadow-2xl">
               <div className="flex items-center justify-between p-6 border-b border-gray-200">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-[#EEF2F7] border border-gray-200 flex items-center justify-center text-xl">{getFileIcon(editFileData.type)}</div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">Edit File</h3>
-                    <p className="text-xs text-gray-500 mt-0.5 capitalize">{editFileData.type === 'text' ? 'Text / Credentials' : editFileData.type.toUpperCase()} file</p>
-                  </div>
+                  <div><h3 className="text-lg font-bold text-gray-900">Edit File</h3><p className="text-xs text-gray-500 mt-0.5 capitalize">{editFileData.type==='text'?'Text / Credentials':editFileData.type.toUpperCase()} file</p></div>
                 </div>
                 <button onClick={()=>{ setShowEditFileModal(false); setEditFileData(null); }} className="text-gray-500 hover:text-gray-900 p-1 rounded-lg hover:bg-gray-100"><X size={20}/></button>
               </div>
               <div className="p-6 space-y-5">
                 <div>
-                  <label className="block text-gray-900 font-semibold mb-2 text-sm">{editFileData.type === 'text' ? 'Title *' : 'File Name *'}</label>
-                  <input value={editFileName} onChange={e => setEditFileName(e.target.value)} autoFocus placeholder={editFileData.type === 'text' ? 'e.g. AWS Credentials' : 'File name'} className={inputCls}/>
+                  <label className="block text-gray-900 font-semibold mb-2 text-sm">{editFileData.type==='text'?'Title *':'File Name *'}</label>
+                  <input value={editFileName} onChange={e=>setEditFileName(e.target.value)} autoFocus className={inputCls}/>
                 </div>
-                {editFileData.type === 'text' && (
+                {editFileData.type==='text' && (
                   <div>
                     <label className="block text-gray-900 font-semibold mb-2 text-sm">Content *</label>
-                    <textarea value={editFileContent} onChange={e => setEditFileContent(e.target.value)} rows={7} placeholder={"Username: admin\nPassword: abc123"} className={`${inputCls} resize-none font-mono text-sm leading-relaxed`}/>
+                    <textarea value={editFileContent} onChange={e=>setEditFileContent(e.target.value)} rows={7} className={`${inputCls} resize-none font-mono text-sm leading-relaxed`}/>
                     <p className="text-gray-400 text-xs mt-1.5">{editFileContent.length} characters</p>
                   </div>
                 )}
-                {editFileData.type !== 'text' && (
+                {editFileData.type!=='text' && (
                   <div className="bg-[#EEF2F7] border border-gray-200 rounded-lg px-4 py-3 flex items-center gap-3">
                     <AlertCircle size={15} className="text-gray-400 flex-shrink-0"/>
                     <p className="text-gray-400 text-xs">Only the display name can be changed for uploaded files.</p>
                   </div>
                 )}
-                <div className="flex items-center justify-between text-xs text-gray-400">
-                  <span>Uploaded: {editFileData.uploadedOn}</span>
-                  {editFileData.size && editFileData.size !== 'Text' && <span>Size: {editFileData.size}</span>}
-                </div>
               </div>
               <div className="flex gap-3 px-6 pb-6">
-                <button type="button" onClick={()=>{ setShowEditFileModal(false); setEditFileData(null); }} className="flex-1 px-4 py-3 bg-gray-100 text-gray-500 font-semibold rounded-lg hover:bg-gray-200">Cancel</button>
-                <button onClick={handleSaveEditFile} disabled={!editFileName.trim() || (editFileData.type === 'text' && !editFileContent.trim()) || savingFile}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                <button onClick={()=>{ setShowEditFileModal(false); setEditFileData(null); }} className="flex-1 px-4 py-3 bg-gray-100 text-gray-500 font-semibold rounded-lg hover:bg-gray-200">Cancel</button>
+                <button onClick={handleSaveEditFile} disabled={!editFileName.trim()||(editFileData.type==='text'&&!editFileContent.trim())||savingFile}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-semibold rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
                   {savingFile ? <><Loader size={15} className="animate-spin"/> Saving...</> : <><Pencil size={15}/> Save Changes</>}
                 </button>
               </div>
@@ -746,7 +924,7 @@ const Clients = () => {
                 <pre className="text-gray-900 text-sm whitespace-pre-wrap font-mono bg-[#EEF2F7] border border-gray-200 rounded-xl p-4 max-h-80 overflow-y-auto leading-relaxed">{viewTextFile.content}</pre>
                 <div className="flex gap-3 mt-4">
                   <button onClick={()=>setViewTextFile(null)} className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-500 rounded-lg text-sm font-semibold hover:bg-gray-200">Close</button>
-                  <button onClick={()=>{ openEditFile(viewTextFile, { stopPropagation:()=>{} }); setViewTextFile(null); }}
+                  <button onClick={()=>{ openEditFile(viewTextFile,{stopPropagation:()=>{}}); setViewTextFile(null); }}
                     className="flex items-center justify-center gap-2 flex-1 px-4 py-2.5 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-lg text-sm font-semibold">
                     <Pencil size={13}/> Edit
                   </button>
@@ -759,15 +937,10 @@ const Clients = () => {
         {showAddLinkModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900">Add Link</h3>
-                <button onClick={()=>{setShowAddLinkModal(false);setLinkData({name:'',url:''});}} className="text-gray-500 hover:text-gray-900"><X size={20}/></button>
-              </div>
+              <div className="flex items-center justify-between p-6 border-b border-gray-200"><h3 className="text-xl font-bold text-gray-900">Add Link</h3><button onClick={()=>{setShowAddLinkModal(false);setLinkData({name:'',url:''});}} className="text-gray-500 hover:text-gray-900"><X size={20}/></button></div>
               <div className="p-6 space-y-4">
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Name *</label>
-                  <input value={linkData.name} onChange={e=>setLinkData({...linkData,name:e.target.value})} placeholder="e.g. Figma Design" className={inputCls} autoFocus/></div>
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">URL *</label>
-                  <input type="url" value={linkData.url} onChange={e=>setLinkData({...linkData,url:e.target.value})} placeholder="https://..." className={inputCls}/></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Name *</label><input value={linkData.name} onChange={e=>setLinkData({...linkData,name:e.target.value})} placeholder="e.g. Figma Design" className={inputCls} autoFocus/></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">URL *</label><input type="url" value={linkData.url} onChange={e=>setLinkData({...linkData,url:e.target.value})} placeholder="https://..." className={inputCls}/></div>
                 <div className="flex gap-3 pt-2">
                   <button onClick={()=>{setShowAddLinkModal(false);setLinkData({name:'',url:''});}} className="flex-1 px-4 py-3 bg-gray-100 text-gray-500 rounded-lg font-semibold hover:bg-gray-200">Cancel</button>
                   <button onClick={handleAddLink} disabled={!linkData.name.trim()||!linkData.url.trim()} className="flex-1 px-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-lg font-semibold disabled:opacity-50">Add Link</button>
@@ -780,15 +953,10 @@ const Clients = () => {
         {showAddTextModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <div><h3 className="text-xl font-bold text-gray-900">Add Text / Credentials</h3><p className="text-xs text-gray-500 mt-0.5">Passwords, notes, API keys, etc.</p></div>
-                <button onClick={()=>{setShowAddTextModal(false);setTextData({name:'',content:''});}} className="text-gray-500 hover:text-gray-900"><X size={20}/></button>
-              </div>
+              <div className="flex items-center justify-between p-6 border-b border-gray-200"><div><h3 className="text-xl font-bold text-gray-900">Add Text / Credentials</h3><p className="text-xs text-gray-500 mt-0.5">Passwords, notes, API keys, etc.</p></div><button onClick={()=>{setShowAddTextModal(false);setTextData({name:'',content:''});}} className="text-gray-500 hover:text-gray-900"><X size={20}/></button></div>
               <div className="p-6 space-y-4">
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Title *</label>
-                  <input value={textData.name} onChange={e=>setTextData({...textData,name:e.target.value})} placeholder="e.g. AWS Credentials" className={inputCls} autoFocus/></div>
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Content *</label>
-                  <textarea value={textData.content} onChange={e=>setTextData({...textData,content:e.target.value})} placeholder={"Username: admin\nPassword: abc123"} rows={6} className={`${inputCls} resize-none font-mono text-sm`}/></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Title *</label><input value={textData.name} onChange={e=>setTextData({...textData,name:e.target.value})} placeholder="e.g. AWS Credentials" className={inputCls} autoFocus/></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Content *</label><textarea value={textData.content} onChange={e=>setTextData({...textData,content:e.target.value})} placeholder={"Username: admin\nPassword: abc123"} rows={6} className={`${inputCls} resize-none font-mono text-sm`}/></div>
                 <div className="flex gap-3 pt-2">
                   <button onClick={()=>{setShowAddTextModal(false);setTextData({name:'',content:''});}} className="flex-1 px-4 py-3 bg-gray-100 text-gray-500 rounded-lg font-semibold hover:bg-gray-200">Cancel</button>
                   <button onClick={handleAddText} disabled={!textData.name.trim()||!textData.content.trim()} className="flex-1 px-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-lg font-semibold disabled:opacity-50">Save</button>
@@ -801,10 +969,7 @@ const Clients = () => {
         {showCreateFolderModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900">New Folder</h3>
-                <button onClick={()=>{setShowCreateFolderModal(false);setFolderName('');}} className="text-gray-500 hover:text-gray-900"><X size={20}/></button>
-              </div>
+              <div className="flex items-center justify-between p-6 border-b border-gray-200"><h3 className="text-xl font-bold text-gray-900">New Folder</h3><button onClick={()=>{setShowCreateFolderModal(false);setFolderName('');}} className="text-gray-500 hover:text-gray-900"><X size={20}/></button></div>
               <div className="p-6 space-y-4">
                 <input value={folderName} onChange={e=>setFolderName(e.target.value)} placeholder="Folder name" className={inputCls} autoFocus onKeyDown={e=>e.key==='Enter'&&handleCreateFolder()}/>
                 <div className="flex gap-3">
@@ -820,14 +985,11 @@ const Clients = () => {
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
             <div className="bg-white rounded-xl border border-gray-200 w-full max-w-sm shadow-2xl">
               <div className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0"><Trash2 size={18} className="text-red-400"/></div>
-                  <h3 className="text-lg font-bold text-gray-900">Confirm Delete</h3>
-                </div>
+                <div className="flex items-center gap-3 mb-4"><div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0"><Trash2 size={18} className="text-red-400"/></div><h3 className="text-lg font-bold text-gray-900">Confirm Delete</h3></div>
                 <p className="text-gray-500 text-sm leading-relaxed mb-6">{confirmDialog.message}</p>
                 <div className="flex gap-3">
                   <button onClick={()=>setConfirmDialog(null)} className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-500 rounded-lg font-semibold hover:bg-gray-200 text-sm">Cancel</button>
-                  <button onClick={()=>{ const fn = confirmDialog.onConfirm; setConfirmDialog(null); fn(); }} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 text-sm">Delete</button>
+                  <button onClick={()=>{ const fn=confirmDialog.onConfirm; setConfirmDialog(null); fn(); }} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 text-sm">Delete</button>
                 </div>
               </div>
             </div>
@@ -837,16 +999,10 @@ const Clients = () => {
         {deleteProgress && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
             <div className="bg-white rounded-xl border border-gray-200 w-full max-w-sm shadow-2xl p-6">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0"><Trash2 size={18} className="text-red-400"/></div>
-                <div>
-                  <p className="text-gray-900 font-semibold text-sm">{deleteProgress.label}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">{deleteProgress.pct}% complete</p>
-                </div>
-              </div>
+              <div className="flex items-center gap-3 mb-5"><div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0"><Trash2 size={18} className="text-red-400"/></div><div><p className="text-gray-900 font-semibold text-sm">{deleteProgress.label}</p><p className="text-gray-400 text-xs mt-0.5">{deleteProgress.pct}% complete</p></div></div>
               <div className="w-full bg-[#EEF2F7] rounded-full h-2.5 overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-500"
-                  style={{ width:`${deleteProgress.pct}%`, background: deleteProgress.pct===100 ? 'linear-gradient(to right,#14b8a6,#06b6d4)' : 'linear-gradient(to right,#ef4444,#f97316)' }}/>
+                  style={{ width:`${deleteProgress.pct}%`, background:deleteProgress.pct===100?'linear-gradient(to right,#14b8a6,#06b6d4)':'linear-gradient(to right,#ef4444,#f97316)' }}/>
               </div>
             </div>
           </div>
@@ -856,12 +1012,26 @@ const Clients = () => {
   }
 
   // ════════════════════════════════════════════════
-  // MAIN CLIENTS PAGE — RESPONSIVE
+  // MAIN CLIENTS PAGE — EXCEL TABLE
   // ════════════════════════════════════════════════
-  return (
-    <div className="p-4 md:p-8 space-y-4 md:space-y-6 min-h-screen bg-[#EEF2F7]">
+  const totalW = cols.reduce((s, c) => s + c.width, 0);
 
-      {/* Search bar — full width on mobile */}
+  return (
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 min-h-screen bg-[#EEF2F7]">
+      <style>{`
+        .xl-table { border-collapse: collapse; table-layout: fixed; }
+        .xl-table th, .xl-table td { padding: 0; }
+        .col-rh { position:absolute; right:0; top:0; bottom:0; width:5px; cursor:col-resize; z-index:10; display:flex; align-items:center; justify-content:center; }
+        .col-rh:hover .col-rb, .col-rh:active .col-rb { background:#14b8a6; height:70%; opacity:1; }
+        .col-rb { width:2px; height:40%; background:rgba(0,0,0,0.12); border-radius:2px; transition:all .15s; opacity:0.5; }
+        .th-drag:hover { background:rgba(20,184,166,0.06); }
+        .col-over  { background:rgba(20,184,166,0.05) !important; box-shadow:inset 2px 0 0 #14b8a6; }
+        .row-over  { box-shadow:inset 0 2px 0 #14b8a6; background:rgba(20,184,166,0.04) !important; }
+        .cell-act  { box-shadow:inset 0 0 0 2px #14b8a6; background:rgba(20,184,166,0.03) !important; }
+        @media (min-width:1024px) { .clients-scroll { overflow-x: hidden !important; } .xl-table { width:100% !important; } }
+      `}</style>
+
+      {/* Search */}
       <div className="w-full md:w-1/2 relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
         <input type="text" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}
@@ -869,65 +1039,174 @@ const Clients = () => {
           className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-all text-sm"/>
       </div>
 
-      {/* Table card with horizontal scroll */}
+      {/* Table card */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="clients-scroll"
-          style={{
-            overflowX: 'auto',
-            WebkitOverflowScrolling: 'touch',
-            scrollbarColor: 'rgba(20,184,166,0.6) rgba(238,242,247,0.9)',
-          }}>
-          <style>{`
-            .clients-scroll::-webkit-scrollbar { height: 6px; }
-            .clients-scroll::-webkit-scrollbar-track { background: rgba(238,242,247,0.9); border-radius: 999px; }
-            .clients-scroll::-webkit-scrollbar-thumb { background: rgba(20,184,166,0.55); border-radius: 999px; }
-            .clients-scroll::-webkit-scrollbar-thumb:hover { background: rgba(20,184,166,0.85); }
-          `}</style>
-          <table className="w-full" style={{ minWidth: '700px' }}>
-            <thead className="bg-[#EEF2F7] border-b border-gray-200">
-              <tr>
-                {['Client Name','Contact','Category','Revenue','Status','Actions'].map(h => (
-                  <th key={h} className="px-4 md:px-6 py-4 text-left text-gray-500 text-xs font-semibold uppercase tracking-wider border-r border-black/20 last:border-r-0 whitespace-nowrap">{h}</th>
-                ))}
+          style={{ overflowX:'auto', overflowY:'auto', maxHeight:'calc(100vh - 200px)', WebkitOverflowScrolling:'touch', scrollbarWidth:'none', scrollbarColor:'rgba(20,184,166,0.5) transparent' }}>
+
+          {/* Mobile table view - horizontal scroll + touch row reorder */}
+          <div className="lg:hidden">
+            {orderedFiltered.length === 0 ? (
+              <div className="py-16 text-center text-gray-400 text-sm">{searchTerm ? 'No clients match your search.' : 'No clients yet.'}</div>
+            ) : (
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', width: cols.reduce((s,c)=>s+c.width,0) + 'px' }}>
+                  <colgroup>
+                    {cols.map(col => <col key={col.key} style={{ width: col.width + 'px' }} />)}
+                  </colgroup>
+                  <thead>
+                    <tr style={{ background: '#EEF2F7', borderBottom: `2px solid ${TLB}` }}>
+                      {cols.map((col, ci) => {
+                        const justifyMap = { center:'center', right:'flex-end', left:'flex-start' };
+                        const justify = justifyMap[col.align] || 'flex-start';
+                        return (
+                          <th key={col.key} style={{ height: 38, position: 'relative', padding: 0, borderRight: ci < cols.length-1 ? `1px solid ${TL}` : undefined, verticalAlign: 'middle' }}>
+                            <div style={{ display:'flex', alignItems:'center', height:'100%', width:'100%', paddingLeft:10, paddingRight:10, boxSizing:'border-box', justifyContent: justify }}>
+                              <span style={{ fontSize:10, fontWeight:600, color:'#6b7280', textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>{col.label}</span>
+                            </div>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orderedFiltered.map((client, idx) => {
+                      const isRowOver = dragOverRow === client.id;
+                      return (
+                        <tr key={client.id}
+                          data-id={client.id}
+                          onTouchStart={e => {
+                            const touch = e.touches[0];
+                            dragRowRef.current = client.id;
+                            dragRowRef._startY = touch.clientY;
+                          }}
+                          onTouchMove={e => {
+                            if (!dragRowRef.current) return;
+                            const touch = e.touches[0];
+                            const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                            const row = el?.closest('tr[data-id]');
+                            if (row) {
+                              const overId = row.getAttribute('data-id');
+                              if (overId && overId !== dragRowRef.current) setDragOverRow(overId);
+                            }
+                          }}
+                          onTouchEnd={() => {
+                            const src = dragRowRef.current;
+                            const over = dragOverRow;
+                            dragRowRef.current = null;
+                            setDragOverRow(null);
+                            if (src && over && src !== over) {
+                              setRowOrder(prev => {
+                                const arr = [...prev];
+                                const si = arr.indexOf(src);
+                                const di = arr.indexOf(over);
+                                arr.splice(si, 1); arr.splice(di, 0, src);
+                                return arr;
+                              });
+                            }
+                          }}
+                          onClick={() => handleMobileTap(client.id)}
+                          style={{ borderBottom: `1px solid ${TL}`, background: isRowOver ? 'rgba(20,184,166,0.06)' : idx % 2 === 0 ? '#fff' : 'rgba(0,0,0,0.01)', boxShadow: isRowOver ? 'inset 0 2px 0 #14b8a6' : undefined }}>
+                          {cols.map((col, ci) => (
+                            <td key={col.key} style={{ height: 52, overflow: 'hidden', padding: 0, borderRight: ci < cols.length-1 ? `1px solid ${TL}` : undefined }}>
+                              {renderCell(col, client, idx)}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Excel table */}
+          <table
+            className="xl-table hidden lg:table"
+            style={{ width: '100%' }}>
+            <colgroup>
+              {cols.map(col => <col key={col.key} style={{ width: `${(col.width / cols.reduce((s,c)=>s+c.width,0)) * 100}%` }} />)}
+            </colgroup>
+
+            {/* THEAD */}
+            <thead>
+              <tr style={{ background: '#EEF2F7', borderBottom: `2px solid ${TLB}` }}>
+                {cols.map((col, ci) => {
+                  const canDrag = !col.fixed;
+                  const isOver  = dragOverCol === col.key;
+                  const justifyMap = { center:'center', right:'flex-end', left:'flex-start' };
+                  const justify = justifyMap[col.align] || 'flex-start';
+                  return (
+                    <th key={col.key}
+                      draggable={canDrag}
+                      onDragStart={canDrag ? e => onColDragStart(e, col.key) : undefined}
+                      onDragOver={canDrag  ? e => onColDragOver(e, col.key)  : undefined}
+                      onDrop={canDrag      ? e => onColDrop(e, col.key)      : undefined}
+                      onDragEnd={canDrag   ? onColDragEnd                    : undefined}
+                      className={`th-drag select-none ${isOver ? 'col-over' : ''}`}
+                      style={{ height:40, position:'relative', userSelect:'none', borderRight: ci < cols.length-1 ? `1px solid ${TL}` : undefined, cursor: canDrag ? 'grab' : 'default', padding:0, verticalAlign:'middle' }}>
+                      <div style={{ display:'flex', alignItems:'center', height:'100%', width:'100%', paddingLeft:12, paddingRight:12, boxSizing:'border-box', justifyContent: justify }}>
+                        <span style={{ fontSize:11, fontWeight:600, color:'#6b7280', textTransform:'uppercase', letterSpacing:'0.05em', whiteSpace:'nowrap' }}>
+                          {col.label}
+                        </span>
+                      </div>
+                      {!col.fixed && col.key !== 'actions' && (
+                        <div className="col-rh" onMouseDown={e => startResize(e, col.key)}>
+                          <div className="col-rb" />
+                        </div>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
+
+            {/* TBODY */}
             <tbody>
-              {filteredClients.map(client=>(
-                <tr key={client.id} className="border-b border-gray-200 hover:bg-teal-50/30 transition-all">
-                  <td className="px-4 md:px-6 py-4 border-r border-black/20">
-                    <div className="text-gray-900 font-semibold text-sm">{client.name}</div>
-                    <div className="text-gray-500 text-xs">Since {client.since}</div>
-                  </td>
-                  <td className="px-4 md:px-6 py-4 border-r border-black/20">
-                    <div className="text-gray-900 text-sm">{client.phone}</div>
-                    <div className="text-gray-500 text-xs">{client.email}</div>
-                  </td>
-                  <td className="px-4 md:px-6 py-4 text-gray-900 text-sm border-r border-black/20 whitespace-nowrap">{client.industry}</td>
-                  <td className="px-4 md:px-6 py-4 text-teal-600 font-bold font-mono text-sm border-r border-black/20 whitespace-nowrap">{client.revenue}</td>
-                  <td className="px-4 md:px-6 py-4 border-r border-black/20">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${client.status==='Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : client.status==='Inactive' ? 'bg-gray-100 text-gray-500 border border-gray-200' : 'bg-amber-50 text-amber-600 border border-amber-200'}`}>
-                      {client.status}
-                    </span>
-                  </td>
-                  <td className="px-4 md:px-6 py-4">
-                    <div className="flex gap-2">
-                      <button onClick={e=>openEdit(client,e)} className="flex items-center gap-1.5 px-2.5 py-2 bg-white border border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-300 rounded-lg text-sm font-medium transition-all">
-                        <Edit size={14}/>
-                      </button>
-                      <button onClick={e=>openMediaManager(client,e)} className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white rounded-lg text-xs font-semibold transition-all whitespace-nowrap">
-                        View More
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredClients.length===0 && (
-                <tr><td colSpan="6" className="px-6 py-12 text-center text-gray-500">{searchTerm ? 'No clients match your search.' : 'No clients yet.'}</td></tr>
+              {orderedFiltered.length === 0 && (
+                <tr><td colSpan={cols.length} className="py-16 text-center text-gray-400 text-sm">{searchTerm ? 'No clients match your search.' : 'No clients yet.'}</td></tr>
               )}
+              {orderedFiltered.map((client, idx) => {
+                const isSelected = selectedRow === client.id;
+                const isRowOver  = dragOverRow === client.id;
+                const hasEdit    = editCell?.id === client.id;
+                return (
+                  <tr key={client.id}
+                    draggable
+                    onDragStart={e => onRowDragStart(e, client.id)}
+                    onDragOver={e  => onRowDragOver(e, client.id)}
+                    onDrop={e      => onRowDrop(e, client.id)}
+                    onDragEnd={onRowDragEnd}
+                    onClick={() => setSelectedRow(client.id)}
+                    className={`group transition-colors duration-75
+                      ${isRowOver  ? 'row-over' : ''}
+                      ${isSelected ? 'bg-teal-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}
+                      ${!hasEdit   ? 'hover:bg-teal-50/20' : ''}`}
+                    style={{ borderBottom: `1px solid ${TL}` }}>
+                    {cols.map((col, ci) => {
+                      const isCellActive = editCell?.id === client.id && editCell?.field === col.key;
+                      return (
+                        <td key={col.key}
+                          onDoubleClick={col.editable ? e => openEdit(e, client.id, col.key, client[col.key]) : undefined}
+                          onClick={col.editable && editCell?.id === client.id ? e => openEdit(e, client.id, col.key, client[col.key]) : undefined}
+                          className={isCellActive ? 'cell-act' : ''}
+                          style={{ height:56, overflow:'hidden', position:'relative', borderRight: ci < cols.length-1 ? `1px solid ${TL}` : undefined }}>
+                          {renderCell(col, client, idx)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
+
+      <p className="text-center text-xs text-gray-400 pb-2">
+        Showing {orderedFiltered.length} of {clientsList.length} clients
+      </p>
 
       {/* ADD CLIENT MODAL */}
       {showAddClientModal && (
@@ -938,27 +1217,18 @@ const Clients = () => {
               <button onClick={()=>setShowAddClientModal(false)} className="text-gray-500 hover:text-gray-900"><X size={22}/></button>
             </div>
             <form onSubmit={handleAddSubmit} className="p-5 md:p-6 space-y-4 md:space-y-5">
-              <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Company Name *</label>
-                <input value={newClient.name} onChange={e=>setNewClient({...newClient,name:e.target.value})} required placeholder="e.g. Acme Inc." className={inputCls}/></div>
+              <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Company Name *</label><input value={newClient.name} onChange={e=>setNewClient({...newClient,name:e.target.value})} required placeholder="e.g. Acme Inc." className={inputCls}/></div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Contact Person Name *</label>
-                  <input value={newClient.contact} onChange={e=>setNewClient({...newClient,contact:e.target.value})} required placeholder="Full name" className={inputCls}/></div>
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Contact Person Number *</label>
-                  <input type="tel" value={newClient.phone} onChange={e=>setNewClient({...newClient,phone:e.target.value})} required placeholder="+1 555 000 0000" className={inputCls}/></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Contact Person Name *</label><input value={newClient.contact} onChange={e=>setNewClient({...newClient,contact:e.target.value})} required placeholder="Full name" className={inputCls}/></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Contact Person Number *</label><input type="tel" value={newClient.phone} onChange={e=>setNewClient({...newClient,phone:e.target.value})} required placeholder="+1 555 000 0000" className={inputCls}/></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Email *</label>
-                  <input type="email" value={newClient.email} onChange={e=>setNewClient({...newClient,email:e.target.value})} required placeholder="contact@company.com" className={inputCls}/></div>
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Industry *</label>
-                  <select value={newClient.industry} onChange={e=>setNewClient({...newClient,industry:e.target.value})} className={inputCls}>
-                    {industries.map(i=><option key={i}>{i}</option>)}</select></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Email *</label><input type="email" value={newClient.email} onChange={e=>setNewClient({...newClient,email:e.target.value})} required placeholder="contact@company.com" className={inputCls}/></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Category *</label><select value={newClient.industry} onChange={e=>setNewClient({...newClient,industry:e.target.value})} className={inputCls}>{INDUSTRIES.map(i=><option key={i}>{i}</option>)}</select></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Revenue *</label>
-                  <input value={newClient.revenue} onChange={e=>setNewClient({...newClient,revenue:e.target.value})} required placeholder="$45,000" className={inputCls}/></div>
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Status *</label>
-                  <select value={newClient.status} onChange={e=>setNewClient({...newClient,status:e.target.value})} className={inputCls}>
-                    <option>Active</option><option>Pending</option><option>Inactive</option></select></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Revenue *</label><input value={newClient.revenue} onChange={e=>setNewClient({...newClient,revenue:e.target.value})} required placeholder="$45,000" className={inputCls}/></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Status *</label><select value={newClient.status} onChange={e=>setNewClient({...newClient,status:e.target.value})} className={inputCls}><option>Active</option><option>Pending</option><option>Inactive</option></select></div>
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={()=>setShowAddClientModal(false)} className="flex-1 px-6 py-3 bg-gray-100 text-gray-500 font-semibold rounded-lg hover:bg-gray-200">Cancel</button>
@@ -978,30 +1248,20 @@ const Clients = () => {
               <button onClick={()=>setShowEditModal(false)} className="text-gray-500 hover:text-gray-900"><X size={22}/></button>
             </div>
             <form onSubmit={handleUpdateSubmit} className="p-5 md:p-6 space-y-4 md:space-y-5">
-              <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Company Name *</label>
-                <input value={editClient.name} onChange={e=>setEditClient({...editClient,name:e.target.value})} required className={inputCls}/></div>
+              <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Company Name *</label><input value={editClient.name} onChange={e=>setEditClient({...editClient,name:e.target.value})} required className={inputCls}/></div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Contact Person Name *</label>
-                  <input value={editClient.contact} onChange={e=>setEditClient({...editClient,contact:e.target.value})} required className={inputCls}/></div>
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Contact Person Number *</label>
-                  <input type="tel" value={editClient.phone} onChange={e=>setEditClient({...editClient,phone:e.target.value})} required className={inputCls}/></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Contact Person Name *</label><input value={editClient.contact} onChange={e=>setEditClient({...editClient,contact:e.target.value})} required className={inputCls}/></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Contact Person Number *</label><input type="tel" value={editClient.phone} onChange={e=>setEditClient({...editClient,phone:e.target.value})} required className={inputCls}/></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Email *</label>
-                  <input type="email" value={editClient.email} onChange={e=>setEditClient({...editClient,email:e.target.value})} required className={inputCls}/></div>
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Industry *</label>
-                  <select value={editClient.industry} onChange={e=>setEditClient({...editClient,industry:e.target.value})} className={inputCls}>
-                    {industries.map(i=><option key={i}>{i}</option>)}</select></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Email *</label><input type="email" value={editClient.email} onChange={e=>setEditClient({...editClient,email:e.target.value})} required className={inputCls}/></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Industry *</label><select value={editClient.industry} onChange={e=>setEditClient({...editClient,industry:e.target.value})} className={inputCls}>{INDUSTRIES.map(i=><option key={i}>{i}</option>)}</select></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Revenue *</label>
-                  <input value={editClient.revenue} onChange={e=>setEditClient({...editClient,revenue:e.target.value})} required className={inputCls}/></div>
-                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Status *</label>
-                  <select value={editClient.status} onChange={e=>setEditClient({...editClient,status:e.target.value})} className={inputCls}>
-                    <option>Active</option><option>Pending</option><option>Inactive</option></select></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Revenue *</label><input value={editClient.revenue} onChange={e=>setEditClient({...editClient,revenue:e.target.value})} required className={inputCls}/></div>
+                <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Status *</label><select value={editClient.status} onChange={e=>setEditClient({...editClient,status:e.target.value})} className={inputCls}><option>Active</option><option>Pending</option><option>Inactive</option></select></div>
               </div>
-              <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Active Projects</label>
-                <input type="number" min="0" value={editClient.projects} onChange={e=>setEditClient({...editClient,projects:e.target.value})} className={inputCls}/></div>
+              <div><label className="block text-gray-900 font-semibold mb-2 text-sm">Active Projects</label><input type="number" min="0" value={editClient.projects} onChange={e=>setEditClient({...editClient,projects:e.target.value})} className={inputCls}/></div>
               <div className="pt-2 border-t border-gray-200">
                 <button type="button" onClick={e=>{ setShowEditModal(false); handleDeleteClient(selectedClient,e); }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-300">

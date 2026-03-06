@@ -23,23 +23,24 @@ const getPriorityStyle = (p) => {
   return                     { text:'text-emerald-600', dot:'bg-emerald-500' };
 };
 
+// ─── Column definitions (with ids for reordering) ───────────────────────────
 const COLUMN_DEFS = [
-  { key:'index',       label:'#',            defaultW:44,  minW:40,  align:'center', hideable:false },
-  { key:'name',        label:'Project Name', defaultW:160, minW:120, align:'left',   hideable:false },
-  { key:'description', label:'Description',  defaultW:200, minW:140, align:'left',   hideable:true  },
-  { key:'startDate',   label:'Start Date',   defaultW:110, minW:100, align:'center', hideable:true  },
-  { key:'deadline',    label:'End Date',     defaultW:110, minW:100, align:'center', hideable:true  },
-  { key:'status',      label:'Status',       defaultW:175, minW:140, align:'center', hideable:true  },
-  { key:'priority',    label:'Priority',     defaultW:100, minW:90,  align:'center', hideable:true  },
-  { key:'progress',    label:'Progress',     defaultW:130, minW:100, align:'center', hideable:true  },
-  { key:'team',        label:'Assigned To',  defaultW:160, minW:120, align:'left',   hideable:true  },
-  { key:'actions',     label:'',             defaultW:52,  minW:52,  align:'center', hideable:false },
+  { id:'index',       key:'index',       label:'#',            defaultW:44,  minW:40,  align:'center', hideable:false },
+  { id:'name',        key:'name',        label:'Project Name', defaultW:160, minW:120, align:'left',   hideable:false },
+  { id:'description', key:'description', label:'Description',  defaultW:200, minW:140, align:'left',   hideable:true  },
+  { id:'startDate',   key:'startDate',   label:'Start Date',   defaultW:110, minW:100, align:'center', hideable:true  },
+  { id:'deadline',    key:'deadline',    label:'End Date',     defaultW:110, minW:100, align:'center', hideable:true  },
+  { id:'status',      key:'status',      label:'Status',       defaultW:175, minW:140, align:'center', hideable:true  },
+  { id:'priority',    key:'priority',    label:'Priority',     defaultW:100, minW:90,  align:'center', hideable:true  },
+  { id:'progress',    key:'progress',    label:'Progress',     defaultW:130, minW:100, align:'center', hideable:true  },
+  { id:'team',        key:'team',        label:'Assigned To',  defaultW:160, minW:120, align:'left',   hideable:true  },
+  { id:'actions',     key:'actions',     label:'',             defaultW:52,  minW:52,  align:'center', hideable:false },
 ];
 
 const TOTAL_DEFAULT = COLUMN_DEFS.reduce((s,c) => s + c.defaultW, 0);
 const buildDefaultRatios = () => {
   const m = {};
-  COLUMN_DEFS.forEach(c => { m[c.key] = c.defaultW / TOTAL_DEFAULT; });
+  COLUMN_DEFS.forEach(c => { m[c.id] = c.defaultW / TOTAL_DEFAULT; });
   return m;
 };
 
@@ -110,7 +111,6 @@ const TeamDropdownPortal = ({ anchorEl, project, allMembers, onSave, onClose }) 
       }
     };
     const onScroll = (e) => {
-     
       if (dropRef.current && dropRef.current.contains(e.target)) return;
       onSave(selected); onClose();
     };
@@ -226,11 +226,11 @@ export default function Projects() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal]     = useState(false);
   const [projectList, setProjectList] = useState([]);
-  const [allMembers, setAllMembers]   = useState([]);
+  const [teamMembersList, setTeamMembersList] = useState([]); // from teamMembers collection
 
-  // column ratios & container width
+  // column reorder, ratios, hidden
+  const [columnOrder, setColumnOrder] = useState(COLUMN_DEFS.map(c => c.id)); // array of ids
   const [colRatios, setColRatios]     = useState(buildDefaultRatios);
-  // FIX: Start with 0, measure real width immediately — avoids wrong ratio on small screens
   const [containerW, setContainerW]   = useState(0);
   const [hiddenCols, setHiddenCols]   = useState(new Set());
   const [showColMenu, setShowColMenu] = useState(false);
@@ -245,7 +245,7 @@ export default function Projects() {
   const [editDisplay, setEditDisplay] = useState('');
   const cellInputRef = useRef(null);
 
-  // Team dropdown: store { id, anchorEl } so portal can position from cell rect
+  // Team dropdown portal
   const [teamDrop, setTeamDrop] = useState(null);
 
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -254,7 +254,7 @@ export default function Projects() {
 
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // team dropdown (modal)
+  // team dropdown (modal) – for project creation
   const [teamInput, setTeamInput]         = useState('');
   const [showTeamDrop, setShowTeamDrop]   = useState(false);
   const [sessionMembers, setSessionMembers] = useState([]);
@@ -271,6 +271,10 @@ export default function Projects() {
   const [dragOverIdx, setDragOverIdx] = useState(null);
   const [localOrder, setLocalOrder]   = useState([]);
 
+  // Column drag state
+  const dragCol      = useRef(null);
+  const dragOverCol  = useRef(null);
+
   // ── Effects ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (showAddProjectModal) { setShowModal(true); setShowAddProjectModal(false); }
@@ -286,16 +290,26 @@ export default function Projects() {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
+  // Fetch projects
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'projects'), (snap) => {
       const data = snap.docs.map(d => ({ id:d.id, ...d.data() }));
       setProjectList(data);
-      const ms = new Set();
-      data.forEach(p => (p.team||[]).forEach(m => m && ms.add(m.trim())));
-      setAllMembers([...ms].sort());
     }, console.error);
     return () => unsub();
   }, []);
+
+  // Fetch team members from teamMembers collection
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'teamMembers'), (snap) => {
+      const members = snap.docs.map(doc => doc.data().name).filter(Boolean).sort();
+      setTeamMembersList(members);
+    }, console.error);
+    return () => unsub();
+  }, []);
+
+  // All members for dropdown = teamMembers + any custom from projects + session
+  const allMembers = [...new Set([...teamMembersList, ...sessionMembers])].sort();
 
   useEffect(() => {
     setLocalOrder(prev => {
@@ -305,7 +319,7 @@ export default function Projects() {
     });
   }, [projectList]);
 
-  // FIX: measure container width correctly, use real clientWidth immediately
+  // Measure container
   useEffect(() => {
     const measure = () => {
       if (tableWrapRef.current) {
@@ -313,40 +327,72 @@ export default function Projects() {
         if (w > 0) setContainerW(w);
       }
     };
-    // Small delay to ensure DOM is painted
     const t = setTimeout(measure, 0);
     const ro = new ResizeObserver(measure);
     if (tableWrapRef.current) ro.observe(tableWrapRef.current);
     return () => { clearTimeout(t); ro.disconnect(); };
   }, []);
 
-  // FIX: Compute effective container width for table layout
-  // On small screens where table needs to scroll, use minWidth sum instead
-  const visMinW = COLUMN_DEFS
-    .filter(c => !hiddenCols.has(c.key))
-    .reduce((s, c) => s + c.minW, 0);
+  // Get visible columns based on order and hidden set
+  const visibleCols = columnOrder
+    .map(id => COLUMN_DEFS.find(c => c.id === id))
+    .filter(Boolean)
+    .filter(c => !hiddenCols.has(c.id));
 
-  // Use max of actual container vs min required — this prevents columns from squishing
+  const visMinW = visibleCols.reduce((s, c) => s + c.minW, 0);
   const effectiveW = containerW > 0 ? Math.max(containerW, visMinW) : visMinW;
 
-  // derived px widths — always based on effectiveW so ratios stay correct
   const colWidths = {};
-  COLUMN_DEFS.forEach(c => { colWidths[c.key] = colRatios[c.key] * effectiveW; });
+  visibleCols.forEach(c => { colWidths[c.id] = colRatios[c.id] * effectiveW; });
 
-  // ── Resize handle ─────────────────────────────────────────────────────────
-  const onResizeMouseDown = useCallback((e, colKey) => {
+  // ── Column reorder handlers ───────────────────────────────────────────────
+  const handleColDragStart = (e, colId) => {
+    e.dataTransfer.effectAllowed = 'move';
+    dragCol.current = colId;
+  };
+
+  const handleColDragOver = (e, colId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    dragOverCol.current = colId;
+  };
+
+  const handleColDrop = (e, targetId) => {
+    e.preventDefault();
+    const sourceId = dragCol.current;
+    if (!sourceId || sourceId === targetId) {
+      dragCol.current = null;
+      dragOverCol.current = null;
+      return;
+    }
+
+    setColumnOrder(prev => {
+      const newOrder = [...prev];
+      const srcIdx = newOrder.indexOf(sourceId);
+      const tgtIdx = newOrder.indexOf(targetId);
+      newOrder.splice(srcIdx, 1);
+      newOrder.splice(tgtIdx, 0, sourceId);
+      return newOrder;
+    });
+
+    dragCol.current = null;
+    dragOverCol.current = null;
+  };
+
+  // ── Resize handler ─────────────────────────────────────────────────────────
+  const onResizeMouseDown = useCallback((e, colId) => {
     e.preventDefault(); e.stopPropagation();
-    const visCols = COLUMN_DEFS.filter(c => !hiddenCols.has(c.key));
-    const idx     = visCols.findIndex(c => c.key === colKey);
+    const visCols = visibleCols;
+    const idx     = visCols.findIndex(c => c.id === colId);
     const nextCol = visCols[idx+1];
     if (!nextCol) return;
-    const colDef  = COLUMN_DEFS.find(c => c.key === colKey);
-    const nextDef = COLUMN_DEFS.find(c => c.key === nextCol.key);
-    resizeState.current = { colKey, nextKey:nextCol.key, startX:e.clientX, startR:colRatios[colKey], startNR:colRatios[nextCol.key], cW: effectiveW };
+    const colDef  = COLUMN_DEFS.find(c => c.id === colId);
+    const nextDef = COLUMN_DEFS.find(c => c.id === nextCol.id);
+    resizeState.current = { colId, nextId:nextCol.id, startX:e.clientX, startR:colRatios[colId], startNR:colRatios[nextCol.id], cW: effectiveW };
 
     const onMove = (ev) => {
       if (!resizeState.current) return;
-      const { colKey, nextKey, startX, startR, startNR, cW } = resizeState.current;
+      const { colId, nextId, startX, startR, startNR, cW } = resizeState.current;
       const d = (ev.clientX - startX) / cW;
       const minR  = colDef.minW  / cW;
       const minNR = nextDef.minW / cW;
@@ -354,7 +400,7 @@ export default function Projects() {
       let nr = Math.max(minNR, startNR - d);
       if (r  < minR)  { r  = minR;  nr = startR + startNR - minR;  }
       if (nr < minNR) { nr = minNR; r  = startR + startNR - minNR; }
-      setColRatios(prev => ({ ...prev, [colKey]:r, [nextKey]:nr }));
+      setColRatios(prev => ({ ...prev, [colId]:r, [nextId]:nr }));
     };
     const onUp = () => {
       resizeState.current = null;
@@ -366,7 +412,7 @@ export default function Projects() {
     document.body.style.userSelect = 'none';
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-  }, [colRatios, hiddenCols, effectiveW]);
+  }, [colRatios, hiddenCols, effectiveW, visibleCols]);
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const TABS = [
@@ -379,10 +425,9 @@ export default function Projects() {
     .filter(p => !searchQuery || p.name?.toLowerCase().includes(searchQuery.toLowerCase()) || p.description?.toLowerCase().includes(searchQuery.toLowerCase()));
   const countFor = (k) => k==='all' ? projectList.length : projectList.filter(p=>p.status===k).length;
 
-  const visibleCols = COLUMN_DEFS.filter(c => !hiddenCols.has(c.key));
-  const toggleCol   = (key) => setHiddenCols(prev => { const n=new Set(prev); n.has(key)?n.delete(key):n.add(key); return n; });
+  const toggleCol   = (colId) => setHiddenCols(prev => { const n=new Set(prev); n.has(colId)?n.delete(colId):n.add(colId); return n; });
 
-  // ── Drag ──────────────────────────────────────────────────────────────────
+  // ── Row drag ──────────────────────────────────────────────────────────────
   const handleDragStart = (e,idx) => { dragItem.current=idx; e.dataTransfer.effectAllowed='move'; setTimeout(()=>{ if(e.target) e.target.style.opacity='0.4'; },0); };
   const handleDragEnter = (e,idx) => { e.preventDefault(); dragOverItem.current=idx; setDragOverIdx(idx); };
   const handleDragOver  = (e,idx) => { e.preventDefault(); e.dataTransfer.dropEffect='move'; if(dragOverItem.current!==idx){dragOverItem.current=idx;setDragOverIdx(idx);} };
@@ -410,7 +455,6 @@ export default function Projects() {
   };
   const startEdit = (e,project,field) => {
     e.stopPropagation();
-    // Team cell: open portal dropdown with anchor element for positioning
     if (field === 'team') {
       setTeamDrop(prev => prev?.id === project.id ? null : { id: project.id, anchorEl: e.currentTarget });
       return;
@@ -451,7 +495,7 @@ export default function Projects() {
   };
 
   // ── Team dropdown (modal) ─────────────────────────────────────────────────
-  const memberPool   = [...new Set([...allMembers,...sessionMembers,...newProject.team])].sort();
+  const memberPool   = [...new Set([...allMembers, ...sessionMembers, ...newProject.team])].sort();
   const filteredPool = memberPool.filter(m => m.toLowerCase().includes(teamInput.toLowerCase()) && !newProject.team.includes(m));
   const selectMember = (name) => { setNewProject(prev=>({...prev,team:[...prev.team,name]})); setTeamInput(''); teamInputRef.current?.focus(); };
   const addNewMember = () => {
@@ -529,10 +573,10 @@ export default function Projects() {
                   style={{ border:`1px solid ${TABLE_LINE}`, boxShadow:'0 10px 30px rgba(0,0,0,0.12)' }}>
                   <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1 mb-1">Toggle Columns</p>
                   {COLUMN_DEFS.filter(c=>c.hideable).map(col=>(
-                    <button key={col.key} onClick={()=>toggleCol(col.key)}
+                    <button key={col.id} onClick={()=>toggleCol(col.id)}
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-gray-700 hover:bg-gray-50 transition-colors">
-                      <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-all ${hiddenCols.has(col.key)?'border-gray-300 bg-white':'border-teal-500 bg-teal-500'}`}>
-                        {!hiddenCols.has(col.key) && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-all ${hiddenCols.has(col.id)?'border-gray-300 bg-white':'border-teal-500 bg-teal-500'}`}>
+                        {!hiddenCols.has(col.id) && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                       </span>
                       {col.label}
                     </button>
@@ -578,23 +622,34 @@ export default function Projects() {
             <table className="proj-wrap border-collapse"
               style={{
                 tableLayout: 'fixed',
-                // FIX: width is effectiveW px on small screens, 100% on large
                 width: containerW > 0 && containerW >= visMinW ? '100%' : `${visMinW}px`,
                 minWidth: `${visMinW}px`,
               }}>
               <colgroup>
                 {visibleCols.map(c => (
-                  <col key={c.key} style={{ width: `${colWidths[c.key]}px` }}/>
+                  <col key={c.id} style={{ width: `${colWidths[c.id]}px` }}/>
                 ))}
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#EEF2F7]" style={{ borderBottom:`2px solid ${TABLE_LINE_BOLD}` }}>
                   {visibleCols.map((col,i)=>(
-                    <th key={col.key}
-                      style={{ position:'relative', textAlign:col.align, width:`${colWidths[col.key]}px`, borderRight:i<visibleCols.length-1?`1px solid ${TABLE_LINE}`:undefined, padding:'10px 8px', overflow:'hidden' }}
+                    <th key={col.id}
+                      draggable
+                      onDragStart={e => handleColDragStart(e, col.id)}
+                      onDragOver={e => handleColDragOver(e, col.id)}
+                      onDrop={e => handleColDrop(e, col.id)}
+                      style={{
+                        position:'relative',
+                        textAlign:col.align,
+                        width:`${colWidths[col.id]}px`,
+                        borderRight:i<visibleCols.length-1?`1px solid ${TABLE_LINE}`:undefined,
+                        padding:'10px 8px',
+                        overflow:'hidden',
+                        cursor:'grab',
+                      }}
                       className="text-xs font-semibold text-gray-600 uppercase tracking-wider select-none whitespace-nowrap">
                       {col.label}
-                      {i<visibleCols.length-1 && <span className="col-rz" onMouseDown={e=>onResizeMouseDown(e,col.key)}/>}
+                      {i<visibleCols.length-1 && <span className="col-rz" onMouseDown={e=>onResizeMouseDown(e,col.id)}/>}
                     </th>
                   ))}
                 </tr>
@@ -808,7 +863,7 @@ export default function Projects() {
                     </div>
                   )}
                 </div>
-                <p className="text-[11px] text-gray-400 mt-1.5">Click to see existing · Type to search or add · Backspace to remove last</p>
+                {/* <p className="text-[11px] text-gray-400 mt-1.5">Click to see existing · Type to search or add · Backspace to remove last</p> */}
               </div>
 
               <div className="flex gap-3 pt-2">

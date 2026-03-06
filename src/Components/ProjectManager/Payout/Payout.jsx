@@ -44,6 +44,21 @@ const recalcPaid = async (clientId, milestones) => {
   await updateDoc(doc(db, 'payouts', clientId), { paidAmount: paid });
 };
 
+// ─── Column definitions ───────────────────────────────────────────────────────
+const INIT_COLS = [
+  { key: 'idx',         label: '#',            width: 48,  align: 'center', fixed: true   },
+  { key: 'project',     label: 'Project',      width: 160, align: 'left',   field: 'project' },
+  { key: 'name',        label: 'Client Name',  width: 180, align: 'left',   field: 'name' },
+  { key: 'dueDate',     label: 'Due Date',     width: 110, align: 'center', field: 'dueDate' },
+  { key: 'status',      label: 'Status',       width: 110, align: 'center', field: 'status' },
+  { key: 'totalBudget', label: 'Total Budget', width: 120, align: 'right',  field: 'totalBudget' },
+  { key: 'paidAmount',  label: 'Paid',         width: 100, align: 'right',  field: 'paidAmount' },
+  { key: 'remaining',   label: 'Remaining',    width: 110, align: 'right'  },
+  { key: 'progress',    label: 'Progress',     width: 170, align: 'center' },
+  { key: 'eye',         label: '',             width: 48,  align: 'center', fixed: true   },
+  { key: 'menu',        label: '',             width: 48,  align: 'center', fixed: true   },
+];
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function PayoutDashboard() {
   const [clients,       setClients]       = useState([]);
@@ -63,6 +78,13 @@ export default function PayoutDashboard() {
   const [menuPos,       setMenuPos]       = useState({ top: 0, right: 0 });
   const menuRef = useRef(null);
 
+  // ── Column state ──
+  const [cols, setCols] = useState(INIT_COLS);
+  const dragColRef    = useRef(null);
+  const isResizing    = useRef(false);
+  const [dragOverCol, setDragOverCol] = useState(null);
+
+  // ── Row drag ──
   const dragItem     = useRef(null);
   const dragOverItem = useRef(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
@@ -112,7 +134,6 @@ export default function PayoutDashboard() {
 
   const enrichedClients = clients.map(c => ({ ...c, milestones: milestoneMap[c.id] || [] }));
 
-  // ── Search filter: name, project, status ──
   const filteredClients = enrichedClients.filter(c => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
@@ -123,6 +144,80 @@ export default function PayoutDashboard() {
     );
   });
 
+  // ── Column Resize ─────────────────────────────────────────────────────────
+  const startResize = useCallback((e, key) => {
+    e.preventDefault(); e.stopPropagation();
+    isResizing.current = true;
+    const startX = e.clientX;
+    const startW = cols.find(c => c.key === key)?.width || 100;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const onMove = ev => {
+      const w = Math.max(60, startW + ev.clientX - startX);
+      setCols(prev => prev.map(c => c.key === key ? { ...c, width: w } : c));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setTimeout(() => { isResizing.current = false; }, 50);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [cols]);
+
+  // ── Column DnD (mouse) ────────────────────────────────────────────────────
+  const onColDragStart = (e, key) => {
+    if (isResizing.current) { e.preventDefault(); return; }
+    dragColRef.current = key;
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  // ── Column DnD (touch) ────────────────────────────────────────────────────
+  const colTouchStart = useRef(null);
+  const onColTouchStart = (e, key) => {
+    colTouchStart.current = { key, x: e.touches[0].clientX };
+  };
+  const onColTouchEnd = (e, key) => {
+    if (!colTouchStart.current) return;
+    const dx = e.changedTouches[0].clientX - colTouchStart.current.x;
+    if (Math.abs(dx) < 30) { colTouchStart.current = null; return; }
+    const src = colTouchStart.current.key;
+    colTouchStart.current = null;
+    setCols(prev => {
+      const arr = [...prev];
+      const si  = arr.findIndex(c => c.key === src);
+      let di    = si + (dx > 0 ? 1 : -1);
+      // skip fixed cols
+      while (di >= 0 && di < arr.length && arr[di].fixed) di += (dx > 0 ? 1 : -1);
+      if (di < 0 || di >= arr.length || arr[di].fixed) return prev;
+      const [m] = arr.splice(si, 1);
+      arr.splice(di, 0, m);
+      return arr;
+    });
+  };
+  const onColDragOver = (e, key) => {
+    if (!dragColRef.current || key === dragColRef.current) return;
+    e.preventDefault(); setDragOverCol(key);
+  };
+  const onColDrop = (e, target) => {
+    e.preventDefault();
+    const src = dragColRef.current;
+    if (!src || src === target) { dragColRef.current = null; setDragOverCol(null); return; }
+    setCols(prev => {
+      const arr = [...prev];
+      const si  = arr.findIndex(c => c.key === src);
+      const di  = arr.findIndex(c => c.key === target);
+      const [m] = arr.splice(si, 1);
+      arr.splice(di, 0, m);
+      return arr;
+    });
+    dragColRef.current = null; setDragOverCol(null);
+  };
+  const onColDragEnd = () => { dragColRef.current = null; setDragOverCol(null); };
+
+  // ── Cell edit ─────────────────────────────────────────────────────────────
   const getVal = useCallback((clientId, field) => {
     const c = clients.find(x => x.id === clientId);
     if (!c) return '';
@@ -140,6 +235,7 @@ export default function PayoutDashboard() {
 
   const startEdit = (e, clientId, field) => {
     e.stopPropagation();
+    if (isResizing.current) return;
     if (editingCell?.clientId === clientId && editingCell?.field === field) return;
     if (editingCell) applyEdit(editingCell.clientId, editingCell.field, savedValue.current);
     const initial = getVal(clientId, field);
@@ -168,7 +264,9 @@ export default function PayoutDashboard() {
   };
   const isEditing = (clientId, field) => editingCell?.clientId === clientId && editingCell?.field === field;
 
+  // ── Row DnD (mouse) ──────────────────────────────────────────────────────
   const handleDragStart = (e, idx) => {
+    if (dragColRef.current) return;
     dragItem.current = idx;
     e.dataTransfer.effectAllowed = 'move';
     setTimeout(() => { if (e.target) e.target.style.opacity = '0.4'; }, 0);
@@ -182,6 +280,16 @@ export default function PayoutDashboard() {
     e.preventDefault();
     const from = dragItem.current, to = dragOverItem.current ?? idx;
     if (from === null || to === null || from === to) { setDragOverIdx(null); return; }
+    await reorderRows(from, to);
+  };
+  const handleDragEnd = (e) => {
+    if (e.target) e.target.style.opacity = '1';
+    dragItem.current = null; dragOverItem.current = null; setDragOverIdx(null);
+  };
+
+  // ── Row reorder (shared) ─────────────────────────────────────────────────
+  const reorderRows = async (from, to) => {
+    if (from === to) { setDragOverIdx(null); return; }
     const arr = [...enrichedClients];
     const [moved] = arr.splice(from, 1);
     arr.splice(to, 0, moved);
@@ -191,11 +299,33 @@ export default function PayoutDashboard() {
     await batch.commit();
     dragItem.current = null; dragOverItem.current = null;
   };
-  const handleDragEnd = (e) => {
-    if (e.target) e.target.style.opacity = '1';
-    dragItem.current = null; dragOverItem.current = null; setDragOverIdx(null);
+
+  // ── Row DnD (touch) ──────────────────────────────────────────────────────
+  const rowTouchRef = useRef({ startIdx: null, startY: 0, currentY: 0 });
+  const onRowTouchStart = (e, idx) => {
+    rowTouchRef.current = { startIdx: idx, startY: e.touches[0].clientY, currentY: e.touches[0].clientY };
+  };
+  const onRowTouchMove = (e, idx) => {
+    e.preventDefault();
+    rowTouchRef.current.currentY = e.touches[0].clientY;
+    // find element under touch
+    const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+    const row = el?.closest('tr[data-idx]');
+    if (row) {
+      const overIdx = parseInt(row.getAttribute('data-idx'));
+      if (!isNaN(overIdx) && overIdx !== dragOverIdx) setDragOverIdx(overIdx);
+    }
+  };
+  const onRowTouchEnd = async (e, idx) => {
+    const overIdx = dragOverIdx;
+    setDragOverIdx(null);
+    if (overIdx !== null && overIdx !== idx) {
+      await reorderRows(idx, overIdx);
+    }
+    rowTouchRef.current = { startIdx: null, startY: 0, currentY: 0 };
   };
 
+  // ── Add client / milestone ────────────────────────────────────────────────
   const handleAddClient = async (e) => {
     e.preventDefault();
     await addDoc(clientsCol(), {
@@ -265,112 +395,283 @@ export default function PayoutDashboard() {
     </div>
   );
 
+  const totalW = cols.reduce((s, c) => s + c.width, 0);
+
+  // ── Render a single cell's content ────────────────────────────────────────
+  const renderCellContent = (col, client, idx) => {
+    const isEd = col.field && isEditing(client.id, col.field);
+    const remaining = client.totalBudget - client.paidAmount;
+    const progress  = pct(client.paidAmount, client.totalBudget);
+    const cfg       = statusCfg[client.status] || statusCfg.Active;
+
+    const justifyMap = { center: 'center', right: 'flex-end', left: 'flex-start' };
+    const justify    = justifyMap[col.align] || 'flex-start';
+
+    // Single consistent wrapper for all cells
+    const cell = (children, overrideJustify) => (
+      <div style={{
+        display: 'flex', alignItems: 'center', height: '100%',
+        width: '100%', boxSizing: 'border-box',
+        padding: '0 12px', overflow: 'hidden',
+        justifyContent: overrideJustify || justify,
+      }}>
+        {children}
+      </div>
+    );
+
+    switch (col.key) {
+      case 'idx':
+        return cell(<span className="text-xs font-bold font-mono text-gray-300">{idx + 1}</span>);
+
+      case 'name':
+        return cell(
+          isEd ? (
+            <input ref={cellInput} value={editValue}
+              onChange={e => handleChange(e.target.value)}
+              onBlur={handleBlur} onKeyDown={handleKeyDown}
+              className={`${inlineCls} font-semibold text-[14px]`} />
+          ) : (
+            <div className="flex items-center gap-2.5 overflow-hidden w-full">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                {client.name?.[0] || '?'}
+              </div>
+              <span className="text-[14px] font-semibold text-gray-900 truncate">{client.name}</span>
+            </div>
+          )
+        );
+
+      case 'project':
+        return cell(
+          isEd ? (
+            <input ref={cellInput} value={editValue}
+              onChange={e => handleChange(e.target.value)}
+              onBlur={handleBlur} onKeyDown={handleKeyDown}
+              className={`${inlineCls} text-[13px]`} />
+          ) : (
+            <span className="text-[13px] text-gray-600 truncate">{client.project}</span>
+          )
+        );
+
+      case 'dueDate':
+        return cell(
+          isEd ? (
+            <input ref={cellInput} type="date" value={editValue}
+              onChange={e => handleChange(e.target.value)}
+              onBlur={handleBlur} onKeyDown={handleKeyDown}
+              className={`${inlineCls} font-mono text-[12px]`} />
+          ) : (
+            <span className="text-[12px] font-mono text-gray-600 whitespace-nowrap">{client.dueDate || '—'}</span>
+          )
+        );
+
+      case 'status':
+        return cell(
+          isEd ? (
+            <select ref={cellInput} value={editValue}
+              onChange={e => {
+                handleChange(e.target.value);
+                skipBlur.current = true;
+                applyEdit(client.id, 'status', e.target.value);
+                setEditingCell(null); setEditValue(''); savedValue.current = '';
+              }}
+              onBlur={handleBlur} onKeyDown={handleKeyDown}
+              className={`${inlineCls} cursor-pointer text-[12px]`}>
+              <option>Active</option>
+              <option>Completed</option>
+              <option>Overdue</option>
+            </select>
+          ) : (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold whitespace-nowrap ${cfg.badge}`}>
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />{client.status}
+            </span>
+          )
+        );
+
+      case 'totalBudget':
+        return cell(
+          isEd ? (
+            <input ref={cellInput} type="number" value={editValue}
+              onChange={e => handleChange(e.target.value)}
+              onBlur={handleBlur} onKeyDown={handleKeyDown}
+              className={`${inlineCls} font-mono text-[13px] text-right w-full`} />
+          ) : (
+            <span className="text-[13px] font-semibold font-mono text-gray-800 whitespace-nowrap">{fmt(client.totalBudget)}</span>
+          )
+        );
+
+      case 'paidAmount':
+        return cell(
+          isEd ? (
+            <input ref={cellInput} type="number" value={editValue}
+              onChange={e => handleChange(e.target.value)}
+              onBlur={handleBlur} onKeyDown={handleKeyDown}
+              className={`${inlineCls} font-mono text-[13px] text-right w-full`} />
+          ) : (
+            <span className="text-[13px] font-semibold font-mono text-emerald-600 whitespace-nowrap">{fmt(client.paidAmount)}</span>
+          )
+        );
+
+      case 'remaining':
+        return cell(
+          <span className={`text-[13px] font-semibold font-mono whitespace-nowrap ${remaining > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+            {fmt(remaining)}
+          </span>
+        );
+
+      case 'progress':
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: '100%', padding: '0 12px' }}>
+            <div style={{ flex: 1, height: 6, borderRadius: 999, background: '#EEF2F7', overflow: 'hidden' }}>
+              <div style={{ height: '100%', borderRadius: 999, background: 'linear-gradient(to right, #2dd4bf, #06b6d4)', width: `${progress}%` }} />
+            </div>
+            <span className="text-[12px] font-bold text-gray-600" style={{ minWidth: 32, textAlign: 'right' }}>{progress}%</span>
+          </div>
+        );
+
+      case 'eye':
+        return cell(
+          <button onClick={e => { e.stopPropagation(); setSelected({ ...client, milestones: client.milestones }); }}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-teal-500 hover:bg-teal-50 transition-colors">
+            <Eye size={15} />
+          </button>
+        );
+
+      case 'menu':
+        return cell(
+          <button
+            onClick={e => {
+              e.stopPropagation();
+              if (openMenuId === client.id) { setOpenMenuId(null); return; }
+              const rect = e.currentTarget.getBoundingClientRect();
+              setMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+              setOpenMenuId(client.id);
+            }}
+            className={`w-7 h-7 rounded-lg flex flex-col items-center justify-center gap-[3px] transition-all ${openMenuId === client.id ? 'bg-[#EEF2F7]' : 'hover:bg-[#EEF2F7]'}`}>
+            {[0,1,2].map(i => (
+              <span key={i} className={`w-1 h-1 rounded-full block ${openMenuId === client.id ? 'bg-gray-600' : 'bg-gray-300'}`} />
+            ))}
+          </button>
+        );
+
+      default: return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#EEF2F7]">
+      <style>{`
+        .payout-scroll::-webkit-scrollbar        { height: 6px; width: 6px; }
+        .payout-scroll::-webkit-scrollbar-track  { background: rgba(238,242,247,0.9); border-radius: 999px; }
+        .payout-scroll::-webkit-scrollbar-thumb  { background: rgba(20,184,166,0.55); border-radius: 999px; }
+        .payout-scroll::-webkit-scrollbar-thumb:hover { background: rgba(20,184,166,0.85); }
+        .col-resize-handle { position:absolute; right:0; top:0; bottom:0; width:5px; cursor:col-resize; z-index:20; display:flex; align-items:center; justify-content:center; }
+        .col-resize-handle:hover .col-resize-bar, .col-resize-handle:active .col-resize-bar { background:#14b8a6; height:70%; opacity:1; }
+        .col-resize-bar { width:2px; height:40%; background:rgba(0,0,0,0.15); border-radius:2px; transition:all .15s; opacity:0.6; }
+        .col-drag-over { background:rgba(20,184,166,0.05) !important; box-shadow: inset 2px 0 0 #14b8a6; }
+        .th-drag:hover { background:rgba(20,184,166,0.06); }
+        .cell-editing { box-shadow: inset 0 0 0 2px #14b8a6; background:rgba(20,184,166,0.05) !important; }
+        .row-drag-over { box-shadow: inset 0 2px 0 #14b8a6; background:rgba(20,184,166,0.04) !important; }
+        @media (min-width: 1024px) {
+          .payout-scroll { overflow-x: hidden !important; }
+        }
+      `}</style>
 
       {/* ── Page header ── */}
       <div className="px-4 md:px-8 pt-4 pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
-
-        {/* Title */}
         <div className="flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-800">Client Payouts</h2>
           <p className="text-xs text-gray-400 mt-0.5">Track budgets, payments &amp; milestones</p>
         </div>
-
-        {/* ── Search Bar ── */}
         <div className="relative w-full sm:w-64 md:w-72">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-          />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <input
-            ref={searchRef}
-            type="text"
-            value={searchQuery}
+            ref={searchRef} type="text" value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search clients, projects, status..."
             className="w-full pl-8 pr-7 py-2 rounded-lg text-sm text-gray-700 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/25 transition-all"
             style={{ border: `1px solid ${TL}` }}
           />
           {searchQuery && (
-            <button
-              onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
-            >
+            <button onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors">
               <X size={12} />
             </button>
           )}
         </div>
-
       </div>
 
       {/* ── TABLE WRAPPER ── */}
       <div className="p-3 md:p-6 pt-2">
         <div className="bg-white rounded-2xl shadow-sm w-full" style={{ border: `1px solid ${TL}`, overflow: 'hidden' }}>
-          <div
-            className="payout-scroll"
-            style={{
-              overflowX: 'auto',
-              overflowY: 'auto',
-              maxHeight: 'calc(100vh - 200px)',
-              WebkitOverflowScrolling: 'touch',
-            }}
-          >
-            <style>{`
-              .payout-scroll::-webkit-scrollbar        { height: 6px; width: 6px; }
-              .payout-scroll::-webkit-scrollbar-track  { background: rgba(238,242,247,0.9); border-radius: 999px; }
-              .payout-scroll::-webkit-scrollbar-thumb  { background: rgba(20,184,166,0.55); border-radius: 999px; }
-              .payout-scroll::-webkit-scrollbar-thumb:hover { background: rgba(20,184,166,0.85); }
-              @media (min-width: 1024px) {
-                .payout-table { min-width: unset !important; width: 100% !important; }
-              }
-            `}</style>
-
+          <div className="payout-scroll" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)', WebkitOverflowScrolling: 'touch' }}>
             <table
               className="border-collapse payout-table"
-              style={{ tableLayout: 'auto', minWidth: '950px', width: '100%' }}
+              style={{ tableLayout: 'fixed', width: '100%' }}
             >
+              <colgroup>
+                {cols.map(col => <col key={col.key} style={{ width: col.width + 'px' }} />)}
+              </colgroup>
+
+              {/* THEAD */}
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#EEF2F7]" style={{ borderBottom: `2px solid ${TLB}` }}>
-                  {[
-                    { label: '#',            align: 'center' },
-                    { label: 'Client Name',  align: 'left'   },
-                    { label: 'Project',      align: 'left'   },
-                    { label: 'Due Date',     align: 'center' },
-                    { label: 'Status',       align: 'center' },
-                    { label: 'Total Budget', align: 'right'  },
-                    { label: 'Paid',         align: 'right'  },
-                    { label: 'Remaining',    align: 'right'  },
-                    { label: 'Progress',     align: 'center' },
-                    { label: '',             align: 'center' },
-                    { label: '',             align: 'center' },
-                  ].map((col, i, arr) => (
-                    <th key={i}
-                      className="py-3.5 px-3 text-xs font-semibold text-gray-600 uppercase tracking-wider select-none whitespace-nowrap"
-                      style={{
-                        textAlign: col.align,
-                        borderRight: i < arr.length - 1 ? `1px solid ${TL}` : undefined,
-                      }}>
-                      {col.label}
-                    </th>
-                  ))}
+                  {cols.map((col, ci) => {
+                    const canDrag = !col.fixed;
+                    const isOver  = dragOverCol === col.key;
+                    return (
+                      <th key={col.key}
+                        draggable={canDrag}
+                        onDragStart={canDrag ? e => onColDragStart(e, col.key) : undefined}
+                        onDragOver={canDrag  ? e => onColDragOver(e, col.key)  : undefined}
+                        onDrop={canDrag      ? e => onColDrop(e, col.key)      : undefined}
+                        onDragEnd={canDrag   ? onColDragEnd                    : undefined}
+                        onTouchStart={canDrag ? e => onColTouchStart(e, col.key) : undefined}
+                        onTouchEnd={canDrag   ? e => onColTouchEnd(e, col.key)   : undefined}
+                        className={`th-drag select-none ${isOver ? 'col-drag-over' : ''}`}
+                        style={{
+                          height: 40, position: 'relative', userSelect: 'none',
+                          borderRight: ci < cols.length - 1 ? `1px solid ${TL}` : undefined,
+                          cursor: canDrag ? 'grab' : 'default',
+                          padding: 0,
+                          verticalAlign: 'middle',
+                        }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          height: '100%',
+                          width: '100%',
+                          paddingLeft: 12,
+                          paddingRight: 12,
+                          boxSizing: 'border-box',
+                          justifyContent:
+                            col.align === 'right'  ? 'flex-end' :
+                            col.align === 'center' ? 'center'   : 'flex-start',
+                        }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                            {col.label}
+                          </span>
+                        </div>
+                        {col.key !== 'eye' && col.key !== 'menu' && col.key !== 'idx' && (
+                          <div className="col-resize-handle" onMouseDown={e => startResize(e, col.key)}>
+                            <div className="col-resize-bar" />
+                          </div>
+                        )}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
 
+              {/* TBODY */}
               <tbody>
                 {filteredClients.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="py-20 text-center">
+                    <td colSpan={cols.length} className="py-20 text-center">
                       {searchQuery ? (
                         <>
                           <div className="text-4xl mb-3">🔍</div>
-                          <p className="text-gray-400 text-sm">
-                            No results for "<span className="font-semibold text-gray-600">{searchQuery}</span>"
-                          </p>
-                          <button
-                            onClick={() => setSearchQuery('')}
-                            className="mt-2 text-xs text-teal-500 hover:underline"
-                          >Clear search</button>
+                          <p className="text-gray-400 text-sm">No results for "<span className="font-semibold text-gray-600">{searchQuery}</span>"</p>
+                          <button onClick={() => setSearchQuery('')} className="mt-2 text-xs text-teal-500 hover:underline">Clear search</button>
                         </>
                       ) : (
                         <>
@@ -383,196 +684,41 @@ export default function PayoutDashboard() {
                 )}
 
                 {filteredClients.map((client, idx) => {
-                  const remaining  = client.totalBudget - client.paidAmount;
-                  const progress   = pct(client.paidAmount, client.totalBudget);
                   const isDragOver = dragOverIdx === idx && dragItem.current !== idx;
                   const rowBg      = idx % 2 === 0 ? 'bg-white' : '';
-                  const cfg        = statusCfg[client.status] || statusCfg.Active;
-                  const TOTAL_COLS = 11;
-
-                  const tdStyle = (field, colIdx) => ({
-                    height: '62px', padding: 0, verticalAlign: 'middle',
-                    borderRight: colIdx < TOTAL_COLS - 1 ? `1px solid ${TL}` : undefined,
-                    borderBottom: `1px solid ${TL}`,
-                    outline: isDragOver
-                      ? '2px solid #14b8a6'
-                      : (field && isEditing(client.id, field) ? '2px solid #14b8a6' : undefined),
-                    outlineOffset: '-2px',
-                    backgroundColor: field && isEditing(client.id, field)
-                      ? 'rgba(20,184,166,0.07)' : 'transparent',
-                    cursor: field ? 'cell' : 'default',
-                    transition: 'background 0.1s',
-                  });
-
-                  const inner = (j = 'flex-start') => ({
-                    display: 'flex', alignItems: 'center', justifyContent: j,
-                    height: '100%', padding: '0 12px', overflow: 'hidden',
-                  });
 
                   return (
-                    <tr key={client.id} draggable
+                    <tr key={client.id}
+                      data-idx={idx}
+                      draggable
                       onDragStart={e => handleDragStart(e, idx)}
                       onDragEnter={e => handleDragEnter(e, idx)}
                       onDragOver={e => handleDragOver(e, idx)}
                       onDrop={e => handleDrop(e, idx)}
                       onDragEnd={handleDragEnd}
-                      className={`${rowBg} transition-colors duration-100`}>
-
-                      {/* # */}
-                      <td style={{ ...tdStyle(null, 0), cursor: 'grab' }}>
-                        <div style={inner('center')}>
-                          <span className="text-xs font-bold font-mono text-gray-300">{idx + 1}</span>
-                        </div>
-                      </td>
-
-                      {/* Client Name */}
-                      <td style={tdStyle('name', 1)} onClick={e => startEdit(e, client.id, 'name')}>
-                        <div style={inner()}>
-                          {isEditing(client.id, 'name') ? (
-                            <input ref={cellInput} value={editValue}
-                              onChange={e => handleChange(e.target.value)}
-                              onBlur={handleBlur} onKeyDown={handleKeyDown}
-                              className={`${inlineCls} font-semibold text-[14px]`} />
-                          ) : (
-                            <div className="flex items-center gap-2.5 overflow-hidden">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                                {client.name?.[0] || '?'}
-                              </div>
-                              <span className="text-[14px] font-semibold text-gray-900 truncate">{client.name}</span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Project */}
-                      <td style={tdStyle('project', 2)} onClick={e => startEdit(e, client.id, 'project')}>
-                        <div style={inner()}>
-                          {isEditing(client.id, 'project') ? (
-                            <input ref={cellInput} value={editValue}
-                              onChange={e => handleChange(e.target.value)}
-                              onBlur={handleBlur} onKeyDown={handleKeyDown}
-                              className={`${inlineCls} text-[13px]`} />
-                          ) : (
-                            <span className="text-[13px] text-gray-600 truncate">{client.project}</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Due Date */}
-                      <td style={tdStyle('dueDate', 3)} onClick={e => startEdit(e, client.id, 'dueDate')}>
-                        <div style={inner('center')}>
-                          {isEditing(client.id, 'dueDate') ? (
-                            <input ref={cellInput} type="date" value={editValue}
-                              onChange={e => handleChange(e.target.value)}
-                              onBlur={handleBlur} onKeyDown={handleKeyDown}
-                              className={`${inlineCls} font-mono text-[12px]`} />
-                          ) : (
-                            <span className="text-[12px] font-mono text-gray-600 whitespace-nowrap">{client.dueDate || '—'}</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Status */}
-                      <td style={tdStyle('status', 4)} onClick={e => startEdit(e, client.id, 'status')}>
-                        <div style={inner('center')}>
-                          {isEditing(client.id, 'status') ? (
-                            <select ref={cellInput} value={editValue}
-                              onChange={e => {
-                                handleChange(e.target.value);
-                                skipBlur.current = true;
-                                applyEdit(client.id, 'status', e.target.value);
-                                setEditingCell(null); setEditValue(''); savedValue.current = '';
-                              }}
-                              onBlur={handleBlur} onKeyDown={handleKeyDown}
-                              className={`${inlineCls} cursor-pointer text-[12px]`}>
-                              <option>Active</option>
-                              <option>Completed</option>
-                              <option>Overdue</option>
-                            </select>
-                          ) : (
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold whitespace-nowrap ${cfg.badge}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />{client.status}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Total Budget */}
-                      <td style={tdStyle('totalBudget', 5)} onClick={e => startEdit(e, client.id, 'totalBudget')}>
-                        <div style={inner('flex-end')}>
-                          {isEditing(client.id, 'totalBudget') ? (
-                            <input ref={cellInput} type="number" value={editValue}
-                              onChange={e => handleChange(e.target.value)}
-                              onBlur={handleBlur} onKeyDown={handleKeyDown}
-                              className={`${inlineCls} font-mono text-[13px] text-right`} />
-                          ) : (
-                            <span className="text-[13px] font-semibold font-mono text-gray-800 whitespace-nowrap">{fmt(client.totalBudget)}</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Paid */}
-                      <td style={tdStyle('paidAmount', 6)} onClick={e => startEdit(e, client.id, 'paidAmount')}>
-                        <div style={inner('flex-end')}>
-                          {isEditing(client.id, 'paidAmount') ? (
-                            <input ref={cellInput} type="number" value={editValue}
-                              onChange={e => handleChange(e.target.value)}
-                              onBlur={handleBlur} onKeyDown={handleKeyDown}
-                              className={`${inlineCls} font-mono text-[13px] text-right`} />
-                          ) : (
-                            <span className="text-[13px] font-semibold font-mono text-emerald-600 whitespace-nowrap">{fmt(client.paidAmount)}</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Remaining */}
-                      <td style={tdStyle(null, 7)}>
-                        <div style={inner('flex-end')}>
-                          <span className={`text-[13px] font-semibold font-mono whitespace-nowrap ${remaining > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
-                            {fmt(remaining)}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Progress */}
-                      <td style={tdStyle(null, 8)}>
-                        <div className="flex items-center gap-2 h-full px-3">
-                          <div className="flex-1 h-1.5 rounded-full bg-[#EEF2F7] overflow-hidden">
-                            <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-500"
-                              style={{ width: `${progress}%` }} />
-                          </div>
-                          <span className="text-[12px] font-bold text-gray-600 min-w-[30px] text-right">{progress}%</span>
-                        </div>
-                      </td>
-
-                      {/* Eye */}
-                      <td style={tdStyle(null, 9)}>
-                        <div className="flex items-center justify-center h-full">
-                          <button onClick={e => { e.stopPropagation(); setSelected({ ...client, milestones: client.milestones }); }}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg text-teal-500 hover:bg-teal-50 transition-colors">
-                            <Eye size={15} />
-                          </button>
-                        </div>
-                      </td>
-
-                      {/* 3-dot */}
-                      <td style={{ ...tdStyle(null, 10), borderRight: undefined }}>
-                        <div className="flex items-center justify-center h-full">
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              if (openMenuId === client.id) { setOpenMenuId(null); return; }
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
-                              setOpenMenuId(client.id);
-                            }}
-                            className={`w-7 h-7 rounded-lg flex flex-col items-center justify-center gap-[3px] transition-all ${openMenuId === client.id ? 'bg-[#EEF2F7]' : 'hover:bg-[#EEF2F7]'}`}>
-                            {[0,1,2].map(i => (
-                              <span key={i} className={`w-1 h-1 rounded-full block ${openMenuId === client.id ? 'bg-gray-600' : 'bg-gray-300'}`} />
-                            ))}
-                          </button>
-                        </div>
-                      </td>
+                      onTouchStart={e => onRowTouchStart(e, idx)}
+                      onTouchMove={e => onRowTouchMove(e, idx)}
+                      onTouchEnd={e => onRowTouchEnd(e, idx)}
+                      className={`${rowBg} transition-colors duration-100 ${isDragOver ? 'row-drag-over' : ''}`}
+                    >
+                      {cols.map((col, ci) => {
+                        const isCellEditing = col.field && isEditing(client.id, col.field);
+                        return (
+                          <td key={col.key}
+                            onClick={col.field ? e => startEdit(e, client.id, col.field) : undefined}
+                            className={isCellEditing ? 'cell-editing' : ''}
+                            style={{
+                              height: '62px', padding: 0, verticalAlign: 'middle',
+                              borderRight: ci < cols.length - 1 ? `1px solid ${TL}` : undefined,
+                              borderBottom: `1px solid ${TL}`,
+                              cursor: col.field ? 'cell' : 'default',
+                              overflow: 'hidden', position: 'relative',
+                              transition: 'background 0.1s',
+                            }}>
+                            {renderCellContent(col, client, idx)}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })}
@@ -602,7 +748,6 @@ export default function PayoutDashboard() {
           <div className="absolute right-0 top-0 bottom-0 bg-white flex flex-col shadow-2xl w-full sm:w-[420px] md:w-[520px]"
             style={{ borderLeft: `1px solid ${TL}` }}
             onClick={e => e.stopPropagation()}>
-
             <div className="flex items-start justify-between px-5 md:px-7 pt-5 md:pt-7 pb-4 flex-shrink-0"
               style={{ borderBottom: `1px solid ${TL}` }}>
               <div className="flex items-center gap-3">
@@ -617,7 +762,6 @@ export default function PayoutDashboard() {
               <button onClick={() => setSelected(null)}
                 className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all text-xl">×</button>
             </div>
-
             <div className="px-5 md:px-7 py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${TL}` }}>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Payment Summary</h3>
               <div className="grid grid-cols-3 gap-2 md:gap-3">
@@ -643,7 +787,6 @@ export default function PayoutDashboard() {
                 </div>
               </div>
             </div>
-
             <div className="flex-1 overflow-y-auto px-5 md:px-7 py-4" style={{ scrollbarWidth: 'none' }}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -654,14 +797,12 @@ export default function PayoutDashboard() {
                   <Plus size={12} /> Add Milestone
                 </button>
               </div>
-
               {(!selected.milestones || selected.milestones.length === 0) && (
                 <div className="text-center py-12">
                   <div className="text-3xl mb-2">🎯</div>
                   <p className="text-sm text-gray-400">No milestones yet. Add one above.</p>
                 </div>
               )}
-
               <div className="space-y-2.5">
                 {(selected.milestones || []).map((ms) => {
                   const msCfg = statusCfg[ms.status] || statusCfg.Pending;
@@ -833,7 +974,6 @@ export default function PayoutDashboard() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
