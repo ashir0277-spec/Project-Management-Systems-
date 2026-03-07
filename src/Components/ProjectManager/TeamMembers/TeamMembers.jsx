@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //  TeamMembers.jsx  —  Fully featured with column/row reorder, resize, inline edit,
-//                      plus one‑time invite links (with WhatsApp share).
+//                      plus one‑time invite links (with WhatsApp share) – EMPTY FORM.
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
@@ -963,11 +963,10 @@ const Field = ({label,required,children})=>(
 const Row=({children})=><div className="grid grid-cols-2 gap-3">{children}</div>;
 
 // ─── Helper for copying to clipboard ──────────────────────────────────────────
-const copyToClipboard = (text, onSuccess = () => alert('Copied!'), onError = () => alert('Failed to copy')) => {
+const copyToClipboard = (text, onSuccess = () => {}, onError = () => {}) => {
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(onSuccess).catch(onError);
   } else {
-    // Fallback for older browsers
     const textarea = document.createElement('textarea');
     textarea.value = text;
     textarea.style.position = 'fixed';
@@ -983,7 +982,7 @@ const copyToClipboard = (text, onSuccess = () => alert('Copied!'), onError = () 
   }
 };
 
-// ─── ADD MEMBER MODAL (modified with invite link on Basic step + WhatsApp) ────
+// ─── ADD MEMBER MODAL (modified: invite link stores NO data, just token) ─────
 const DETAIL_TABS=[
   {key:'personal', label:'Personal'},
   {key:'work',     label:'Work'    },
@@ -1000,6 +999,7 @@ const AddMemberModal=({data,onChange,onSave,onClose})=>{
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
 
   const inp    =(f,t='text',ph='')=><input type={t} value={data[f]||''} onChange={e=>onChange(f,e.target.value)} placeholder={ph} className={mIopt} style={{border:`1px solid ${TL}`}}/>;
   const inpReq =(f,t='text',ph='')=><input required type={t} value={data[f]||''} onChange={e=>onChange(f,e.target.value)} placeholder={ph} className={mI} style={{border:`1px solid ${TL}`}}/>;
@@ -1016,23 +1016,16 @@ const AddMemberModal=({data,onChange,onSave,onClose})=>{
   const handleSkip=()=>isLastTab?onSave(data,documents,media):setDetailTab(DETAIL_TABS[detailIdx+1].key);
 
   const generateInvite = async () => {
-    // Validate basic info (name, email, phone, role, status) – they are required
-    if (!data.name || !data.email || !data.phone || !data.role || !data.status) {
-      alert('Please fill all required basic fields first.');
-      return;
-    }
     setInviteLoading(true);
     try {
       const token = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const inviteData = {
+      await setDoc(doc(db, 'invites', token), {
         token,
-        data: { ...data },
         used: false,
         createdAt: serverTimestamp(),
-      };
-      await setDoc(doc(db, 'invites', token), inviteData);
-     const SITE_URL = import.meta.env.VITE_SITE_URL || window.location.origin;
-     const link = `${SITE_URL}/invite/${token}`;
+      });
+      const SITE_URL = import.meta.env.VITE_SITE_URL || window.location.origin;
+      const link = `${SITE_URL}/invite/${token}`;
       setInviteLink(link);
       setShowInviteModal(true);
     } catch (err) {
@@ -1043,8 +1036,26 @@ const AddMemberModal=({data,onChange,onSave,onClose})=>{
     }
   };
 
+  const handleCopy = () => {
+    copyToClipboard(inviteLink, () => {
+      setShowCopiedToast(true);
+      setTimeout(() => setShowCopiedToast(false), 2000);
+    });
+  };
+
   return(
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+      <style>{`
+        @keyframes fadeInOut {
+          0% { opacity: 0; transform: translate(-50%, 10px); }
+          15% { opacity: 1; transform: translate(-50%, 0); }
+          85% { opacity: 1; transform: translate(-50%, 0); }
+          100% { opacity: 0; transform: translate(-50%, -10px); }
+        }
+        .animate-fade-in-out {
+          animation: fadeInOut 2s ease forwards;
+        }
+      `}</style>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col"
         style={{border:`1px solid ${TL}`,maxHeight:'92vh'}}>
 
@@ -1234,12 +1245,18 @@ const AddMemberModal=({data,onChange,onSave,onClose})=>{
       {/* Invite Link Modal (with WhatsApp) */}
       {showInviteModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onClick={() => setShowInviteModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()} style={{ border: `1px solid ${TL}` }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative" onClick={e => e.stopPropagation()} style={{ border: `1px solid ${TL}` }}>
+            {/* Copied toast */}
+            {showCopiedToast && (
+              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-12 bg-gray-900 text-white text-xs px-3 py-1.5 rounded-lg shadow-lg animate-fade-in-out">
+                Copied!
+              </div>
+            )}
             <h3 className="text-base font-bold text-gray-900 mb-2">Invite Link Generated</h3>
             <p className="text-xs text-gray-500 mb-4">Share this link with your new team member. It can only be used once.</p>
             <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl border border-gray-200 mb-4">
               <input type="text" value={inviteLink} readOnly className="flex-1 text-xs bg-transparent outline-none text-gray-700" />
-              <button onClick={() => copyToClipboard(inviteLink)} className="text-teal-500 hover:text-teal-600 p-1">
+              <button onClick={handleCopy} className="text-teal-500 hover:text-teal-600 p-1">
                 <Copy size={16} />
               </button>
             </div>
@@ -1415,7 +1432,7 @@ const EditMemberModal=({memberName, data, onChange, onSubmit, onClose, onDeleteC
 };
 
 // =============================================================================
-//  NEW: InvitePage component – handles the public invite link
+//  InvitePage – user fills ALL details (including basic info)
 // =============================================================================
 export const InvitePage = () => {
   const { token } = useParams();
@@ -1424,6 +1441,13 @@ export const InvitePage = () => {
   const [error, setError] = useState('');
   const [step, setStep] = useState('form');
   const [formData, setFormData] = useState({
+    // Basic fields (required)
+    name: '',
+    email: '',
+    phone: '',
+    role: ROLES[0],
+    status: 'Active',
+    // Optional fields
     address: '', dob: '', cnic: '', emergencyContact: '',
     department: '', experience: '', joiningDate: '', employmentType: 'Full-Time',
     workLocation: '', manager: '', salary: '',
@@ -1432,7 +1456,7 @@ export const InvitePage = () => {
   });
   const [documents, setDocuments] = useState([]);
   const [media, setMedia] = useState([]);
-  const [activeTab, setActiveTab] = useState('personal');
+  const [activeTab, setActiveTab] = useState('basic');
 
   useEffect(() => {
     const fetchInvite = async () => {
@@ -1464,14 +1488,18 @@ export const InvitePage = () => {
 
   const handleSubmit = async () => {
     if (!invite) return;
+    // Validate basic required fields
+    if (!formData.name || !formData.email || !formData.phone || !formData.role || !formData.status) {
+      alert('Please fill all required fields in the Basic tab.');
+      return;
+    }
     try {
       const memberData = {
-        ...invite.data,
         ...formData,
         documents: documents.map(f => ({ name: f.name, size: f.size, type: f.type })),
         media: media.map(f => ({ name: f.name, size: f.size, type: f.type })),
         projects: 0,
-        avatar: generateAvatar(invite.data.name),
+        avatar: generateAvatar(formData.name),
         joinDate: getCurrentMonthYear(),
         tasks: [],
         order: 0,
@@ -1525,6 +1553,7 @@ export const InvitePage = () => {
   }
 
   const tabs = [
+    { key: 'basic', label: 'Basic' },
     { key: 'personal', label: 'Personal' },
     { key: 'work', label: 'Work' },
     { key: 'bank', label: 'Bank' },
@@ -1561,14 +1590,31 @@ export const InvitePage = () => {
 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3.5" style={{ scrollbarWidth: 'thin' }}>
-          {/* Basic info (read-only) */}
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-[12px] text-blue-700">
-            <p><strong>Name:</strong> {invite.data.name}</p>
-            <p><strong>Email:</strong> {invite.data.email}</p>
-            <p><strong>Phone:</strong> {invite.data.phone}</p>
-            <p><strong>Role:</strong> {invite.data.role}</p>
-            <p><strong>Status:</strong> {invite.data.status}</p>
-          </div>
+          {activeTab === 'basic' && (
+            <>
+              <Field label="Full Name" required>
+                <input type="text" value={formData.name} onChange={e => handleChange('name', e.target.value)} placeholder="e.g. Ali Hassan" className={mI} style={{ border: `1px solid ${TL}` }} />
+              </Field>
+              <Row>
+                <Field label="Role" required>
+                  <select value={formData.role} onChange={e => handleChange('role', e.target.value)} className={mI} style={{ border: `1px solid ${TL}` }}>
+                    {ROLES.map(r => <option key={r}>{r}</option>)}
+                  </select>
+                </Field>
+                <Field label="Status" required>
+                  <select value={formData.status} onChange={e => handleChange('status', e.target.value)} className={mI} style={{ border: `1px solid ${TL}` }}>
+                    <option>Active</option><option>Away</option><option>Inactive</option>
+                  </select>
+                </Field>
+              </Row>
+              <Field label="Email Address" required>
+                <input type="email" value={formData.email} onChange={e => handleChange('email', e.target.value)} placeholder="ali@company.com" className={mI} style={{ border: `1px solid ${TL}` }} />
+              </Field>
+              <Field label="Phone Number" required>
+                <input type="tel" value={formData.phone} onChange={e => handleChange('phone', e.target.value)} placeholder="+92 300 0000000" className={mI} style={{ border: `1px solid ${TL}` }} />
+              </Field>
+            </>
+          )}
 
           {activeTab === 'personal' && (
             <>
@@ -1679,7 +1725,7 @@ export const InvitePage = () => {
 };
 
 // =============================================================================
-//  MAIN COMPONENT (unchanged except for the addition of InvitePage export)
+//  MAIN COMPONENT (unchanged from earlier version)
 // =============================================================================
 const TeamMembers = () => {
   const { showAddMemberModal, setShowAddMemberModal } = useOutletContext();
