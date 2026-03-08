@@ -1,9 +1,12 @@
+// PMLayout.jsx - Complete
 import React, { useState } from 'react';
 import Sidebar from '../Components/SidebarAndTopbar/Sidebar';
 import TopBar from '../Components/SidebarAndTopbar/Topbar';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 const PMLayout = () => {
+  const navigate = useNavigate();
+
   const [showAddMemberModal,  setShowAddMemberModal]  = useState(false);
   const [showAddClientModal,  setShowAddClientModal]  = useState(false);
   const [showAddProjectModal, setShowAddProjectModal] = useState(false);
@@ -24,7 +27,7 @@ const PMLayout = () => {
 
       <div className="flex-1 lg:ml-[280px] bg-[#080f25] overflow-hidden">
         <TopBar
-          onNewMember={() => setShowAddMemberModal(true)}
+          onNewMember={() => navigate('/team/add')}
           onNewClient={() => setShowAddClientModal(true)}
           onNewProject={() => setShowAddProjectModal(true)}
           onNewPayout={() => setShowAddPayoutModal(true)}

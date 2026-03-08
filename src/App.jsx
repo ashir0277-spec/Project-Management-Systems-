@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import PMLayout from "./Layouts/PMLayout";
@@ -14,6 +15,7 @@ import Dashboard from "./Components/ProjectManager/Dashboard/Dashboard";
 import UsersRecord from "./Components/ProjectManager/UsersRecord";
 import UserDetails from "./Components/ProjectManager/UserDetails";
 import { InvitePage } from './Components/ProjectManager/TeamMembers/TeamMembers';
+import AddMemberPage from "./Components/ProjectManager/TeamMembers/AddMemberPage";
 
 function App() {
   return (
@@ -28,6 +30,7 @@ function App() {
             <Route path="/dashboard"           element={<Dashboard />} />
             <Route path="/projects"            element={<Projects />} />
             <Route path="/team"                element={<TeamMembers />} />
+            <Route path="/team/add" element={<AddMemberPage />} />
             <Route path="/clients"             element={<Clients />} />
             <Route path="/payout"              element={<Payout />} />
             <Route path="/userrecord"          element={<UsersRecord />} />
