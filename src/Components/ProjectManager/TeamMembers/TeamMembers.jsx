@@ -693,7 +693,7 @@ const TeamMembers = () => {
   const navigate = useNavigate();
   // NOTE: showAddMemberModal / setShowAddMemberModal still comes from outlet
   // but we no longer use it — button now navigates to /add-member
-  const { } = useOutletContext();
+  
 
   const [members,  setMembers]  = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -1075,11 +1075,11 @@ const TeamMembers = () => {
         <span className="text-xs text-gray-400 whitespace-nowrap">{filtered.length} member{filtered.length!==1?'s':''}</span>
 
         {/* ── ADD MEMBER BUTTON — navigates to /add-member page ── */}
-      <button
+      {/* <button
        onClick={() => navigate('/team/add')}
   className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 shadow-sm transition-all active:scale-95 whitespace-nowrap">
   <Plus size={15} /> Add Member
-</button>
+</button> */}
       </div>
 
       {/* Table */}
