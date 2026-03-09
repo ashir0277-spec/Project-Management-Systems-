@@ -2,7 +2,8 @@
 //  TeamMembers.jsx  —  Updated: Add Member button navigates to /add-member page
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useOutletContext, useNavigate } from 'react-router-dom';
+import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
+
 import {
   collection, updateDoc, deleteDoc, doc,
   onSnapshot, query, orderBy, serverTimestamp, writeBatch, addDoc
