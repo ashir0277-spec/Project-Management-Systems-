@@ -319,7 +319,7 @@ const EditMediaTab = ({ existingMedia, newMedia, onRemoveExisting, onAddNew, onR
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-[11px] text-gray-500 font-medium">
-            {totalCount} file{totalCount !== 1 ? 's' : ''} total
+            {totalCount} file{totalCount !== 1 ? 's' : ''}
             {newMedia.length > 0 && <span className="ml-2 text-teal-500 font-semibold">({newMedia.length} new)</span>}
           </span>
           <button type="button" onClick={() => mediaInputRef.current?.click()}
@@ -600,7 +600,7 @@ const EditMemberModal = ({
                 <Field label="Date of Birth">{inp('dob','date')}</Field>
                 <Field label="CNIC">{inp('cnic','text','00000-0000000-0')}</Field>
               </Row>
-              <Field label="Emergency Contact">{inp('emergencyContact','text','Name – +92 300 0000000')}</Field>
+              <Field label="Emergency Contact">{inp('emergencyContact','text','Name - +92 300 0000000')}</Field>
             </>)}
 
             {activeTab === 'work' && (<>
@@ -692,9 +692,6 @@ const EditMemberModal = ({
 // =============================================================================
 const TeamMembers = () => {
   const navigate = useNavigate();
-  // NOTE: showAddMemberModal / setShowAddMemberModal still comes from outlet
-  // but we no longer use it — button now navigates to /add-member
-  
 
   const [members,  setMembers]  = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -713,7 +710,6 @@ const TeamMembers = () => {
   const taskDropdownRef = useRef(null);
   const [editMember, setEditMember] = useState(emptyMember());
 
-  // ─── Column/row reorder, resize ─────────────────────────────────────────────
   const baseColumns = [
     { id:'index',       label:'#',           width:44,  accessor:(m,idx)=>idx+1,                  editable:false },
     { id:'member',      label:'Member',       width:200, accessor:m=>m.name,                       editable:true, field:'name'   },
@@ -741,7 +737,6 @@ const TeamMembers = () => {
 
   const centeredCols = ['index','tasks','status','priority','taskStatus','description','dueDate','view','menu'];
 
-  // ─── Firestore ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const q = query(collection(db, 'teamMembers'), orderBy('order', 'asc'));
     const unsub = onSnapshot(q, snap => {
@@ -767,7 +762,6 @@ const TeamMembers = () => {
     }
   }, [members]);
 
-  // ─── Helpers ─────────────────────────────────────────────────────────────────
   const getLatestTask = m => {
     const tasks = m.tasks || [];
     if (!tasks.length) return null;
@@ -781,7 +775,6 @@ const TeamMembers = () => {
       && (filterStatus === 'all' || m.status === filterStatus);
   });
 
-  // ─── Column reorder ───────────────────────────────────────────────────────────
   const handleColDragStart = (e, colId) => { e.dataTransfer.effectAllowed = 'move'; dragCol.current = colId; };
   const handleColDragOver  = (e, colId) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; dragOverCol.current = colId; };
   const handleColDrop = (e, targetId) => {
@@ -797,7 +790,6 @@ const TeamMembers = () => {
     dragCol.current = null; dragOverCol.current = null;
   };
 
-  // ─── Column resize ────────────────────────────────────────────────────────────
   const handleResizeStart = (e, colId) => {
     e.preventDefault(); e.stopPropagation();
     const startX = e.clientX, startWidth = columnWidths[colId];
@@ -816,7 +808,6 @@ const TeamMembers = () => {
     document.addEventListener('mouseup',   onMouseUp);
   };
 
-  // ─── Row reorder ──────────────────────────────────────────────────────────────
   const handleRowDragStart = (e, idx) => { e.dataTransfer.effectAllowed='move'; dragRow.current=idx; setTimeout(()=>{ if(e.target)e.target.style.opacity='0.4'; },0); };
   const handleRowDragOver  = (e, idx) => { e.preventDefault(); e.dataTransfer.dropEffect='move'; dragOverRow.current=idx; };
   const handleRowDrop = async (e, targetIdx) => {
@@ -836,7 +827,6 @@ const TeamMembers = () => {
   };
   const handleRowDragEnd = e => { if(e.target) e.target.style.opacity='1'; dragRow.current=null; dragOverRow.current=null; };
 
-  // ─── Inline editing ───────────────────────────────────────────────────────────
   const startEditing = (member, col, value) => {
     if (!col.editable) return;
     setEditingCell({ rowId:member.id, colId:col.id, value, field:col.field });
@@ -848,13 +838,11 @@ const TeamMembers = () => {
     finally { setEditingCell(null); }
   };
 
-  // ─── Edit modal docs/media state ─────────────────────────────────────────────
   const [editExistingDocs,  setEditExistingDocs]  = useState([]);
   const [editExistingMedia, setEditExistingMedia] = useState([]);
   const [editNewDocs,       setEditNewDocs]       = useState([]);
   const [editNewMedia,      setEditNewMedia]      = useState([]);
 
-  // ─── Handlers ────────────────────────────────────────────────────────────────
   const handleUpdateSubmit = async e => {
     e.preventDefault();
     try {
@@ -935,7 +923,6 @@ const TeamMembers = () => {
     setShowEditModal(true);
   };
 
-  // ─── Render table cell ────────────────────────────────────────────────────────
   const renderTableCell = (member, col, rowIdx) => {
     const value     = col.accessor(member, rowIdx);
     const isEditing = editingCell && editingCell.rowId===member.id && editingCell.colId===col.id;
@@ -1038,7 +1025,6 @@ const TeamMembers = () => {
     return <span className="text-[13px] text-gray-600 truncate">{value}</span>;
   };
 
-  // ─── Close menus on outside click ────────────────────────────────────────────
   useEffect(() => {
     const h = e => { if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenuId(null); };
     document.addEventListener('mousedown', h);
@@ -1058,7 +1044,6 @@ const TeamMembers = () => {
     <div className="min-h-screen bg-[#EEF2F7]">
       <div className="h-[15px]" />
 
-      {/* Filter bar */}
       <div className="px-4 md:px-8 pb-4 flex flex-wrap items-center gap-3 max-w-[1600px] mx-auto">
         <div className="relative flex-1 min-w-[180px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -1074,16 +1059,8 @@ const TeamMembers = () => {
           { value:'Inactive', label:'Inactive', dot:'bg-gray-400'    },
         ]} placeholder="All Status" />
         <span className="text-xs text-gray-400 whitespace-nowrap">{filtered.length} member{filtered.length!==1?'s':''}</span>
-
-        {/* ── ADD MEMBER BUTTON — navigates to /add-member page ── */}
-      {/* <button
-       onClick={() => navigate('/team/add')}
-  className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 shadow-sm transition-all active:scale-95 whitespace-nowrap">
-  <Plus size={15} /> Add Member
-</button> */}
       </div>
 
-      {/* Table */}
       <div className="px-4 md:px-8 pb-8 max-w-[1600px] mx-auto">
         <div className="bg-white rounded-2xl shadow-sm w-full" style={{ border:`1px solid ${TL}`, overflow:'hidden' }}>
           <div className="team-scroll-container"
@@ -1161,7 +1138,6 @@ const TeamMembers = () => {
         </div>
       </div>
 
-      {/* 3-dot menu */}
       {openMenuId && (
         <div ref={menuRef} onClick={e => e.stopPropagation()}
           className="fixed z-[9999] bg-white rounded-xl overflow-hidden p-1"
@@ -1177,7 +1153,6 @@ const TeamMembers = () => {
         </div>
       )}
 
-      {/* Detail Drawer */}
       {showDrawer && selected && (
         <div className="fixed inset-0 z-[100]" onClick={() => { setShowDrawer(false); setShowAddTask(false); }}>
           <div className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" />
@@ -1360,7 +1335,6 @@ const TeamMembers = () => {
         </div>
       )}
 
-      {/* Edit Member Modal */}
       {showEditModal && selected && (
         <EditMemberModal
           memberName={selected.name}
@@ -1382,7 +1356,6 @@ const TeamMembers = () => {
         />
       )}
 
-      {/* Delete Confirm */}
       {deleteTarget && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/35 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[400px] overflow-hidden" style={{ border:`1px solid ${TL}` }}>
@@ -1415,6 +1388,139 @@ const TeamMembers = () => {
 };
 
 // ─── INVITE PAGE ──────────────────────────────────────────────────────────────
+
+// ─── Invite Docs Tab ─────────────────────────────────────────────────────────
+const InviteDocsTab = ({ docs, onAdd, onRemove }) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+  const dragCounter = useRef(0);
+
+  useEffect(() => {
+    const stop = e => { e.preventDefault(); e.stopPropagation(); };
+    window.addEventListener('dragover', stop);
+    window.addEventListener('drop', stop);
+    return () => { window.removeEventListener('dragover', stop); window.removeEventListener('drop', stop); };
+  }, []);
+
+  const handleDrop = e => {
+    e.preventDefault(); e.stopPropagation();
+    dragCounter.current = 0; setIsDragging(false);
+    Array.from(e.dataTransfer.files).forEach(f => onAdd(f));
+  };
+  const handleSelect = e => { Array.from(e.target.files).forEach(f => onAdd(f)); e.target.value = ''; };
+
+  return (
+    <div className="space-y-3">
+      <div
+        onDrop={handleDrop}
+        onDragEnter={e => { e.preventDefault(); dragCounter.current++; setIsDragging(true); }}
+        onDragOver={e => e.preventDefault()}
+        onDragLeave={e => { dragCounter.current--; if (!dragCounter.current) setIsDragging(false); }}
+        onClick={() => fileInputRef.current?.click()}
+        className={`relative rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200
+          flex flex-col items-center justify-center py-6 gap-2
+          ${isDragging ? 'border-teal-400 bg-teal-50/60' : 'border-gray-200 bg-gray-50/40 hover:border-teal-300 hover:bg-teal-50/20'}`}>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDragging ? 'bg-teal-100' : 'bg-white border border-gray-200'}`}>
+          <Upload size={16} className={isDragging ? 'text-teal-500' : 'text-gray-400'} />
+        </div>
+        <p className={`text-[13px] font-semibold ${isDragging ? 'text-teal-600' : 'text-gray-600'}`}>
+          {isDragging ? 'Drop files here!' : 'Upload Documents'}
+        </p>
+        <p className="text-[11px] text-gray-400">drag & drop or click to browse</p>
+        <input ref={fileInputRef} type="file" multiple accept={DOC_ACCEPT} className="hidden" onChange={handleSelect} />
+      </div>
+      {docs.length > 0 && (
+        <div className="space-y-1.5">
+          {docs.map((file, i) => (
+            <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white" style={{ border:`1px solid ${TL}` }}>
+              <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0">{getDocIcon(file)}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-semibold text-gray-800 truncate">{file.name}</p>
+                <p className="text-[10px] text-gray-400">{formatFileSize(file.size)}</p>
+              </div>
+              <button type="button" onClick={() => onRemove(i)}
+                className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all">
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {docs.length === 0 && (
+        <p className="text-center text-[12px] text-gray-400 py-2">No documents uploaded yet</p>
+      )}
+    </div>
+  );
+};
+
+// ─── Invite Media Tab ─────────────────────────────────────────────────────────
+const InviteMediaTab = ({ media, onAdd, onRemove }) => {
+  const [lightbox, setLightbox] = useState(null);
+  const mediaInputRef = useRef(null);
+  const urlCache = useRef({});
+
+  const getUrl = useCallback((file, i) => {
+    if (!urlCache.current[i]) urlCache.current[i] = URL.createObjectURL(file);
+    return urlCache.current[i];
+  }, []);
+
+  const handleSelect = e => { Array.from(e.target.files).forEach(f => onAdd(f)); e.target.value = ''; };
+
+  return (
+    <>
+      {lightbox && <Lightbox src={lightbox.url} name={lightbox.name} onClose={() => setLightbox(null)} />}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-gray-500 font-medium">{media.length} file{media.length !== 1 ? 's' : ''}</span>
+          <button type="button" onClick={() => mediaInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 shadow-sm transition-all">
+            <Plus size={13} /> Add Media
+          </button>
+          <input ref={mediaInputRef} type="file" multiple accept={MEDIA_ACCEPT} className="hidden" onChange={handleSelect} />
+        </div>
+        {media.length === 0 && (
+          <div onClick={() => mediaInputRef.current?.click()}
+            className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/60 hover:border-teal-300 cursor-pointer transition-all py-10 flex flex-col items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex items-center justify-center">
+              <Image size={22} className="text-gray-300" />
+            </div>
+            <p className="text-[13px] font-semibold text-gray-500">No media added yet</p>
+          </div>
+        )}
+        {media.length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {media.map((file, i) => {
+              const isImg = isImageFile(file);
+              const url = isImg ? getUrl(file, i) : null;
+              return (
+                <div key={i} className="relative group aspect-square rounded-xl overflow-hidden ring-2 ring-teal-400 ring-offset-1" style={{ background:'#f3f4f6' }}>
+                  {isImg && url
+                    ? <img src={url} alt={file.name} className="w-full h-full object-cover" onClick={() => setLightbox({ url, name: file.name })} />
+                    : <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-teal-50">
+                        <FileImage size={20} className="text-teal-400" />
+                        <span className="text-[9px] font-bold text-teal-400 uppercase">{file.name.split('.').pop()}</span>
+                      </div>
+                  }
+                  <button type="button" onClick={() => onRemove(i)}
+                    className="absolute top-1 right-1 w-5 h-5 rounded bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <X size={10} />
+                  </button>
+                </div>
+              );
+            })}
+            <button type="button" onClick={() => mediaInputRef.current?.click()}
+              className="aspect-square rounded-xl border-2 border-dashed border-teal-200 bg-teal-50/40 hover:border-teal-400 flex flex-col items-center justify-center gap-1.5 transition-all">
+              <Plus size={16} className="text-teal-400" />
+              <span className="text-[9px] font-semibold text-teal-400">Add More</span>
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+};
+
+// ─── INVITE PAGE COMPONENT ────────────────────────────────────────────────────
 export const InvitePage = () => {
   const { token } = useParams();
   const [invite,    setInvite]   = useState(null);
@@ -1422,6 +1528,8 @@ export const InvitePage = () => {
   const [error,     setError]    = useState('');
   const [step,      setStep]     = useState('form');
   const [activeTab, setActiveTab] = useState('basic');
+  const [inviteDocs,  setInviteDocs]  = useState([]);
+  const [inviteMedia, setInviteMedia] = useState([]);
   const [formData,  setFormData] = useState({
     name:'', email:'', phone:'', role:ROLES[0], status:'Active',
     address:'', dob:'', cnic:'', emergencyContact:'',
@@ -1435,7 +1543,7 @@ export const InvitePage = () => {
     const fetchInvite = async () => {
       try {
         const snap = await getDoc(doc(db, 'invites', token));
-        if (!snap.exists())      setError('Invalid invite link.');
+        if (!snap.exists())        setError('Invalid invite link.');
         else if (snap.data().used) setError('This invite has already been used.');
         else setInvite({ id: snap.id, ...snap.data() });
       } catch { setError('Something went wrong.'); }
@@ -1451,7 +1559,9 @@ export const InvitePage = () => {
     try {
       await addDoc(collection(db, 'teamMembers'), {
         ...formData,
-        documents: [], media: [], projects: 0,
+        documents: inviteDocs.map(f  => ({ name:f.name, size:f.size, type:f.type })),
+        media:     inviteMedia.map(f => ({ name:f.name, size:f.size, type:f.type })),
+        projects: 0,
         avatar:   generateAvatar(formData.name),
         joinDate: getCurrentMonthYear(),
         tasks: [], order: 0,
@@ -1462,8 +1572,13 @@ export const InvitePage = () => {
     } catch { alert('Error. Please try again.'); }
   };
 
- if (loading) return (
-    <div style={{ minHeight:'100vh', background:'#EEF2F7', display:'flex', alignItems:'center', justifyContent:'center' }}>
+  // ── Loading State ──
+  if (loading) return (
+    <div style={{
+      minHeight: '100svh', height: '100svh',
+      background: '#EEF2F7',
+      display: 'flex', alignItems: 'center', justifyContent: 'center'
+    }}>
       <div style={{ textAlign:'center' }}>
         <div style={{
           width:48, height:48, borderRadius:'50%',
@@ -1478,8 +1593,14 @@ export const InvitePage = () => {
     </div>
   );
 
+  // ── Error State ──
   if (error) return (
-    <div className="min-h-screen bg-[#EEF2F7] flex items-center justify-center p-4">
+    <div style={{
+      minHeight: '100svh', height: '100svh',
+      background: '#EEF2F7',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '16px'
+    }}>
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center" style={{ border:`1px solid ${TL}` }}>
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
           <AlertCircle size={28} className="text-red-400" />
@@ -1490,8 +1611,14 @@ export const InvitePage = () => {
     </div>
   );
 
+  // ── Success State ──
   if (step === 'success') return (
-    <div className="min-h-screen bg-[#EEF2F7] flex items-center justify-center p-4">
+    <div style={{
+      minHeight: '100svh', height: '100svh',
+      background: '#EEF2F7',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '16px'
+    }}>
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center" style={{ border:`1px solid ${TL}` }}>
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-50 flex items-center justify-center">
           <CheckCircle2 size={28} className="text-emerald-500" />
@@ -1502,71 +1629,196 @@ export const InvitePage = () => {
     </div>
   );
 
-  const mI    = 'w-full px-3.5 py-2.5 rounded-lg text-sm text-gray-800 bg-white placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-all';
-  const mIopt = 'w-full px-3.5 py-2.5 rounded-lg text-sm text-gray-800 bg-gray-50 placeholder-gray-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/10 focus:outline-none transition-all';
+  const iMI    = 'w-full px-3.5 py-2.5 rounded-lg text-sm text-gray-800 bg-white placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-all';
+  const iMIopt = 'w-full px-3.5 py-2.5 rounded-lg text-sm text-gray-800 bg-gray-50 placeholder-gray-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/10 focus:outline-none transition-all';
   const ch = (f, v) => setFormData(p => ({ ...p, [f]: v }));
-  const inp    = (f, t='text', ph='') => <input type={t} value={formData[f]||''} onChange={e=>ch(f,e.target.value)} placeholder={ph} className={mIopt} style={{border:`1px solid ${TL}`}}/>;
-  const inpReq = (f, t='text', ph='') => <input type={t} value={formData[f]||''} onChange={e=>ch(f,e.target.value)} placeholder={ph} className={mI}    style={{border:`1px solid ${TL}`}}/>;
-  const sel    = (f, opts, req=false) => <select value={formData[f]||opts[0]} onChange={e=>ch(f,e.target.value)} className={req?mI:mIopt} style={{border:`1px solid ${TL}`}}>{opts.map(o=><option key={o}>{o}</option>)}</select>;
+  const inp    = (f, t='text', ph='') => <input type={t} value={formData[f]||''} onChange={e=>ch(f,e.target.value)} placeholder={ph} className={iMIopt} style={{border:`1px solid ${TL}`}}/>;
+  const inpReq = (f, t='text', ph='') => <input type={t} value={formData[f]||''} onChange={e=>ch(f,e.target.value)} placeholder={ph} className={iMI}    style={{border:`1px solid ${TL}`}}/>;
+  const sel    = (f, opts, req=false) => <select value={formData[f]||opts[0]} onChange={e=>ch(f,e.target.value)} className={req?iMI:iMIopt} style={{border:`1px solid ${TL}`}}>{opts.map(o=><option key={o}>{o}</option>)}</select>;
 
-  const tabs = [
-    {key:'basic',label:'Basic'},{key:'personal',label:'Personal'},
-    {key:'work',label:'Work'},{key:'bank',label:'Bank'},
+  const INVITE_TABS = [
+    { key:'basic',     label:'Basic'     },
+    { key:'personal',  label:'Personal'  },
+    { key:'work',      label:'Work'      },
+    { key:'bank',      label:'Bank'      },
+    { key:'documents', label:'Documents' },
+    { key:'media',     label:'Media'     },
   ];
-  
 
+  const tabIdx = INVITE_TABS.findIndex(t => t.key === activeTab);
+
+  // ── Main Form ──
   return (
-    <div className="min-h-screen bg-[#EEF2F7] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col" style={{border:`1px solid ${TL}`,maxHeight:'92vh'}}>
-        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{borderBottom:`1px solid ${TL}`}}>
+    // ✅ FIX: Full screen, no centering, no padding wrapper
+    <div
+      className="flex flex-col bg-[#EEF2F7]"
+      style={{ height: '100svh', minHeight: '100svh', overflow: 'hidden' }}
+    >
+      {/* ── Header ── */}
+      <div
+        className="flex-shrink-0 px-4 sm:px-6 py-4 sm:py-5"
+        style={{ background: 'linear-gradient(135deg,#0f766e,#0891b2)' }}
+      >
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 size={22} className="text-white" />
+          </div>
           <div>
-            <h3 className="text-base font-bold text-gray-900">Complete Your Profile</h3>
-            <p className="text-xs text-gray-400 mt-0.5">You've been invited to join the team</p>
+            <h1 className="text-base sm:text-lg font-bold text-white">Complete Your Profile</h1>
+            <p className="text-xs sm:text-sm text-white/70 mt-0.5">You've been invited to join the team</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Card: fills remaining height ── */}
+      <div className="flex-1 min-h-0 flex flex-col bg-white" style={{ borderTop: `1px solid ${TL}` }}>
+
+        {/* Tabs */}
+        <div
+          className="flex border-b flex-shrink-0 overflow-x-auto"
+          style={{ borderColor: TL, scrollbarWidth: 'none' }}
+        >
+          <style>{`.invite-tabs::-webkit-scrollbar{display:none}`}</style>
+          <div className="invite-tabs flex w-full" style={{ scrollbarWidth: 'none' }}>
+            {INVITE_TABS.map((tab, i) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+               className={`flex-1 pt-5 pb-3 text-[11px] sm:text-xs font-semibold transition-all border-b-2 whitespace-nowrap relative min-w-[60px]
+                  ${activeTab === tab.key
+                    ? 'text-teal-600 border-teal-500 bg-teal-50/40'
+                    : 'text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50'}
+                  ${i < INVITE_TABS.length - 1 ? 'border-r' : ''}`}
+                style={i < INVITE_TABS.length - 1 ? { borderRightColor: TL } : {}}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="flex border-b flex-shrink-0" style={{borderColor:TL}}>
-          {tabs.map(tab => (
-            <button key={tab.key} onClick={()=>setActiveTab(tab.key)}
-              className={`flex-1 py-2.5 text-[11px] font-semibold transition-all border-b-2 whitespace-nowrap
-                ${activeTab===tab.key?'text-teal-600 border-teal-500 bg-teal-50/40':'text-gray-400 border-transparent hover:text-gray-600'}`}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3.5" style={{scrollbarWidth:'thin'}}>
-          {activeTab==='basic'&&(<>
+        {/* Scrollable Form Content */}
+        <div
+          className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 space-y-3.5"
+          style={{ scrollbarWidth: 'thin' }}
+        >
+          {activeTab === 'basic' && (<>
             <Field label="Full Name" required>{inpReq('name','text','e.g. Ali Hassan')}</Field>
-            <Row><Field label="Role" required>{sel('role',ROLES,true)}</Field><Field label="Status" required>{sel('status',['Active','Away','Inactive'],true)}</Field></Row>
+            <Row>
+              <Field label="Role" required>{sel('role',ROLES,true)}</Field>
+              <Field label="Status" required>{sel('status',['Active','Away','Inactive'],true)}</Field>
+            </Row>
             <Field label="Email" required>{inpReq('email','email','ali@company.com')}</Field>
             <Field label="Phone" required>{inpReq('phone','tel','+92 300 0000000')}</Field>
           </>)}
-          {activeTab==='personal'&&(<>
+
+          {activeTab === 'personal' && (<>
+            {/* <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+              <Info size={13} className="text-blue-400 flex-shrink-0" />
+              <p className="text-[11px] text-blue-600">All fields optional.</p>
+            </div> */}
             <Field label="Home Address">{inp('address','text','Street, City')}</Field>
-            <Row><Field label="Date of Birth">{inp('dob','date')}</Field><Field label="CNIC">{inp('cnic','text','00000-0000000-0')}</Field></Row>
-            <Field label="Emergency Contact">{inp('emergencyContact','text','Name – +92 300 0000000')}</Field>
+            <Row>
+              <Field label="Date of Birth">{inp('dob','date')}</Field>
+              <Field label="CNIC">{inp('cnic','text','00000-0000000-0')}</Field>
+            </Row>
+            <Field label="Emergency Contact">{inp('emergencyContact','text','Name - +92 300 0000000')}</Field>
           </>)}
-          {activeTab==='work'&&(<>
-            <Row><Field label="Department">{inp('department','text','e.g. Engineering')}</Field><Field label="Experience">{inp('experience','text','e.g. 2 years')}</Field></Row>
-            <Row><Field label="Joining Date">{inp('joiningDate','date')}</Field><Field label="Employment Type">{sel('employmentType',EMPLOYMENT_TYPES)}</Field></Row>
-            <Row><Field label="Work Location">{inp('workLocation','text','Office / Remote')}</Field><Field label="Manager">{inp('manager','text','Manager name')}</Field></Row>
+
+          {activeTab === 'work' && (<>
+            {/* <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+              <Info size={13} className="text-blue-400 flex-shrink-0" />
+              <p className="text-[11px] text-blue-600">All fields optional.</p>
+            </div> */}
+            <Row>
+              <Field label="Department">{inp('department','text','e.g. Engineering')}</Field>
+              <Field label="Experience">{inp('experience','text','e.g. 2 years')}</Field>
+            </Row>
+            <Row>
+              <Field label="Joining Date">{inp('joiningDate','date')}</Field>
+              <Field label="Employment Type">{sel('employmentType',EMPLOYMENT_TYPES)}</Field>
+            </Row>
+            <Row>
+              <Field label="Work Location">{inp('workLocation','text','Office / Remote')}</Field>
+              <Field label="Manager">{inp('manager','text','Manager name')}</Field>
+            </Row>
             <Field label="Monthly Salary (PKR)">{inp('salary','number','0')}</Field>
           </>)}
-          {activeTab==='bank'&&(<>
-            <Row><Field label="Bank Name">{inp('bankName','text','e.g. HBL, MCB')}</Field><Field label="Payment Method">{sel('paymentMethod',PAYMENT_METHODS)}</Field></Row>
+
+          {activeTab === 'bank' && (<>
+            {/* <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+              <Info size={13} className="text-blue-400 flex-shrink-0" />
+              <p className="text-[11px] text-blue-600">All fields optional.</p>
+            </div> */}
+            <Row>
+              <Field label="Bank Name">{inp('bankName','text','e.g. HBL, MCB')}</Field>
+              <Field label="Payment Method">{sel('paymentMethod',PAYMENT_METHODS)}</Field>
+            </Row>
             <Field label="Account Holder Name">{inp('accountTitle','text','Full name on account')}</Field>
             <Field label="Account Number">{inp('accountNumber','text','0000000000000000')}</Field>
             <Field label="IBAN">{inp('iban','text','PK00XXXX0000000000000000')}</Field>
           </>)}
+
+          {activeTab === 'documents' && (
+            <InviteDocsTab
+              docs={inviteDocs}
+              onAdd={f => setInviteDocs(p => [...p, f])}
+              onRemove={i => setInviteDocs(p => p.filter((_,idx) => idx !== i))}
+            />
+          )}
+
+          {activeTab === 'media' && (
+            <InviteMediaTab
+              media={inviteMedia}
+              onAdd={f => setInviteMedia(p => [...p, f])}
+              onRemove={i => setInviteMedia(p => p.filter((_,idx) => idx !== i))}
+            />
+          )}
         </div>
 
-        <div className="px-6 py-4 flex-shrink-0" style={{borderTop:`1px solid ${TL}`}}>
-          <button onClick={handleSubmit}
-            className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 shadow">
+        {/* Footer — always pinned at bottom */}
+        <div
+          className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 space-y-3"
+          style={{ borderTop: `1px solid ${TL}` }}
+        >
+          {/* Prev / dots / Next */}
+          <div className="flex items-center gap-2">
+            {tabIdx > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveTab(INVITE_TABS[tabIdx - 1].key)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 bg-[#EEF2F7] hover:opacity-80 flex-shrink-0"
+                style={{ border: `1px solid ${TL}` }}
+              >← Prev</button>
+            )}
+            <div className="flex items-center gap-1.5 flex-1 justify-center">
+              {INVITE_TABS.map(t => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setActiveTab(t.key)}
+                  className={`rounded-full transition-all ${activeTab === t.key ? 'w-5 h-2 bg-teal-500' : 'w-2 h-2 bg-gray-200 hover:bg-gray-300'}`}
+                />
+              ))}
+            </div>
+            {tabIdx < INVITE_TABS.length - 1 && (
+              <button
+                type="button"
+                onClick={() => setActiveTab(INVITE_TABS[tabIdx + 1].key)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-teal-600 bg-teal-50 border border-teal-200 hover:bg-teal-100 flex-shrink-0"
+              >Next →</button>
+            )}
+          </div>
+
+          {/* Submit */}
+          <button
+            onClick={handleSubmit}
+            className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 shadow transition-all active:scale-[0.99]"
+          >
             Submit & Join Team
           </button>
         </div>
+
       </div>
     </div>
   );
