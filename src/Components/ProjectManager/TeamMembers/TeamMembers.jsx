@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
 
 import {
-  collection, updateDoc, deleteDoc, doc,
+  collection, updateDoc, deleteDoc,getDoc, doc,
   onSnapshot, query, orderBy, serverTimestamp, writeBatch, addDoc
 } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -1417,11 +1417,12 @@ const TeamMembers = () => {
 // ─── INVITE PAGE ──────────────────────────────────────────────────────────────
 export const InvitePage = () => {
   const { token } = useParams();
-  const [invite,   setInvite]  = useState(null);
-  const [loading,  setLoading] = useState(true);
-  const [error,    setError]   = useState('');
-  const [step,     setStep]    = useState('form');
-  const [formData, setFormData] = useState({
+  const [invite,    setInvite]   = useState(null);
+  const [loading,   setLoading]  = useState(true);
+  const [error,     setError]    = useState('');
+  const [step,      setStep]     = useState('form');
+  const [activeTab, setActiveTab] = useState('basic');
+  const [formData,  setFormData] = useState({
     name:'', email:'', phone:'', role:ROLES[0], status:'Active',
     address:'', dob:'', cnic:'', emergencyContact:'',
     department:'', experience:'', joiningDate:'', employmentType:'Full-Time',
@@ -1461,9 +1462,19 @@ export const InvitePage = () => {
     } catch { alert('Error. Please try again.'); }
   };
 
-  if (loading) return (
-    <div className="min-h-screen bg-[#EEF2F7] flex items-center justify-center">
-      <div className="w-12 h-12 rounded-full border-4 border-teal-500/20 border-t-teal-500 animate-spin" />
+ if (loading) return (
+    <div style={{ minHeight:'100vh', background:'#EEF2F7', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ textAlign:'center' }}>
+        <div style={{
+          width:48, height:48, borderRadius:'50%',
+          border:'4px solid rgba(20,184,166,0.2)',
+          borderTopColor:'#14b8a6',
+          animation:'spin 0.8s linear infinite',
+          margin:'0 auto'
+        }} />
+        <p style={{ marginTop:16, color:'#6b7280', fontWeight:500, fontSize:14 }}>Loading Invitation...</p>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 
@@ -1502,7 +1513,7 @@ export const InvitePage = () => {
     {key:'basic',label:'Basic'},{key:'personal',label:'Personal'},
     {key:'work',label:'Work'},{key:'bank',label:'Bank'},
   ];
-  const [activeTab, setActiveTab] = useState('basic');
+  
 
   return (
     <div className="min-h-screen bg-[#EEF2F7] flex items-center justify-center p-4">
