@@ -1520,7 +1520,11 @@ const InviteMediaTab = ({ media, onAdd, onRemove }) => {
   );
 };
 
+
 // ─── INVITE PAGE COMPONENT ────────────────────────────────────────────────────
+// Replace the existing InvitePage export in TeamMembers.jsx with this version.
+// Everything else in the file stays the same.
+
 export const InvitePage = () => {
   const { token } = useParams();
   const [invite,    setInvite]   = useState(null);
@@ -1572,253 +1576,275 @@ export const InvitePage = () => {
     } catch { alert('Error. Please try again.'); }
   };
 
-  // ── Loading State ──
+  // ── Loading ──
   if (loading) return (
-    <div style={{
-      minHeight: '100svh', height: '100svh',
-      background: '#EEF2F7',
-      display: 'flex', alignItems: 'center', justifyContent: 'center'
-    }}>
+    <div style={{ minHeight:'100svh', background:'#f0f4f8', display:'flex', alignItems:'center', justifyContent:'center' }}>
       <div style={{ textAlign:'center' }}>
-        <div style={{
-          width:48, height:48, borderRadius:'50%',
-          border:'4px solid rgba(20,184,166,0.2)',
-          borderTopColor:'#14b8a6',
-          animation:'spin 0.8s linear infinite',
-          margin:'0 auto'
-        }} />
-        <p style={{ marginTop:16, color:'#6b7280', fontWeight:500, fontSize:14 }}>Loading Invitation...</p>
+        <div style={{ width:44, height:44, borderRadius:'50%', border:'3px solid rgba(13,148,136,0.2)', borderTopColor:'#0d9488', animation:'spin 0.8s linear infinite', margin:'0 auto' }} />
+        <p style={{ marginTop:14, color:'#64748b', fontWeight:500, fontSize:13 }}>Loading invitation...</p>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
-  // ── Error State ──
+  // ── Error ──
   if (error) return (
-    <div style={{
-      minHeight: '100svh', height: '100svh',
-      background: '#EEF2F7',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '16px'
-    }}>
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center" style={{ border:`1px solid ${TL}` }}>
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
-          <AlertCircle size={28} className="text-red-400" />
+    <div style={{ minHeight:'100svh', background:'#f0f4f8', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+      <div style={{ background:'#fff', borderRadius:20, padding:'40px 32px', maxWidth:400, width:'100%', textAlign:'center', border:`1px solid ${TL}`, boxShadow:'0 8px 32px rgba(0,0,0,0.08)' }}>
+        <div style={{ width:56, height:56, borderRadius:'50%', background:'#fef2f2', border:'1px solid #fecaca', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
+          <AlertCircle size={24} style={{ color:'#ef4444' }} />
         </div>
-        <h3 className="text-lg font-bold text-gray-900 mb-2">Invite Error</h3>
-        <p className="text-sm text-gray-500">{error}</p>
+        <h3 style={{ fontSize:17, fontWeight:700, color:'#111827', marginBottom:8 }}>Invite Error</h3>
+        <p style={{ fontSize:13, color:'#6b7280', lineHeight:1.6 }}>{error}</p>
       </div>
     </div>
   );
 
-  // ── Success State ──
+  // ── Success ──
   if (step === 'success') return (
-    <div style={{
-      minHeight: '100svh', height: '100svh',
-      background: '#EEF2F7',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '16px'
-    }}>
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center" style={{ border:`1px solid ${TL}` }}>
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-50 flex items-center justify-center">
-          <CheckCircle2 size={28} className="text-emerald-500" />
+    <div style={{ minHeight:'100svh', background:'#f0f4f8', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+      <div style={{ background:'#fff', borderRadius:20, padding:'40px 32px', maxWidth:400, width:'100%', textAlign:'center', border:`1px solid ${TL}`, boxShadow:'0 8px 32px rgba(0,0,0,0.08)' }}>
+        <div style={{ width:56, height:56, borderRadius:'50%', background:'#f0fdf4', border:'1px solid #bbf7d0', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
+          <CheckCircle2 size={24} style={{ color:'#10b981' }} />
         </div>
-        <h3 className="text-lg font-bold text-gray-900 mb-2">Welcome to the team!</h3>
-        <p className="text-sm text-gray-500">Your details have been saved. You can now close this page.</p>
+        <h3 style={{ fontSize:17, fontWeight:700, color:'#111827', marginBottom:8 }}>Welcome to the team! 🎉</h3>
+        <p style={{ fontSize:13, color:'#6b7280', lineHeight:1.6 }}>Your details have been saved successfully. You can now close this page.</p>
       </div>
     </div>
   );
 
-  const iMI    = 'w-full px-3.5 py-2.5 rounded-lg text-sm text-gray-800 bg-white placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-all';
-  const iMIopt = 'w-full px-3.5 py-2.5 rounded-lg text-sm text-gray-800 bg-gray-50 placeholder-gray-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/10 focus:outline-none transition-all';
+  const iMI    = 'w-full px-4 py-3 rounded-xl text-sm text-gray-800 bg-white placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-all';
+  const iMIopt = 'w-full px-4 py-3 rounded-xl text-sm text-gray-800 bg-gray-50 placeholder-gray-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/10 focus:outline-none transition-all';
   const ch = (f, v) => setFormData(p => ({ ...p, [f]: v }));
   const inp    = (f, t='text', ph='') => <input type={t} value={formData[f]||''} onChange={e=>ch(f,e.target.value)} placeholder={ph} className={iMIopt} style={{border:`1px solid ${TL}`}}/>;
   const inpReq = (f, t='text', ph='') => <input type={t} value={formData[f]||''} onChange={e=>ch(f,e.target.value)} placeholder={ph} className={iMI}    style={{border:`1px solid ${TL}`}}/>;
   const sel    = (f, opts, req=false) => <select value={formData[f]||opts[0]} onChange={e=>ch(f,e.target.value)} className={req?iMI:iMIopt} style={{border:`1px solid ${TL}`}}>{opts.map(o=><option key={o}>{o}</option>)}</select>;
 
   const INVITE_TABS = [
-    { key:'basic',     label:'Basic'     },
-    { key:'personal',  label:'Personal'  },
-    { key:'work',      label:'Work'      },
-    { key:'bank',      label:'Bank'      },
-    { key:'documents', label:'Documents' },
-    { key:'media',     label:'Media'     },
+    { key:'basic',     label:'Basic',     icon:'' },
+    { key:'personal',  label:'Personal',  icon:'' },
+    { key:'work',      label:'Work',      icon:'' },
+    { key:'bank',      label:'Bank',      icon:'' },
+    { key:'documents', label:'Documents', icon:'' },
+    { key:'media',     label:'Media',     icon:'' },
   ];
 
   const tabIdx = INVITE_TABS.findIndex(t => t.key === activeTab);
+  const progress = Math.round(((tabIdx + 1) / INVITE_TABS.length) * 100);
 
-  // ── Main Form ──
   return (
-    // ✅ FIX: Full screen, no centering, no padding wrapper
-    <div
-      className="flex flex-col bg-[#EEF2F7]"
-      style={{ height: '100svh', minHeight: '100svh', overflow: 'hidden' }}
-    >
-      {/* ── Header ── */}
-      <div
-        className="flex-shrink-0 px-4 sm:px-6 py-4 sm:py-5"
-        style={{ background: 'linear-gradient(135deg,#0f766e,#0891b2)' }}
-      >
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-            <CheckCircle2 size={22} className="text-white" />
-          </div>
-          <div>
-            <h1 className="text-base sm:text-lg font-bold text-white">Complete Your Profile</h1>
-            <p className="text-xs sm:text-sm text-white/70 mt-0.5">You've been invited to join the team</p>
-          </div>
-        </div>
-      </div>
+    <div style={{ minHeight:'100svh', background:'linear-gradient(135deg, #e0f2fe 0%, #f0fdfa 50%, #ecfdf5 100%)', display:'flex', flexDirection:'column' }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .invite-tab-btn { transition: all 0.2s ease; }
+        .invite-tab-btn:hover { background: rgba(20,184,166,0.06); }
+        .invite-input:focus { box-shadow: 0 0 0 3px rgba(20,184,166,0.15); }
+        .invite-scroll::-webkit-scrollbar { width: 4px; }
+        .invite-scroll::-webkit-scrollbar-thumb { background: rgba(20,184,166,0.3); border-radius: 99px; }
+        @media (max-width: 640px) {
+          .invite-card { margin: 0 !important; border-radius: 0 !important; min-height: 100svh !important; }
+        }
+      `}</style>
 
-      {/* ── Card: fills remaining height ── */}
-      <div className="flex-1 min-h-0 flex flex-col bg-white" style={{ borderTop: `1px solid ${TL}` }}>
+      {/* Outer centering wrapper */}
+      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 16px', boxSizing:'border-box', minHeight:'100svh' }}>
 
-        {/* Tabs */}
-        <div
-          className="flex border-b flex-shrink-0 overflow-x-auto"
-          style={{ borderColor: TL, scrollbarWidth: 'none' }}
-        >
-          <style>{`.invite-tabs::-webkit-scrollbar{display:none}`}</style>
-          <div className="invite-tabs flex w-full" style={{ scrollbarWidth: 'none' }}>
-            {INVITE_TABS.map((tab, i) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-               className={`flex-1 pt-5 pb-3 text-[11px] sm:text-xs font-semibold transition-all border-b-2 whitespace-nowrap relative min-w-[60px]
-                  ${activeTab === tab.key
-                    ? 'text-teal-600 border-teal-500 bg-teal-50/40'
-                    : 'text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50'}
-                  ${i < INVITE_TABS.length - 1 ? 'border-r' : ''}`}
-                style={i < INVITE_TABS.length - 1 ? { borderRightColor: TL } : {}}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* ── Card ── */}
+        <div className="invite-card" style={{
+          background: '#ffffff',
+          borderRadius: 12,
+          width: '100%',
+          maxWidth: 1000,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.10), 0 4px 16px rgba(0,0,0,0.06)',
+          border: `1px solid rgba(20,184,166,0.15)`,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          height: 'calc(100svh - 48px)',
+          maxHeight: 700,
+        }}>
 
-        {/* Scrollable Form Content */}
-        <div
-          className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 space-y-3.5"
-          style={{ scrollbarWidth: 'thin' }}
-        >
-          {activeTab === 'basic' && (<>
-            <Field label="Full Name" required>{inpReq('name','text','e.g. Ali Hassan')}</Field>
-            <Row>
-              <Field label="Role" required>{sel('role',ROLES,true)}</Field>
-              <Field label="Status" required>{sel('status',['Active','Away','Inactive'],true)}</Field>
-            </Row>
-            <Field label="Email" required>{inpReq('email','email','ali@company.com')}</Field>
-            <Field label="Phone" required>{inpReq('phone','tel','+92 300 0000000')}</Field>
-          </>)}
+          {/* ── Header ── */}
+          <div style={{ background:'linear-gradient(135deg, #0f766e 0%, #0891b2 100%)', padding:'14px 28px 12px', flexShrink:0, position:'relative', overflow:'hidden' }}>
+            {/* Decorative circles */}
+            <div style={{ position:'absolute', top:-30, right:-30, width:120, height:120, borderRadius:'50%', background:'rgba(255,255,255,0.06)' }} />
+            <div style={{ position:'absolute', bottom:-20, right:60, width:80, height:80, borderRadius:'50%', background:'rgba(255,255,255,0.04)' }} />
 
-          {activeTab === 'personal' && (<>
-            {/* <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
-              <Info size={13} className="text-blue-400 flex-shrink-0" />
-              <p className="text-[11px] text-blue-600">All fields optional.</p>
-            </div> */}
-            <Field label="Home Address">{inp('address','text','Street, City')}</Field>
-            <Row>
-              <Field label="Date of Birth">{inp('dob','date')}</Field>
-              <Field label="CNIC">{inp('cnic','text','00000-0000000-0')}</Field>
-            </Row>
-            <Field label="Emergency Contact">{inp('emergencyContact','text','Name - +92 300 0000000')}</Field>
-          </>)}
-
-          {activeTab === 'work' && (<>
-            {/* <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
-              <Info size={13} className="text-blue-400 flex-shrink-0" />
-              <p className="text-[11px] text-blue-600">All fields optional.</p>
-            </div> */}
-            <Row>
-              <Field label="Department">{inp('department','text','e.g. Engineering')}</Field>
-              <Field label="Experience">{inp('experience','text','e.g. 2 years')}</Field>
-            </Row>
-            <Row>
-              <Field label="Joining Date">{inp('joiningDate','date')}</Field>
-              <Field label="Employment Type">{sel('employmentType',EMPLOYMENT_TYPES)}</Field>
-            </Row>
-            <Row>
-              <Field label="Work Location">{inp('workLocation','text','Office / Remote')}</Field>
-              <Field label="Manager">{inp('manager','text','Manager name')}</Field>
-            </Row>
-            <Field label="Monthly Salary (PKR)">{inp('salary','number','0')}</Field>
-          </>)}
-
-          {activeTab === 'bank' && (<>
-            {/* <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
-              <Info size={13} className="text-blue-400 flex-shrink-0" />
-              <p className="text-[11px] text-blue-600">All fields optional.</p>
-            </div> */}
-            <Row>
-              <Field label="Bank Name">{inp('bankName','text','e.g. HBL, MCB')}</Field>
-              <Field label="Payment Method">{sel('paymentMethod',PAYMENT_METHODS)}</Field>
-            </Row>
-            <Field label="Account Holder Name">{inp('accountTitle','text','Full name on account')}</Field>
-            <Field label="Account Number">{inp('accountNumber','text','0000000000000000')}</Field>
-            <Field label="IBAN">{inp('iban','text','PK00XXXX0000000000000000')}</Field>
-          </>)}
-
-          {activeTab === 'documents' && (
-            <InviteDocsTab
-              docs={inviteDocs}
-              onAdd={f => setInviteDocs(p => [...p, f])}
-              onRemove={i => setInviteDocs(p => p.filter((_,idx) => idx !== i))}
-            />
-          )}
-
-          {activeTab === 'media' && (
-            <InviteMediaTab
-              media={inviteMedia}
-              onAdd={f => setInviteMedia(p => [...p, f])}
-              onRemove={i => setInviteMedia(p => p.filter((_,idx) => idx !== i))}
-            />
-          )}
-        </div>
-
-        {/* Footer — always pinned at bottom */}
-        <div
-          className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 space-y-3"
-          style={{ borderTop: `1px solid ${TL}` }}
-        >
-          {/* Prev / dots / Next */}
-          <div className="flex items-center gap-2">
-            {tabIdx > 0 && (
-              <button
-                type="button"
-                onClick={() => setActiveTab(INVITE_TABS[tabIdx - 1].key)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 bg-[#EEF2F7] hover:opacity-80 flex-shrink-0"
-                style={{ border: `1px solid ${TL}` }}
-              >← Prev</button>
-            )}
-            <div className="flex items-center gap-1.5 flex-1 justify-center">
-              {INVITE_TABS.map(t => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => setActiveTab(t.key)}
-                  className={`rounded-full transition-all ${activeTab === t.key ? 'w-5 h-2 bg-teal-500' : 'w-2 h-2 bg-gray-200 hover:bg-gray-300'}`}
-                />
-              ))}
+            <div style={{ display:'flex', alignItems:'center', gap:16, position:'relative' }}>
+              <div style={{ width:38, height:38, borderRadius:12, background:'rgba(255,255,255,0.18)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:'1px solid rgba(255,255,255,0.25)' }}>
+                <CheckCircle2 size={18} style={{ color:'#fff' }} />
+              </div>
+              <div>
+                <h1 style={{ fontSize:16, fontWeight:800, color:'#fff', margin:0, lineHeight:1.2, letterSpacing:'-0.02em' }}>Complete Your Profile</h1>
+                <p style={{ fontSize:11, color:'rgba(255,255,255,0.75)', margin:'2px 0 0', fontWeight:400 }}>You've been invited to join the team</p>
+              </div>
             </div>
-            {tabIdx < INVITE_TABS.length - 1 && (
-              <button
-                type="button"
-                onClick={() => setActiveTab(INVITE_TABS[tabIdx + 1].key)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-teal-600 bg-teal-50 border border-teal-200 hover:bg-teal-100 flex-shrink-0"
-              >Next →</button>
+
+            {/* Progress bar */}
+            <div style={{ marginTop:10, position:'relative' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                <span style={{ fontSize:11, color:'rgba(255,255,255,0.65)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em' }}>Profile Completion</span>
+                <span style={{ fontSize:12, color:'rgba(255,255,255,0.9)', fontWeight:700 }}>{progress}%</span>
+              </div>
+              <div style={{ height:4, background:'rgba(255,255,255,0.2)', borderRadius:99, overflow:'hidden' }}>
+                <div style={{ height:'100%', width:`${progress}%`, background:'rgba(255,255,255,0.85)', borderRadius:99, transition:'width 0.4s ease' }} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Tabs ── */}
+          <div style={{ display:'flex', borderBottom:`1px solid ${TL}`, flexShrink:0, overflowX:'auto', scrollbarWidth:'none', background:'#fafafa' }}>
+            {INVITE_TABS.map((tab, i) => {
+              const isActive = activeTab === tab.key;
+              const isPast   = i < tabIdx;
+              return (
+                <button key={tab.key}
+                  className="invite-tab-btn"
+                  onClick={() => setActiveTab(tab.key)}
+                  style={{
+                    flex:1, padding:'10px 4px 8px', border:'none', cursor:'pointer',
+                    borderBottom: isActive ? '2px solid #0d9488' : '2px solid transparent',
+                    background: isActive ? '#fff' : 'transparent',
+                    display:'flex', flexDirection:'column', alignItems:'center', gap:3,
+                    minWidth:72, position:'relative',
+                  }}>
+                  <span style={{ fontSize:12 }}>{tab.icon}</span>
+                  <span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.04em', textTransform:'uppercase', color: isActive ? '#0d9488' : isPast ? '#94a3b8' : '#9ca3af', whiteSpace:'nowrap' }}>
+                    {tab.label}
+                  </span>
+                  {isPast && (
+                    <span style={{ position:'absolute', top:6, right:8, width:14, height:14, borderRadius:'50%', background:'#10b981', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2L7 1" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* ── Form Content ── */}
+          <div className="invite-scroll" style={{ flex:1, minHeight:0, overflowY:'auto', padding:'20px 28px', scrollbarWidth:'thin' }}>
+
+            {activeTab === 'basic' && (
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                <div>
+                  <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>Basic Information</p>
+                </div>
+                <Field label="Full Name" required>{inpReq('name','text','e.g. Ali Hassan')}</Field>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                  <Field label="Role" required>{sel('role',ROLES,true)}</Field>
+                  <Field label="Status" required>{sel('status',['Active','Away','Inactive'],true)}</Field>
+                </div>
+                <Field label="Email" required>{inpReq('email','email','ali@company.com')}</Field>
+                <Field label="Phone" required>{inpReq('phone','tel','+92 300 0000000')}</Field>
+              </div>
+            )}
+
+            {activeTab === 'personal' && (
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Personal Details <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
+                <Field label="Home Address">{inp('address','text','Street, City, Province')}</Field>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                  <Field label="Date of Birth">{inp('dob','date')}</Field>
+                  <Field label="CNIC">{inp('cnic','text','00000-0000000-0')}</Field>
+                </div>
+                <Field label="Emergency Contact">{inp('emergencyContact','text','Name - +92 300 0000000')}</Field>
+              </div>
+            )}
+
+            {activeTab === 'work' && (
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Work Information <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                  <Field label="Department">{inp('department','text','e.g. Engineering')}</Field>
+                  <Field label="Experience">{inp('experience','text','e.g. 2 years')}</Field>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                  <Field label="Joining Date">{inp('joiningDate','date')}</Field>
+                  <Field label="Employment Type">{sel('employmentType',EMPLOYMENT_TYPES)}</Field>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                  <Field label="Work Location">{inp('workLocation','text','Office / Remote')}</Field>
+                  <Field label="Manager">{inp('manager','text','Manager name')}</Field>
+                </div>
+                <Field label="Monthly Salary (PKR)">{inp('salary','number','0')}</Field>
+              </div>
+            )}
+
+            {activeTab === 'bank' && (
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Bank Details <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                  <Field label="Bank Name">{inp('bankName','text','e.g. HBL, MCB')}</Field>
+                  <Field label="Payment Method">{sel('paymentMethod',PAYMENT_METHODS)}</Field>
+                </div>
+                <Field label="Account Holder Name">{inp('accountTitle','text','Full name on account')}</Field>
+                <Field label="Account Number">{inp('accountNumber','text','0000000000000000')}</Field>
+                <Field label="IBAN">{inp('iban','text','PK00XXXX0000000000000000')}</Field>
+              </div>
+            )}
+
+            {activeTab === 'documents' && (
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Documents <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
+                <InviteDocsTab
+                  docs={inviteDocs}
+                  onAdd={f => setInviteDocs(p => [...p, f])}
+                  onRemove={i => setInviteDocs(p => p.filter((_,idx) => idx !== i))}
+                />
+              </div>
+            )}
+
+            {activeTab === 'media' && (
+              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+                <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Media Files <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
+                <InviteMediaTab
+                  media={inviteMedia}
+                  onAdd={f => setInviteMedia(p => [...p, f])}
+                  onRemove={i => setInviteMedia(p => p.filter((_,idx) => idx !== i))}
+                />
+              </div>
             )}
           </div>
 
-          {/* Submit */}
-          <button
-            onClick={handleSubmit}
-            className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 shadow transition-all active:scale-[0.99]"
-          >
-            Submit & Join Team
-          </button>
-        </div>
+          {/* ── Footer ── */}
+          <div style={{ flexShrink:0, padding:'10px 28px 12px', borderTop:`1px solid ${TL}`, background:'#fafafa' }}>
 
+            {/* Prev / dots / Next */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+              {tabIdx > 0 ? (
+                <button type="button" onClick={() => setActiveTab(INVITE_TABS[tabIdx - 1].key)}
+                  style={{ padding:'8px 18px', borderRadius:12, border:`1px solid ${TL}`, background:'#fff', fontSize:12, fontWeight:600, color:'#6b7280', cursor:'pointer', flexShrink:0, transition:'all 0.2s' }}>
+                  ← Prev
+                </button>
+              ) : <div style={{ width:70, flexShrink:0 }} />}
+
+
+              {tabIdx < INVITE_TABS.length - 1 ? (
+                <button type="button" onClick={() => setActiveTab(INVITE_TABS[tabIdx + 1].key)}
+                  style={{ padding:'8px 18px', borderRadius:12, border:'1px solid rgba(13,148,136,0.3)', background:'rgba(240,253,250,0.8)', fontSize:12, fontWeight:700, color:'#0d9488', cursor:'pointer', flexShrink:0, transition:'all 0.2s' }}>
+                  Next →
+                </button>
+              ) : <div style={{ width:70, flexShrink:0 }} />}
+            </div>
+
+            {/* Submit button */}
+            <button onClick={handleSubmit}
+              style={{
+                width:'100%', padding:'10px', borderRadius:12, border:'none', cursor:'pointer',
+                background:'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)',
+                color:'#fff', fontSize:14, fontWeight:700, letterSpacing:'0.01em',
+                boxShadow:'0 4px 16px rgba(13,148,136,0.35)',
+                transition:'all 0.2s', display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+              }}
+              onMouseEnter={e => e.currentTarget.style.boxShadow = '0 6px 20px rgba(13,148,136,0.5)'}
+              onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(13,148,136,0.35)'}>
+              <CheckCircle2 size={16} />
+              Submit & Join Team
+            </button>
+
+          </div>
+        </div>
       </div>
     </div>
   );

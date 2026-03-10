@@ -85,24 +85,51 @@ const TeamAvatars = ({ team = [] }) => (
 );
 
 // ── Team Dropdown — rendered via portal into document.body ───────────────────
+const DROPDOWN_WIDTH = 210;
+
 const TeamDropdownPortal = ({ anchorEl, project, allMembers, onSave, onClose }) => {
   const [selected, setSelected] = useState(project.team || []);
   const dropRef = useRef(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 200 });
+  const [pos, setPos] = useState(null); // null until calculated
 
-  // Calculate position from anchor element
+  // Calculate position — smart: keep dropdown inside viewport horizontally
   useEffect(() => {
     if (!anchorEl) return;
-    const rect = anchorEl.getBoundingClientRect();
-    const dropH = 260;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const top = spaceBelow >= dropH
-      ? rect.bottom + 4
-      : rect.top - dropH - 4;
-    setPos({ top, left: rect.left, width: Math.max(rect.width, 210) });
+
+    const calculate = () => {
+      const rect = anchorEl.getBoundingClientRect();
+      const dropH = 260;
+      const dropW = Math.max(rect.width, DROPDOWN_WIDTH);
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
+
+      // Vertical: prefer below, fallback above
+      const spaceBelow = viewportH - rect.bottom;
+      const top = spaceBelow >= dropH
+        ? rect.bottom + 4
+        : rect.top - dropH - 4;
+
+      // Horizontal: try to align left edge with cell
+      // but clamp so dropdown stays within viewport with 8px margin
+      const MARGIN = 8;
+      let left = rect.left;
+      if (left + dropW > viewportW - MARGIN) {
+        left = viewportW - dropW - MARGIN;
+      }
+      if (left < MARGIN) {
+        left = MARGIN;
+      }
+
+      setPos({ top, left, width: dropW });
+    };
+
+    calculate();
+    // Recalculate on resize (e.g. orientation change)
+    window.addEventListener('resize', calculate);
+    return () => window.removeEventListener('resize', calculate);
   }, [anchorEl]);
 
-  // Close on outside click or outside scroll
+  // Close on outside click or scroll
   useEffect(() => {
     const h = (e) => {
       if (dropRef.current && !dropRef.current.contains(e.target) &&
@@ -126,6 +153,9 @@ const TeamDropdownPortal = ({ anchorEl, project, allMembers, onSave, onClose }) 
 
   const toggle = (m) =>
     setSelected(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
+
+  // Don't render until position is calculated (avoids flash at wrong position)
+  if (!pos) return null;
 
   return ReactDOM.createPortal(
     <div ref={dropRef}
@@ -863,7 +893,6 @@ export default function Projects() {
                     </div>
                   )}
                 </div>
-                {/* <p className="text-[11px] text-gray-400 mt-1.5">Click to see existing · Type to search or add · Backspace to remove last</p> */}
               </div>
 
               <div className="flex gap-3 pt-2">

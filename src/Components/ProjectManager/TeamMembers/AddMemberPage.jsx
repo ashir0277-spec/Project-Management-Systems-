@@ -564,12 +564,12 @@ const AddMemberPage = () => {
             <form onSubmit={e => { e.preventDefault(); setStep('details'); }} className="flex flex-col flex-1">
               <div className="px-4 sm:px-6 py-5 sm:py-6 space-y-4">
 
-                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-teal-50 border border-teal-100">
+                {/* <div className="flex items-start gap-2.5 p-3 rounded-xl bg-teal-50 border border-teal-100">
                   <Info size={14} className="text-teal-500 flex-shrink-0 mt-0.5" />
                   <p className="text-[12px] text-teal-700 font-medium">
                     Fill required fields below, then add optional details in the next step.
                   </p>
-                </div>
+                </div> */}
 
                 <Field label="Full Name" required>{inpReq('name', 'text', 'e.g. Ali Hassan')}</Field>
 
@@ -629,10 +629,10 @@ const AddMemberPage = () => {
               <div className="px-4 sm:px-6 py-5 space-y-3.5">
 
                 {detailTab === 'personal' && (<>
-                  <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+                  {/* <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
                     <Info size={13} className="text-blue-400 flex-shrink-0" />
                     <p className="text-[11px] text-blue-600">All fields optional.</p>
-                  </div>
+                  </div> */}
                   <Field label="Home Address">{inp('address', 'text', 'Street, City, Province')}</Field>
                   <Row>
                     <Field label="Date of Birth">{inp('dob', 'date')}</Field>
@@ -642,10 +642,10 @@ const AddMemberPage = () => {
                 </>)}
 
                 {detailTab === 'work' && (<>
-                  <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+                  {/* <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
                     <Info size={13} className="text-blue-400 flex-shrink-0" />
                     <p className="text-[11px] text-blue-600">All fields optional.</p>
-                  </div>
+                  </div> */}
                   <Row>
                     <Field label="Department">{inp('department', 'text', 'e.g. Engineering')}</Field>
                     <Field label="Experience">{inp('experience', 'text', 'e.g. 2 years')}</Field>
@@ -662,10 +662,10 @@ const AddMemberPage = () => {
                 </>)}
 
                 {detailTab === 'bank' && (<>
-                  <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+                  {/* <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
                     <Info size={13} className="text-blue-400 flex-shrink-0" />
                     <p className="text-[11px] text-blue-600">All fields optional.</p>
-                  </div>
+                  </div> */}
                   <Row>
                     <Field label="Bank Name">{inp('bankName', 'text', 'e.g. HBL, MCB')}</Field>
                     <Field label="Payment Method">{sel('paymentMethod', PAYMENT_METHODS)}</Field>
