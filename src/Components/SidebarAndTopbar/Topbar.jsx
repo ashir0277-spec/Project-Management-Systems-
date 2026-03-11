@@ -4,6 +4,8 @@ import { Plus, Menu } from 'lucide-react';
 
 const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNewPayout, searchValue, onSearchChange }) => {
   const location = useLocation();
+
+  // Page Detection
   const isTeamMembers = location.pathname.includes('team');
   const isClients     = location.pathname.includes('clients');
   const isProjects    = location.pathname.includes('projects');
@@ -12,6 +14,7 @@ const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNew
   const isUserRecord  = location.pathname.includes('userrecord') || location.pathname.includes('users');
   const isDashboard   = !isTeamMembers && !isClients && !isProjects && !isPayout && !isSettings && !isUserRecord;
 
+  // Page Title
   const pageTitle =
     isUserRecord  ? 'User Records'  :
     isTeamMembers ? 'Team Members'  :
@@ -20,13 +23,14 @@ const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNew
     isPayout      ? 'Payout'        :
     isSettings    ? 'Settings'      : 'Dashboard';
 
+  // Page Subtitle
   const pageSubtitle =
-    isUserRecord  ? 'Manage Your team members' :
-    isTeamMembers ? 'View, add and manage your team members' :
-    isClients     ? 'Manage your client relationships and documents' :
-    isProjects    ? 'Track and manage all your projects' :
-    isPayout      ? 'Manage payouts and transactions' :
-    isSettings    ? 'Configure your workspace settings' :
+    isUserRecord  ? 'Manage Your team members'                          :
+    isTeamMembers ? 'View, add and manage your team members'            :
+    isClients     ? 'Manage your client relationships and documents'    :
+    isProjects    ? 'Track and manage all your projects'                :
+    isPayout      ? 'Manage payouts and transactions'                   :
+    isSettings    ? 'Configure your workspace settings'                 :
     "Welcome back! Here's what's happening with your projects today.";
 
   return (
@@ -34,7 +38,7 @@ const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNew
       <header className="fixed top-0 left-0 lg:left-[280px] right-0 z-50 bg-gray-50 border-b-2 border-gray-400">
         <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
 
-          {/* Left */}
+          {/* Left — Title & Subtitle */}
           <div className="flex items-center gap-3">
             <button
               onClick={onToggleSidebar}
@@ -48,7 +52,7 @@ const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNew
             </div>
           </div>
 
-          {/* Right */}
+          {/* Right — Actions */}
           <div className="flex items-center gap-3">
 
             {isProjects && (
@@ -79,7 +83,7 @@ const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNew
               </button>
             )}
 
-            {/* Search — sirf Dashboard pe */}
+            {/* Search Bar */}
             {isDashboard && (
               <div className="relative">
                 <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[16px] h-[16px] text-[#475569]"
@@ -107,7 +111,7 @@ const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNew
         </div>
       </header>
 
-      {/* Spacer */}
+      {/* Header Spacer */}
       <div className="h-[60px] sm:h-[73px]" />
     </>
   );

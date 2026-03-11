@@ -1,24 +1,23 @@
 import { NavLink } from "react-router-dom";
-import { File, Settings, DollarSign, UserPenIcon } from "lucide-react";
+import { File, Settings, DollarSign, UserPenIcon, User2Icon } from "lucide-react";
 import { MdDashboard } from "react-icons/md";
 import { FiUsers } from "react-icons/fi";
-import { User2Icon } from "lucide-react";
 import logo from '../../assets/logo.png';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: <MdDashboard />, path: "/dashboard" },
-    { id: "projects", label: "Projects", icon: <File size={18}/>, path: "/projects" },
-    { id: "team", label: "Team Members", icon: <FiUsers size={18} />, path: "/team" },
-    { id: "clients", label: "Clients", icon: <User2Icon size={18} />, path: "/clients" },
-    { id: "payout", label: "Payout", icon: <DollarSign size={18}/>, path: "/payout" },
-    { id: "usersrecord", label: "User's Record", icon: <UserPenIcon size={18}/>, path: "/userrecord" },
-    { id: "settings", label: "Settings", icon: <Settings size={18}/>, path: "/settings" },
+    { id: "dashboard",    label: "Dashboard",    icon: <MdDashboard />,          path: "/dashboard"  },
+    { id: "projects",     label: "Projects",     icon: <File size={18} />,        path: "/projects"   },
+    { id: "team",         label: "Team Members", icon: <FiUsers size={18} />,     path: "/team"       },
+    { id: "clients",      label: "Clients",      icon: <User2Icon size={18} />,   path: "/clients"    },
+    { id: "payout",       label: "Payout",       icon: <DollarSign size={18} />,  path: "/payout"     },
+    { id: "usersrecord",  label: "User's Record",icon: <UserPenIcon size={18} />, path: "/userrecord" },
+    { id: "settings",     label: "Settings",     icon: <Settings size={18} />,    path: "/settings"   },
   ];
 
   return (
     <>
-      {/* Backdrop overlay – only visible on small screens when sidebar is open */}
+      {/* Backdrop Overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
@@ -27,7 +26,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         />
       )}
 
-      {/* Sidebar – fixed on all screens, now above top bar (z-[60]) */}
+      {/* Sidebar */}
       <aside
         className={`
           fixed left-0 top-0 w-[280px] h-screen bg-[#141937] border-r border-[#1e293b]
@@ -36,7 +35,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           lg:translate-x-0
         `}
       >
-        {/* Logo – original, no invert */}
+        {/* Logo */}
         <div className="py-2 border-b border-[#1e293b]">
           <div className="flex items-center gap-3">
             <div className="w-full h-auto rounded-lg bg-transparent flex items-center justify-center font-extrabold text-xl text-white">

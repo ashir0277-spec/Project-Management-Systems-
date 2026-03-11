@@ -1,11 +1,14 @@
 // UsersRecord.jsx – Excel-like Interactive Team Members Table
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import ReactDOM from 'react-dom';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Search, ChevronRight, BarChart2,
-  Mail, Phone, X, Building2, User, GripVertical
+  Mail, Phone, X, Building2, User, GripVertical,
+  MoreHorizontal, Trash2, CheckSquare, Square,
+  MoreVertical
 } from 'lucide-react';
 
 const TL  = 'rgba(51,51,51,0.12)';
@@ -44,7 +47,7 @@ const ROLES    = ['Frontend Developer','Backend Developer','Flutter Developer','
                   'Project Manager','QA Engineer','Admin','Developer','Designer','Manager','QA'];
 const STATUSES = ['Active','Inactive','On Leave','Away'];
 
-const INIT_COLS = [
+const BASE_COLS = [
   { key: 'rowdrag',    label: '',           width: 36,  fixed: true  },
   { key: 'idx',        label: '#',          width: 48,  fixed: true  },
   { key: 'name',       label: 'Member',     width: 220, editable: true },
@@ -54,7 +57,237 @@ const INIT_COLS = [
   { key: 'status',     label: 'Status',     width: 125, editable: true },
   { key: 'actions',    label: '',           width: 48,  fixed: true  },
 ];
+const CHECKBOX_COL = { key: 'checkbox', label: '', width: 44, fixed: true };
 
+// ── Checkbox UI ─────────────────────────────────────────────────────────────
+const Checkbox = ({ checked, indeterminate, onClick }) => (
+  <div
+    onClick={onClick}
+    style={{
+      width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      border: `2px solid ${checked || indeterminate ? '#14b8a6' : '#d1d5db'}`,
+      background: checked ? '#14b8a6' : indeterminate ? '#ccfbf1' : '#fff',
+      cursor: 'pointer', transition: 'all 0.15s',
+    }}
+  >
+    {checked && (
+      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+        <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )}
+    {indeterminate && !checked && (
+      <div style={{ width: 8, height: 2, background: '#14b8a6', borderRadius: 2 }} />
+    )}
+  </div>
+);
+
+// ── Delete Confirm Modal ────────────────────────────────────────────────────
+const DeleteConfirmModal = ({ members, onConfirm, onCancel }) => {
+  const isBulk = members.length > 1;
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9998,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+      background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)',
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+        width: '100%', maxWidth: 380, overflow: 'hidden',
+        animation: 'fadeInScale 0.18s ease',
+      }}>
+        <div style={{ height: 4, background: 'linear-gradient(90deg,#f87171,#fb7185)' }} />
+        <div style={{ padding: 28 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: 16, background: '#fef2f2',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
+          }}>
+            <Trash2 size={24} color="#ef4444" />
+          </div>
+          <p style={{ textAlign: 'center', fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 6 }}>
+            {isBulk ? `Delete ${members.length} Members?` : 'Delete Member?'}
+          </p>
+          <p style={{ textAlign: 'center', fontSize: 13, color: '#6b7280', marginBottom: 4 }}>
+            {isBulk
+              ? `You are about to permanently delete ${members.length} selected members.`
+              : `You are about to delete "${members[0]?.name || 'this member'}".`
+            }
+          </p>
+          <p style={{ textAlign: 'center', fontSize: 12, color: '#f87171', fontWeight: 500, marginBottom: 24 }}>
+            This action cannot be undone.
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onCancel} style={{
+              flex: 1, padding: '10px 0', borderRadius: 12, border: '1px solid #e5e7eb',
+              fontSize: 13, fontWeight: 600, color: '#374151', background: '#fff', cursor: 'pointer',
+            }}>Cancel</button>
+            <button onClick={onConfirm} style={{
+              flex: 1, padding: '10px 0', borderRadius: 12, border: 'none',
+              fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer',
+              background: 'linear-gradient(135deg,#ef4444,#f43f5e)',
+              boxShadow: '0 2px 8px rgba(239,68,68,0.3)',
+            }}>Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Row 3-dot Menu — Portal-based so td overflow:hidden doesn't clip it ──────
+const RowMenu = ({ anchorEl, onDelete, onClose }) => {
+  const menuRef = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!anchorEl) return;
+    const rect = anchorEl.getBoundingClientRect();
+    const menuW = 160;
+    let left = rect.right + window.scrollX - menuW;
+    let top  = rect.bottom + window.scrollY + 4;
+    // keep inside viewport
+    if (left < 8) left = 8;
+    if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+    setPos({ top, left });
+  }, [anchorEl]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target) &&
+        anchorEl && !anchorEl.contains(e.target)
+      ) onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose, anchorEl]);
+
+  return ReactDOM.createPortal(
+    <div
+      ref={menuRef}
+      style={{
+        position: 'absolute',
+        top: pos.top,
+        left: pos.left,
+        zIndex: 9999,
+        minWidth: 160,
+        background: '#fff',
+        borderRadius: 12,
+        border: '1px solid rgba(0,0,0,0.08)',
+        boxShadow: '0 8px 28px rgba(0,0,0,0.14)',
+        padding: '4px 0',
+        animation: 'fadeInScale 0.14s ease',
+      }}
+    >
+      <button
+        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); onClose(); }}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+          padding: '9px 14px', fontSize: 13, fontWeight: 500,
+          color: '#ef4444', background: 'none', border: 'none',
+          cursor: 'pointer', textAlign: 'left', borderRadius: 8,
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+      >
+        <Trash2 size={13} />
+        Delete Member
+      </button>
+    </div>,
+    document.body
+  );
+};
+
+// ── Global 3-dot Menu (Toolbar) ─────────────────────────────────────────────
+const GlobalMenu = ({ filtered, selectedIds, selectionMode, onSelectAll, onDeselectAll, onEnableSelection, onDeleteSelected, onClose }) => {
+  const menuRef    = useRef(null);
+  const allSelected = filtered.length > 0 && filtered.every(m => selectedIds.has(m.id));
+  const hasSelection = selectedIds.size > 0;
+
+  useEffect(() => {
+    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) onClose(); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  const btnStyle = (red = false) => ({
+    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+    padding: '9px 14px', fontSize: 13, fontWeight: 500,
+    color: red ? '#ef4444' : '#374151',
+    background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+  });
+
+  return (
+    <div
+      ref={menuRef}
+      style={{
+        position: 'absolute', right: 0, top: 'calc(100% + 8px)', zIndex: 9999,
+        minWidth: 185, background: '#fff', borderRadius: 12,
+        border: '1px solid rgba(0,0,0,0.08)',
+        boxShadow: '0 8px 28px rgba(0,0,0,0.13)',
+        padding: '4px 0',
+        animation: 'fadeInScale 0.14s ease',
+      }}
+    >
+      <div style={{ padding: '6px 14px 4px', fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        Selection
+      </div>
+
+      {!selectionMode ? (
+        /* Not in selection mode — show "Select All" to enter mode */
+        <button
+          style={btnStyle()}
+          onClick={(e) => { e.stopPropagation(); onEnableSelection(); onClose(); }}
+          onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        >
+          <CheckSquare size={13} color="#14b8a6" />
+          Select All
+        </button>
+      ) : (
+        /* In selection mode */
+        <>
+          <button
+            style={btnStyle()}
+            onClick={(e) => { e.stopPropagation(); allSelected ? onDeselectAll() : onSelectAll(); onClose(); }}
+            onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            {allSelected
+              ? <><Square size={13} color="#14b8a6" /> Deselect All</>
+              : <><CheckSquare size={13} color="#14b8a6" /> Select All</>
+            }
+          </button>
+          <button
+            style={btnStyle()}
+            onClick={(e) => { e.stopPropagation(); onDeselectAll(); onClose(); }}
+            onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <X size={13} color="#9ca3af" />
+            Cancel Selection
+          </button>
+          {hasSelection && (
+            <>
+              <div style={{ margin: '4px 12px', borderTop: '1px solid #f3f4f6' }} />
+              <button
+                style={btnStyle(true)}
+                onClick={(e) => { e.stopPropagation(); onDeleteSelected(); onClose(); }}
+                onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+              >
+                <Trash2 size={13} />
+                Delete Selected ({selectedIds.size})
+              </button>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+// ════════════════════════════════════════════════════════════════════════════
 const UsersRecord = () => {
   const navigate = useNavigate();
   const [members,    setMembers]    = useState([]);
@@ -62,20 +295,32 @@ const UsersRecord = () => {
   const [search,     setSearch]     = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
 
-  const [cols,        setCols]        = useState(INIT_COLS);
+  const [baseCols,    setBaseCols]    = useState(BASE_COLS);
   const [rowOrder,    setRowOrder]    = useState([]);
   const [editCell,    setEditCell]    = useState(null);
   const [editVal,     setEditVal]     = useState('');
   const [selectedRow, setSelectedRow] = useState(null);
 
-  const dragColRef   = useRef(null);
-  const dragRowRef   = useRef(null);
-  const isResizing   = useRef(false);
-  const lastTapRef   = useRef({ id: null, time: 0 });
+  // selectionMode = checkboxes are visible
+  const [selectionMode,  setSelectionMode]  = useState(false);
+  const [selectedIds,    setSelectedIds]    = useState(new Set());
+  const [rowMenuId,      setRowMenuId]      = useState(null);
+  const [rowMenuAnchor,  setRowMenuAnchor]  = useState(null);
+  const [globalMenuOpen, setGlobalMenuOpen] = useState(false);
+  const [deleteTarget,   setDeleteTarget]   = useState(null);
+
+  // cols = checkbox col prepended only when selectionMode is on
+  const cols = useMemo(() =>
+    selectionMode ? [CHECKBOX_COL, ...baseCols] : baseCols
+  , [selectionMode, baseCols]);
+
+  const dragColRef  = useRef(null);
+  const dragRowRef  = useRef(null);
+  const isResizing  = useRef(false);
+  const lastTapRef  = useRef({ id: null, time: 0 });
   const [dragOverCol, setDragOverCol] = useState(null);
   const [dragOverRow, setDragOverRow] = useState(null);
 
-  // Mobile double-tap handler (300ms window)
   const handleMobileTap = useCallback((id) => {
     const now = Date.now();
     if (lastTapRef.current.id === id && now - lastTapRef.current.time < 300) {
@@ -114,17 +359,61 @@ const UsersRecord = () => {
     return rowOrder.map(id => base.find(m => m.id === id)).filter(Boolean);
   }, [members, search, roleFilter, rowOrder]);
 
+  // ── Selection ─────────────────────────────────────────────────────────────
+  const enableSelection = useCallback(() => {
+    setSelectionMode(true);
+    setSelectedIds(new Set(filtered.map(m => m.id)));
+  }, [filtered]);
+
+  const toggleSelect = useCallback((e, id) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAll   = useCallback(() => setSelectedIds(new Set(filtered.map(m => m.id))), [filtered]);
+  const deselectAll = useCallback(() => { setSelectedIds(new Set()); setSelectionMode(false); }, []);
+
+  const allSelected  = filtered.length > 0 && filtered.every(m => selectedIds.has(m.id));
+  const someSelected = !allSelected && filtered.some(m => selectedIds.has(m.id));
+
+  // ── Delete ────────────────────────────────────────────────────────────────
+  const requestDeleteSingle = useCallback((member) => {
+    setDeleteTarget({ ids: [member.id], members: [member] });
+  }, []);
+
+  const requestDeleteSelected = useCallback(() => {
+    const toDelete = filtered.filter(m => selectedIds.has(m.id));
+    setDeleteTarget({ ids: toDelete.map(m => m.id), members: toDelete });
+  }, [filtered, selectedIds]);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    try {
+      await Promise.all(deleteTarget.ids.map(id => deleteDoc(doc(db, 'teamMembers', id))));
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        deleteTarget.ids.forEach(id => next.delete(id));
+        return next;
+      });
+    } catch (err) { console.error(err); }
+    setDeleteTarget(null);
+  }, [deleteTarget]);
+
   // ── Column Resize ─────────────────────────────────────────────────────────
   const startResize = useCallback((e, key) => {
     e.preventDefault(); e.stopPropagation();
     isResizing.current = true;
     const startX = e.clientX;
-    const startW = cols.find(c => c.key === key)?.width || 100;
+    const startW = baseCols.find(c => c.key === key)?.width || 100;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     const onMove = ev => {
       const w = Math.max(60, startW + ev.clientX - startX);
-      setCols(prev => prev.map(c => c.key === key ? { ...c, width: w } : c));
+      setBaseCols(prev => prev.map(c => c.key === key ? { ...c, width: w } : c));
     };
     const onUp = () => {
       document.removeEventListener('mousemove', onMove);
@@ -135,22 +424,19 @@ const UsersRecord = () => {
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-  }, [cols]);
+  }, [baseCols]);
 
   // ── Column DnD ────────────────────────────────────────────────────────────
   const onColDragStart = (e, key) => { dragColRef.current = key; e.dataTransfer.effectAllowed = 'move'; };
-  const onColDragOver  = (e, key) => {
-    if (!dragColRef.current || key === dragColRef.current) return;
-    e.preventDefault(); setDragOverCol(key);
-  };
+  const onColDragOver  = (e, key) => { if (!dragColRef.current || key === dragColRef.current) return; e.preventDefault(); setDragOverCol(key); };
   const onColDrop = (e, target) => {
     e.preventDefault();
     const src = dragColRef.current;
     if (!src || src === target) { dragColRef.current = null; setDragOverCol(null); return; }
-    setCols(prev => {
+    setBaseCols(prev => {
       const arr = [...prev];
-      const si  = arr.findIndex(c => c.key === src);
-      const di  = arr.findIndex(c => c.key === target);
+      const si = arr.findIndex(c => c.key === src);
+      const di = arr.findIndex(c => c.key === target);
       const [m] = arr.splice(si, 1);
       arr.splice(di, 0, m);
       return arr;
@@ -167,9 +453,7 @@ const UsersRecord = () => {
     const src = dragRowRef.current;
     if (!src || src === targetId) { dragRowRef.current = null; setDragOverRow(null); return; }
     setRowOrder(prev => {
-      const arr = [...prev];
-      const si  = arr.indexOf(src);
-      const di  = arr.indexOf(targetId);
+      const arr = [...prev]; const si = arr.indexOf(src); const di = arr.indexOf(targetId);
       arr.splice(si, 1); arr.splice(di, 0, src);
       return arr;
     });
@@ -217,6 +501,7 @@ const UsersRecord = () => {
   const renderCell = (col, member, idx) => {
     const isEditing = editCell?.id === member.id && editCell?.field === col.key;
     const inputCls  = 'w-full h-full px-3 text-[13px] bg-white outline-none border-0 text-gray-800 font-medium';
+    const isChecked = selectedIds.has(member.id);
 
     if (isEditing) {
       if (col.key === 'role') return (
@@ -250,6 +535,12 @@ const UsersRecord = () => {
     }
 
     switch (col.key) {
+      case 'checkbox':
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <Checkbox checked={isChecked} onClick={e => toggleSelect(e, member.id)} />
+          </div>
+        );
       case 'rowdrag':
         return (
           <div className="flex items-center justify-center h-full opacity-0 group-hover:opacity-60 transition-opacity cursor-grab active:cursor-grabbing">
@@ -311,10 +602,27 @@ const UsersRecord = () => {
       }
       case 'actions':
         return (
-          <div className="flex items-center justify-center h-full">
-            <button onClick={e => { e.stopPropagation(); navigate(`/userdetails/${member.id}`); }}
-              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-teal-50 transition-colors">
-              <ChevronRight size={14} className="text-gray-300 hover:text-teal-500 transition-colors" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <button
+              onMouseDown={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (rowMenuId === member.id) {
+                  setRowMenuId(null);
+                  setRowMenuAnchor(null);
+                } else {
+                  setRowMenuId(member.id);
+                  setRowMenuAnchor(e.currentTarget);
+                }
+              }}
+              style={{
+                width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', color: '#9ca3af',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              <MoreVertical size={14} />
             </button>
           </div>
         );
@@ -346,55 +654,71 @@ const UsersRecord = () => {
         .table-scroll-wrap::-webkit-scrollbar { height: 5px; }
         .table-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
         .table-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+        @keyframes fadeInScale { from { opacity:0; transform:scale(0.95) translateY(4px); } to { opacity:1; transform:scale(1) translateY(0); } }
       `}</style>
 
       <div className="p-3 sm:p-4 lg:p-6 w-full max-w-[1600px] mx-auto space-y-4">
 
         {/* ── Toolbar ── */}
-        <div
-          className="bg-white rounded-2xl shadow-sm p-3 flex flex-wrap items-center gap-2"
-          style={{ border: `1px solid ${TL}` }}
-        >
+        <div className="bg-white rounded-2xl shadow-sm p-3 flex flex-wrap items-center gap-2" style={{ border: `1px solid ${TL}` }}>
           {/* Search */}
-          <div
-            className="flex items-center gap-2 flex-1 min-w-[160px] px-3 py-2 rounded-xl bg-[#EEF2F7]"
-            style={{ border: `1px solid ${TL}` }}
-          >
+          <div className="flex items-center gap-2 flex-1 min-w-[160px] px-3 py-2 rounded-xl bg-[#EEF2F7]" style={{ border: `1px solid ${TL}` }}>
             <Search size={13} className="text-gray-400 flex-shrink-0" />
             <input
               type="text" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search name, email, role..."
               className="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none min-w-0"
             />
-            {search && (
-              <button onClick={() => setSearch('')} className="text-gray-400 hover:text-gray-600">
-                <X size={13} />
-              </button>
-            )}
+            {search && <button onClick={() => setSearch('')} className="text-gray-400 hover:text-gray-600"><X size={13} /></button>}
           </div>
 
           {/* Role filter */}
           {roles.length > 1 && (
-            <select
-              value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
-              className="text-[12px] font-semibold px-2.5 py-2 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 outline-none cursor-pointer hover:border-teal-300 transition-colors flex-shrink-0"
-            >
+            <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
+              className="text-[12px] font-semibold px-2.5 py-2 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 outline-none cursor-pointer hover:border-teal-300 transition-colors flex-shrink-0">
               {roles.map(r => <option key={r}>{r}</option>)}
             </select>
           )}
 
           {/* Member count */}
-          <div
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#EEF2F7] flex-shrink-0"
-            style={{ border: `1px solid ${TL}` }}
-          >
+          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#EEF2F7] flex-shrink-0" style={{ border: `1px solid ${TL}` }}>
             <Users size={14} className="text-teal-500" />
             <span className="text-sm font-semibold text-gray-700">{members.length} Members</span>
           </div>
 
-          <span className="text-xs text-gray-400 hidden sm:block flex-shrink-0">
-            {filtered.length} of {members.length}
-          </span>
+          <span className="text-xs text-gray-400 hidden sm:block flex-shrink-0">{filtered.length} of {members.length}</span>
+
+          {/* Selection badge */}
+          {selectionMode && (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-50 border border-teal-200 flex-shrink-0">
+              <span className="text-[12px] font-semibold text-teal-600">{selectedIds.size} selected</span>
+              <button onClick={deselectAll} className="text-teal-400 hover:text-teal-600 ml-0.5"><X size={11} /></button>
+            </div>
+          )}
+
+          {/* Global 3-dot */}
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={() => setGlobalMenuOpen(prev => !prev)}
+              className={`w-9 h-9 flex items-center justify-center rounded-xl border transition-all
+                ${globalMenuOpen ? 'bg-teal-50 border-teal-200 text-teal-600'
+                  : 'bg-[#EEF2F7] border-transparent hover:border-gray-200 text-gray-500 hover:text-gray-700'}`}
+            >
+              <MoreHorizontal size={16} />
+            </button>
+            {globalMenuOpen && (
+              <GlobalMenu
+                filtered={filtered}
+                selectedIds={selectedIds}
+                selectionMode={selectionMode}
+                onSelectAll={selectAll}
+                onDeselectAll={deselectAll}
+                onEnableSelection={enableSelection}
+                onDeleteSelected={requestDeleteSelected}
+                onClose={() => setGlobalMenuOpen(false)}
+              />
+            )}
+          </div>
         </div>
 
         {/* ── Table Card ── */}
@@ -413,18 +737,22 @@ const UsersRecord = () => {
             </div>
           ) : (
             <>
-              {/* ─── MOBILE cards (< md) ─── */}
+              {/* ─── MOBILE ─── */}
               <div className="md:hidden">
                 {filtered.map((member, idx) => {
                   const sc = statusColors[member.status] || statusColors['Inactive'];
                   const rc = roleColors[member.role] || defaultRoleColor;
+                  const isChecked = selectedIds.has(member.id);
                   return (
-                    <div
-                      key={member.id}
+                    <div key={member.id}
                       onClick={() => handleMobileTap(member.id)}
-                      className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer transition-colors active:bg-teal-50/60 hover:bg-teal-50/40 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}
+                      className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer transition-colors active:bg-teal-50/60 hover:bg-teal-50/40
+                        ${isChecked ? 'bg-teal-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}
                       style={{ borderBottom: `1px solid ${TL}` }}
                     >
+                      {selectionMode && (
+                        <Checkbox checked={isChecked} onClick={e => toggleSelect(e, member.id)} />
+                      )}
                       <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center bg-gradient-to-br ${getAvatarColor(member.id)} text-white text-[13px] font-bold shadow-sm`}>
                         {getInitials(member.name)}
                       </div>
@@ -441,40 +769,58 @@ const UsersRecord = () => {
                             <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />{member.status}
                           </span>
                           {member.department && (
-                            <>
-                              <span className="text-gray-200">·</span>
-                              <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
-                                <Building2 size={9} />{member.department}
-                              </span>
-                            </>
+                            <><span className="text-gray-200">·</span>
+                            <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
+                              <Building2 size={9} />{member.department}
+                            </span></>
                           )}
                         </div>
                       </div>
-                      <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
+                      {/* Mobile 3-dot */}
+                      <button
+                        onMouseDown={e => {
+                          e.preventDefault(); e.stopPropagation();
+                          if (rowMenuId === member.id) { setRowMenuId(null); setRowMenuAnchor(null); }
+                          else { setRowMenuId(member.id); setRowMenuAnchor(e.currentTarget); }
+                        }}
+                        style={{
+                          width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', color: '#9ca3af', flexShrink: 0,
+                        }}
+                      >
+                        <MoreVertical size={14} />
+                      </button>
                     </div>
                   );
                 })}
               </div>
 
-              {/* ─── DESKTOP EXCEL TABLE (≥ md) ─── */}
+              {/* ─── DESKTOP TABLE ─── */}
               <div className="hidden md:block table-scroll-wrap">
-                <table
-                  className="xltable"
-                  style={{ width: totalW + 'px', minWidth: '100%' }}
-                >
+                <table className="xltable" style={{ width: totalW + 'px', minWidth: '100%' }}>
                   <colgroup>
                     {cols.map(col => <col key={col.key} style={{ width: col.width + 'px' }} />)}
                   </colgroup>
-
-                  {/* THEAD */}
                   <thead>
                     <tr style={{ background: '#EEF2F7', borderBottom: `2px solid ${TLB}` }}>
                       {cols.map((col, ci) => {
                         const canDrag = !col.fixed;
                         const isOver  = dragOverCol === col.key;
+
+                        if (col.key === 'checkbox') return (
+                          <th key={col.key} style={{ height: 40, position: 'relative', borderRight: `1px solid ${TL}` }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', cursor: 'pointer' }}>
+                              <Checkbox
+                                checked={allSelected}
+                                indeterminate={someSelected}
+                                onClick={() => allSelected ? deselectAll() : selectAll()}
+                              />
+                            </div>
+                          </th>
+                        );
+
                         return (
-                          <th
-                            key={col.key}
+                          <th key={col.key}
                             draggable={canDrag}
                             onDragStart={canDrag ? e => onColDragStart(e, col.key) : undefined}
                             onDragOver={canDrag  ? e => onColDragOver(e, col.key)  : undefined}
@@ -489,11 +835,9 @@ const UsersRecord = () => {
                           >
                             <div className="flex items-center h-full px-3 gap-1.5">
                               {canDrag && <span className="text-gray-300 text-[10px] select-none">⠿</span>}
-                              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider truncate">
-                                {col.label}
-                              </span>
+                              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider truncate">{col.label}</span>
                             </div>
-                            {col.key !== 'actions' && col.key !== 'rowdrag' && (
+                            {col.key !== 'actions' && col.key !== 'rowdrag' && col.key !== 'checkbox' && (
                               <div className="resize-handle" onMouseDown={e => startResize(e, col.key)}>
                                 <div className="resize-bar" />
                               </div>
@@ -503,16 +847,14 @@ const UsersRecord = () => {
                       })}
                     </tr>
                   </thead>
-
-                  {/* TBODY */}
                   <tbody>
                     {filtered.map((member, idx) => {
                       const isSelected = selectedRow === member.id;
+                      const isChecked  = selectedIds.has(member.id);
                       const isRowOver  = dragOverRow === member.id;
                       const hasEdit    = editCell?.id === member.id;
                       return (
-                        <tr
-                          key={member.id}
+                        <tr key={member.id}
                           draggable
                           onDragStart={e => onRowDragStart(e, member.id)}
                           onDragOver={e  => onRowDragOver(e, member.id)}
@@ -520,19 +862,17 @@ const UsersRecord = () => {
                           onDragEnd={onRowDragEnd}
                           onClick={() => setSelectedRow(member.id)}
                           className={`group transition-colors duration-75
-                            ${isRowOver  ? 'row-over' : ''}
-                            ${isSelected ? 'bg-teal-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}
-                            ${!hasEdit   ? 'hover:bg-teal-50/20' : ''}`}
+                            ${isRowOver ? 'row-over' : ''}
+                            ${isChecked ? 'bg-teal-50/50' : isSelected ? 'bg-teal-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}
+                            ${!hasEdit  ? 'hover:bg-teal-50/20' : ''}`}
                           style={{ borderBottom: `1px solid ${TL}` }}
                         >
                           {cols.map((col, ci) => {
                             const isCellActive = editCell?.id === member.id && editCell?.field === col.key;
                             return (
-                              <td
-                                key={col.key}
+                              <td key={col.key}
                                 onDoubleClick={col.editable ? e => openEdit(e, member.id, col.key, member[col.key]) : undefined}
-                                onClick={col.editable && editCell?.id === member.id
-                                  ? e => openEdit(e, member.id, col.key, member[col.key]) : undefined}
+                                onClick={col.editable && editCell?.id === member.id ? e => openEdit(e, member.id, col.key, member[col.key]) : undefined}
                                 className={isCellActive ? 'cell-active' : ''}
                                 style={{
                                   height: 56, overflow: 'hidden', position: 'relative',
@@ -557,6 +897,27 @@ const UsersRecord = () => {
           Showing {filtered.length} of {members.length} members
         </p>
       </div>
+
+      {/* ── Portal Row Menu ── */}
+      {rowMenuId && rowMenuAnchor && (
+        <RowMenu
+          anchorEl={rowMenuAnchor}
+          onDelete={() => {
+            const member = members.find(m => m.id === rowMenuId);
+            if (member) requestDeleteSingle(member);
+          }}
+          onClose={() => { setRowMenuId(null); setRowMenuAnchor(null); }}
+        />
+      )}
+
+      {/* ── Delete Confirm Modal ── */}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          members={deleteTarget.members}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   );
 };

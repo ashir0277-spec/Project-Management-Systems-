@@ -1,4 +1,3 @@
-// Dashboard.jsx – Light/White theme with functional search + Calendar
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { collection, onSnapshot } from 'firebase/firestore';
@@ -54,7 +53,7 @@ const StatCard = ({ children }) => (
   </div>
 );
 
-// ── Tasks Stat Card (3rd card) ────────────────────────────────────────────────
+// ── Tasks Stat Card ────────────────────────────────────────────────────────────
 const TasksStatCard = ({ doneTasks, inProgTasks, pendingTasks, allTasks }) => (
   <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-col gap-3" style={{ border: `1px solid ${TL}` }}>
     <div className="flex items-center justify-between">
@@ -94,7 +93,7 @@ const TasksStatCard = ({ doneTasks, inProgTasks, pendingTasks, allTasks }) => (
   </div>
 );
 
-// ── Upcoming Deadlines Stat Card (4th card) ───────────────────────────────────
+// ── Upcoming Deadlines Stat Card ───────────────────────────────────────────────
 const UpcomingDeadlinesStatCard = ({ members }) => {
   const upcoming = members
     .flatMap(m => (m.tasks || []).map(t => ({ ...t, memberName: m.name })))
@@ -108,7 +107,7 @@ const UpcomingDeadlinesStatCard = ({ members }) => {
     if (days < 0)   return { label: `${Math.abs(days)}d over`, cls: 'text-red-600 bg-red-50 border-red-200' };
     if (days === 0) return { label: 'Today',                   cls: 'text-red-600 bg-red-50 border-red-200' };
     if (days === 1) return { label: 'Tomorrow',                cls: 'text-amber-600 bg-amber-50 border-amber-200' };
-    return                { label: `${days}d left`,           cls: 'text-slate-500 bg-slate-50 border-slate-200' };
+    return                 { label: `${days}d left`,           cls: 'text-slate-500 bg-slate-50 border-slate-200' };
   };
 
   return (
@@ -224,7 +223,7 @@ const UrgentCard = ({ members }) => {
   );
 };
 
-// ── Upcoming Deadlines Card (section) ─────────────────────────────────────────
+// ── Upcoming Deadlines Card ────────────────────────────────────────────────────
 const UpcomingDeadlinesCard = ({ members }) => {
   const upcoming = members
     .flatMap(m => (m.tasks || []).map(t => ({ ...t, memberName: m.name })))
@@ -238,7 +237,7 @@ const UpcomingDeadlinesCard = ({ members }) => {
     if (days < 0)   return { label: `${Math.abs(days)}d overdue`, cls: 'bg-red-100 text-red-600' };
     if (days === 0) return { label: 'Due Today',                   cls: 'bg-red-100 text-red-600' };
     if (days === 1) return { label: 'Tomorrow',                    cls: 'bg-amber-100 text-amber-600' };
-    return                { label: `${days}d left`,               cls: 'bg-slate-100 text-slate-500' };
+    return                 { label: `${days}d left`,               cls: 'bg-slate-100 text-slate-500' };
   };
 
   return (
@@ -289,21 +288,33 @@ const UpcomingDeadlinesCard = ({ members }) => {
   );
 };
 
-// ── Calendar Dropdown (portal) ─────────────────────────────────────────────
-const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, onSelectDate, onClose }) => {
+// ── Calendar Dropdown (portal) ────────────────────────────────────────────────
+const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFrom, rangeTo, onSelectDate, onSelectRange, onClose }) => {
   const dropRef = useRef(null);
   const today   = new Date();
-  const [viewYear,       setViewYear]       = useState(() => selectedDate ? parseInt(selectedDate.slice(0,4)) : today.getFullYear());
-  const [viewMonth,      setViewMonth]      = useState(() => selectedDate ? parseInt(selectedDate.slice(5,7))-1 : today.getMonth());
+
+  const [mode,           setMode]           = useState(rangeFrom ? 'range' : 'single');
+  const [viewYear,       setViewYear]       = useState(() => {
+    const base = rangeFrom || selectedDate;
+    return base ? parseInt(base.slice(0,4)) : today.getFullYear();
+  });
+  const [viewMonth,      setViewMonth]      = useState(() => {
+    const base = rangeFrom || selectedDate;
+    return base ? parseInt(base.slice(5,7))-1 : today.getMonth();
+  });
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [pos,            setPos]            = useState({ top: 0, left: 0 });
+
+  const [rangeStart, setRangeStart] = useState(rangeFrom || null);
+  const [rangeEnd,   setRangeEnd]   = useState(rangeTo   || null);
+  const [hoverDate,  setHoverDate]  = useState(null);
 
   const yearRange = Array.from({ length: 11 }, (_, i) => today.getFullYear() - 5 + i);
 
   useEffect(() => {
     if (!anchorRef.current) return;
     const rect = anchorRef.current.getBoundingClientRect();
-    const dropW = 320;
+    const dropW = 340;
     let left = rect.right - dropW;
     if (left < 8) left = 8;
     setPos({ top: rect.bottom + 6, left });
@@ -320,7 +331,10 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, onSelect
     };
     document.addEventListener('mousedown', handleClick);
     document.addEventListener('scroll', handleScroll, true);
-    return () => { document.removeEventListener('mousedown', handleClick); document.removeEventListener('scroll', handleScroll, true); };
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('scroll', handleScroll, true);
+    };
   }, [anchorRef, onClose]);
 
   const activeDates = useMemo(() => {
@@ -340,33 +354,84 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, onSelect
 
   const prevMonth = () => { if (viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else setViewMonth(m=>m-1); };
   const nextMonth = () => { if (viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else setViewMonth(m=>m+1); };
-  const goToday   = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); onSelectDate(todayYMD); setShowYearPicker(false); };
+  const goToday   = () => {
+    setViewYear(today.getFullYear());
+    setViewMonth(today.getMonth());
+    if (mode === 'single') onSelectDate(todayYMD);
+    setShowYearPicker(false);
+  };
 
   const firstDay    = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
   const daysInPrev  = new Date(viewYear, viewMonth, 0).getDate();
   const cells = [];
-  for (let i=firstDay-1;i>=0;i--)          cells.push({day:daysInPrev-i, month:'prev', ymd:toYMD(new Date(viewYear,viewMonth-1,daysInPrev-i))});
-  for (let d=1;d<=daysInMonth;d++)          cells.push({day:d,            month:'cur',  ymd:toYMD(new Date(viewYear,viewMonth,d))});
-  for (let d=1;d<=42-cells.length;d++)      cells.push({day:d,            month:'next', ymd:toYMD(new Date(viewYear,viewMonth+1,d))});
+  for (let i=firstDay-1;i>=0;i--)     cells.push({day:daysInPrev-i, month:'prev', ymd:toYMD(new Date(viewYear,viewMonth-1,daysInPrev-i))});
+  for (let d=1;d<=daysInMonth;d++)     cells.push({day:d,            month:'cur',  ymd:toYMD(new Date(viewYear,viewMonth,d))});
+  for (let d=1;d<=42-cells.length;d++) cells.push({day:d,            month:'next', ymd:toYMD(new Date(viewYear,viewMonth+1,d))});
   const weeks = Array.from({length:6},(_,i)=>cells.slice(i*7,i*7+7));
+
+  // Range helpers
+  const effectiveEnd = rangeEnd || hoverDate;
+  const rFrom = rangeStart && effectiveEnd ? (rangeStart <= effectiveEnd ? rangeStart : effectiveEnd) : rangeStart;
+  const rTo   = rangeStart && effectiveEnd ? (rangeStart <= effectiveEnd ? effectiveEnd : rangeStart) : null;
+  const inRange    = (ymd) => rFrom && rTo && ymd > rFrom && ymd < rTo;
+  const isRangeEnd = (ymd) => (ymd === rFrom || ymd === rTo) && rFrom && rTo;
+
+  const handleDayClick = (ymd, isCur) => {
+    if (mode === 'single') {
+      onSelectDate(selectedDate === ymd ? null : ymd);
+      setShowYearPicker(false);
+      return;
+    }
+    if (!rangeStart || (rangeStart && rangeEnd)) {
+      setRangeStart(ymd);
+      setRangeEnd(null);
+    } else {
+      const from = rangeStart <= ymd ? rangeStart : ymd;
+      const to   = rangeStart <= ymd ? ymd : rangeStart;
+      setRangeEnd(to);
+      setRangeStart(from);
+      onSelectRange(from, to);
+    }
+    setShowYearPicker(false);
+  };
+
+  const clearAll = () => {
+    setRangeStart(null); setRangeEnd(null); setHoverDate(null);
+    onSelectDate(null); onSelectRange(null, null);
+  };
 
   const yday = toYMD(new Date(Date.now()-86400000));
   const tmrw = toYMD(new Date(Date.now()+86400000));
-  const quickFilters = [{label:'Yesterday',ymd:yday},{label:'Today',ymd:todayYMD},{label:'Tomorrow',ymd:tmrw}];
 
-  const selectedLabel = !selectedDate ? null :
-    selectedDate===todayYMD?'Today':selectedDate===yday?'Yesterday':selectedDate===tmrw?'Tomorrow':
-    (()=>{const d=new Date(selectedDate+'T00:00:00');return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;})();
+  const activeLabel = () => {
+    if (mode === 'range' && rFrom && rTo) {
+      const fmt = (y) => { const d = new Date(y+'T00:00:00'); return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)}`; };
+      return `${fmt(rFrom)} → ${fmt(rTo)}`;
+    }
+    if (mode === 'single' && selectedDate) {
+      if (selectedDate===todayYMD) return 'Today';
+      if (selectedDate===yday)     return 'Yesterday';
+      if (selectedDate===tmrw)     return 'Tomorrow';
+      const d = new Date(selectedDate+'T00:00:00');
+      return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
+    }
+    return null;
+  };
+
+  const label     = activeLabel();
+  const hasFilter = mode === 'range' ? (rFrom && rTo) : !!selectedDate;
 
   return ReactDOM.createPortal(
     <div ref={dropRef}
       style={{
-        position: 'fixed', top: pos.top, left: pos.left, width: 320, zIndex: 9999,
+        position: 'fixed', top: pos.top, left: pos.left, width: 340, zIndex: 9999,
         background: '#fff', borderRadius: 18, border: `1px solid ${TL}`,
         boxShadow: '0 16px 48px rgba(0,0,0,0.16)', overflow: 'hidden',
       }}>
-      <div className="flex items-center justify-between px-4 py-3" style={{borderBottom:`1px solid ${TL}`}}>
+
+      {/* Top Bar */}
+      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${TL}` }}>
         <div className="flex items-center gap-2">
           <Calendar size={14} className="text-teal-500"/>
           <span className="text-[13px] font-bold text-gray-800">Filter by Date</span>
@@ -376,38 +441,55 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, onSelect
             className="text-[11px] font-semibold px-2.5 py-1 rounded-lg text-teal-600 bg-teal-50 hover:bg-teal-100 border border-teal-200 transition-colors">
             Today
           </button>
-          {selectedDate && (
-            <button onClick={()=>{onSelectDate(null);}} className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
-              <X size={12}/>
-            </button>
-          )}
-          <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors ml-0.5">
+          <button onClick={onClose}
+            className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
             <X size={12}/>
           </button>
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-4 pt-3 pb-1">
+      {/* Mode Toggle */}
+      <div className="flex gap-1 px-4 pt-3 pb-1">
+        {['single', 'range'].map(m => (
+          <button key={m} onClick={() => { setMode(m); clearAll(); }}
+            className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border transition-all
+              ${mode===m ? 'bg-teal-500 text-white border-teal-500' : 'text-gray-500 bg-gray-50 border-gray-200 hover:border-teal-300 hover:text-teal-600'}`}>
+            {m === 'single' ? 'Single Day' : 'Date Range'}
+          </button>
+        ))}
+      </div>
+
+      {/* Range Hint */}
+      {mode === 'range' && (
+        <div className="px-4 pb-1">
+          <p className="text-[10px] text-gray-400 text-center">
+            {!rangeStart ? 'Click a start date' : !rangeEnd ? 'Now click an end date' : 'Range selected ✓'}
+          </p>
+        </div>
+      )}
+
+      {/* Month Navigation */}
+      <div className="flex items-center justify-between px-4 pt-2 pb-1">
         <button onClick={prevMonth} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
           <ChevronLeft size={14}/>
         </button>
         <div className="flex items-center gap-1.5">
           <span className="text-sm font-bold text-gray-800">{MONTHS[viewMonth].slice(0,3)}</span>
           <div className="relative">
-            <button onClick={()=>setShowYearPicker(v=>!v)}
+            <button onClick={() => setShowYearPicker(v=>!v)}
               className={`flex items-center gap-0.5 px-2 py-0.5 rounded-lg text-sm font-bold border transition-all
-                ${showYearPicker?'bg-teal-500 text-white border-teal-500':'text-teal-600 bg-teal-50 hover:bg-teal-100 border-teal-200'}`}>
+                ${showYearPicker ? 'bg-teal-500 text-white border-teal-500' : 'text-teal-600 bg-teal-50 hover:bg-teal-100 border-teal-200'}`}>
               {viewYear}
-              <ChevronDown size={10} style={{transform:showYearPicker?'rotate(180deg)':'rotate(0)',transition:'transform .2s'}}/>
+              <ChevronDown size={10} style={{ transform: showYearPicker ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform .2s' }}/>
             </button>
             {showYearPicker && (
               <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-white rounded-xl shadow-xl overflow-hidden"
-                style={{border:`1px solid ${TL}`,width:130}}>
-                <div className="p-1 max-h-40 overflow-y-auto" style={{scrollbarWidth:'thin'}}>
-                  {yearRange.map(yr=>(
-                    <button key={yr} onClick={()=>{setViewYear(yr);setShowYearPicker(false);}}
+                style={{ border: `1px solid ${TL}`, width: 130 }}>
+                <div className="p-1 max-h-40 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                  {yearRange.map(yr => (
+                    <button key={yr} onClick={() => { setViewYear(yr); setShowYearPicker(false); }}
                       className={`w-full py-1.5 rounded-lg text-[12px] font-semibold transition-colors
-                        ${yr===viewYear?'bg-teal-500 text-white':yr===today.getFullYear()?'text-teal-600 bg-teal-50':'text-gray-700 hover:bg-gray-50'}`}>
+                        ${yr===viewYear ? 'bg-teal-500 text-white' : yr===today.getFullYear() ? 'text-teal-600 bg-teal-50' : 'text-gray-700 hover:bg-gray-50'}`}>
                       {yr}
                     </button>
                   ))}
@@ -421,33 +503,50 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, onSelect
         </button>
       </div>
 
+      {/* Day Headers */}
       <div className="grid grid-cols-7 px-3 pb-1">
-        {DAYS.map(d=>(
+        {DAYS.map(d => (
           <div key={d} className="text-center text-[9px] font-bold text-gray-400 uppercase tracking-wider py-0.5">{d}</div>
         ))}
       </div>
 
+      {/* Calendar Grid */}
       <div className="px-2.5 pb-2 space-y-0.5">
-        {weeks.map((week,wi)=>(
+        {weeks.map((week, wi) => (
           <div key={wi} className="grid grid-cols-7 gap-0.5">
-            {week.map(cell=>{
-              const isTod=cell.ymd===todayYMD, isSel=cell.ymd===selectedDate, isCur=cell.month==='cur';
-              const hasAct=activeDates.has(cell.ymd), hasOvr=overdueDates.has(cell.ymd);
+            {week.map(cell => {
+              const isTod   = cell.ymd === todayYMD;
+              const isSel   = mode === 'single' && cell.ymd === selectedDate;
+              const isStart = mode === 'range'  && cell.ymd === rFrom && rTo;
+              const isEnd   = mode === 'range'  && cell.ymd === rTo   && rFrom;
+              const isMid   = mode === 'range'  && inRange(cell.ymd);
+              const isCur   = cell.month === 'cur';
+              const hasAct  = activeDates.has(cell.ymd);
+              const hasOvr  = overdueDates.has(cell.ymd);
+
+              let bg = undefined, border = '1.5px solid transparent';
+              if (isSel)               { bg = 'linear-gradient(135deg,#14b8a6,#06b6d4)'; }
+              else if (isStart||isEnd) { bg = 'linear-gradient(135deg,#14b8a6,#06b6d4)'; }
+              else if (isMid)          { bg = 'rgba(20,184,166,0.12)'; border = '1.5px solid rgba(20,184,166,0.2)'; }
+              else if (isTod)          { bg = 'rgba(20,184,166,0.08)'; border = '1.5px solid rgba(20,184,166,0.3)'; }
+
               return (
                 <button key={cell.ymd}
-                  onClick={()=>{onSelectDate(isSel?null:cell.ymd);setShowYearPicker(false);}}
+                  onClick={() => handleDayClick(cell.ymd, isCur)}
+                  onMouseEnter={() => mode==='range' && rangeStart && !rangeEnd && setHoverDate(cell.ymd)}
+                  onMouseLeave={() => mode==='range' && setHoverDate(null)}
                   className="relative flex flex-col items-center justify-center rounded-xl transition-all group"
-                  style={{
-                    height:32,
-                    background:isSel?'linear-gradient(135deg,#14b8a6,#06b6d4)':isTod&&!isSel?'rgba(20,184,166,0.08)':undefined,
-                    border:isTod&&!isSel?'1.5px solid rgba(20,184,166,0.3)':'1.5px solid transparent',
-                  }}>
+                  style={{ height: 32, background: bg, border }}>
                   <span className={`text-[11px] font-semibold leading-none
-                    ${isSel?'text-white':isTod?'text-teal-600':!isCur?'text-gray-300':'text-gray-700 group-hover:text-gray-900'}`}>
+                    ${isSel||isStart||isEnd ? 'text-white' : isTod ? 'text-teal-600' : isMid ? 'text-teal-700' : !isCur ? 'text-gray-300' : 'text-gray-700 group-hover:text-gray-900'}`}>
                     {cell.day}
                   </span>
-                  {hasAct&&!isSel&&<span className={`absolute bottom-[2px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${hasOvr?'bg-red-400':'bg-teal-400'}`}/>}
-                  {hasAct&&isSel&&<span className="absolute bottom-[2px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white/70"/>}
+                  {hasAct && !isSel && !isStart && !isEnd && (
+                    <span className={`absolute bottom-[2px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${hasOvr ? 'bg-red-400' : 'bg-teal-400'}`}/>
+                  )}
+                  {hasAct && (isSel || isStart || isEnd) && (
+                    <span className="absolute bottom-[2px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white/70"/>
+                  )}
                 </button>
               );
             })}
@@ -455,25 +554,29 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, onSelect
         ))}
       </div>
 
-      <div className="px-3 pb-3 pt-2" style={{borderTop:`1px solid ${TL}`}}>
-        <div className="flex gap-1.5">
-          {quickFilters.map(f=>(
-            <button key={f.label}
-              onClick={()=>onSelectDate(selectedDate===f.ymd?null:f.ymd)}
-              className={`flex-1 py-1.5 rounded-xl text-[11px] font-semibold border transition-all
-                ${selectedDate===f.ymd?'bg-teal-500 text-white border-teal-500':'text-gray-600 bg-gray-50 border-gray-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50'}`}>
-              {f.label}
-            </button>
-          ))}
+      {/* Quick Filters — Single Mode Only */}
+      {mode === 'single' && (
+        <div className="px-3 pb-3 pt-2" style={{ borderTop: `1px solid ${TL}` }}>
+          <div className="flex gap-1.5">
+            {[{label:'Yesterday',ymd:yday},{label:'Today',ymd:todayYMD},{label:'Tomorrow',ymd:tmrw}].map(f => (
+              <button key={f.label}
+                onClick={() => onSelectDate(selectedDate===f.ymd ? null : f.ymd)}
+                className={`flex-1 py-1.5 rounded-xl text-[11px] font-semibold border transition-all
+                  ${selectedDate===f.ymd ? 'bg-teal-500 text-white border-teal-500' : 'text-gray-600 bg-gray-50 border-gray-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50'}`}>
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {selectedDate && (
-        <div className="px-3 pb-3 -mt-1">
+      {/* Active Filter Label */}
+      {label && (
+        <div className="px-3 pb-3" style={{ borderTop: mode==='range' ? `1px solid ${TL}` : undefined, paddingTop: mode==='range' ? 8 : 0 }}>
           <div className="rounded-xl px-3 py-1.5 flex items-center gap-2"
-            style={{background:'rgba(20,184,166,0.06)',border:'1px solid rgba(20,184,166,0.2)'}}>
+            style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(20,184,166,0.2)' }}>
             <span className="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0"/>
-            <span className="text-[11px] font-semibold text-teal-700 truncate">Showing: {selectedLabel}</span>
+            <span className="text-[11px] font-semibold text-teal-700 truncate">Showing: {label}</span>
           </div>
         </div>
       )}
@@ -489,113 +592,113 @@ const Dashboard = () => {
   const [members,      setMembers]      = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [selectedDate, setSelectedDate] = useState(todayYMD);
+  const [rangeFrom,    setRangeFrom]    = useState(null);
+  const [rangeTo,      setRangeTo]      = useState(null);
   const [showCalDrop,  setShowCalDrop]  = useState(false);
   const calBtnRef = useRef(null);
 
-  // ── FIXED: Real-time Firebase listeners with proper loading state ──
+  // Firebase Listeners
   useEffect(() => {
     const loadState = { projects: false, members: false };
-
-    const checkDone = () => {
-      if (loadState.projects && loadState.members) setLoading(false);
-    };
-
-    const u1 = onSnapshot(
-      collection(db, 'projects'),
-      (snapshot) => {
-        setProjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-        loadState.projects = true;
-        checkDone();
-      },
-      (err) => {
-        console.error('Projects listener error:', err);
-        loadState.projects = true;
-        checkDone();
-      }
+    const checkDone = () => { if (loadState.projects && loadState.members) setLoading(false); };
+    const u1 = onSnapshot(collection(db, 'projects'),
+      (snapshot) => { setProjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))); loadState.projects = true; checkDone(); },
+      (err) => { console.error('Projects listener error:', err); loadState.projects = true; checkDone(); }
     );
-
-    const u2 = onSnapshot(
-      collection(db, 'teamMembers'),
-      (snapshot) => {
-        setMembers(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-        loadState.members = true;
-        checkDone();
-      },
-      (err) => {
-        console.error('Members listener error:', err);
-        loadState.members = true;
-        checkDone();
-      }
+    const u2 = onSnapshot(collection(db, 'teamMembers'),
+      (snapshot) => { setMembers(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))); loadState.members = true; checkDone(); },
+      (err) => { console.error('Members listener error:', err); loadState.members = true; checkDone(); }
     );
-
     return () => { u1(); u2(); };
   }, []);
 
-  // ── Derived stats (live from state) ──
+  // Derived Stats
   const activeProjects = projects.filter(p => p.status === 'In Progress').length;
   const activeMembers  = members.filter(m => m.status === 'Active').length;
   const allTasks       = useMemo(() => members.flatMap(m => m.tasks || []), [members]);
-  const doneTasks      = useMemo(() => allTasks.filter(t => t.status === 'Done').length,         [allTasks]);
-  const pendingTasks   = useMemo(() => allTasks.filter(t => t.status === 'Pending').length,      [allTasks]);
-  const inProgTasks    = useMemo(() => allTasks.filter(t => t.status === 'In Progress').length,  [allTasks]);
+  const doneTasks      = useMemo(() => allTasks.filter(t => t.status === 'Done').length,        [allTasks]);
+  const pendingTasks   = useMemo(() => allTasks.filter(t => t.status === 'Pending').length,     [allTasks]);
+  const inProgTasks    = useMemo(() => allTasks.filter(t => t.status === 'In Progress').length, [allTasks]);
+  const todayDeadlines = useMemo(() => projects.filter(p => toYMD(p.deadline) === todayYMD), [projects]);
 
-  const todayDeadlines = useMemo(() =>
-    projects.filter(p => toYMD(p.deadline) === todayYMD),
-  [projects]);
-
-  const q = searchQuery.toLowerCase().trim();
-
+  const q         = searchQuery.toLowerCase().trim();
   const yesterday = toYMD(new Date(Date.now() - 86400000));
   const tomorrow  = toYMD(new Date(Date.now() + 86400000));
-  const dateBadgeLabel = !selectedDate ? null :
-    selectedDate === todayYMD  ? 'Today' :
-    selectedDate === yesterday ? 'Yesterday' :
-    selectedDate === tomorrow  ? 'Tomorrow' :
-    (() => { const d = new Date(selectedDate+'T00:00:00'); return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)} ${d.getFullYear()}`; })();
 
+  // Date Filter State
+  const hasRange   = rangeFrom && rangeTo;
+  const hasSingle  = !!selectedDate && !hasRange;
+  const isFiltered = hasRange || hasSingle;
+
+  const dateBadgeLabel = hasRange
+    ? (() => {
+        const fmt = (y) => { const d = new Date(y+'T00:00:00'); return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)}`; };
+        return `${fmt(rangeFrom)} → ${fmt(rangeTo)}`;
+      })()
+    : !selectedDate      ? null
+    : selectedDate === todayYMD  ? 'Today'
+    : selectedDate === yesterday ? 'Yesterday'
+    : selectedDate === tomorrow  ? 'Tomorrow'
+    : (() => { const d = new Date(selectedDate+'T00:00:00'); return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)} ${d.getFullYear()}`; })();
+
+  // Date Filter Helpers
+  const projectMatchesDateFilter = useCallback((p) => {
+    if (hasRange) {
+      const pStart = p.startDate || p.createdAt?.slice(0,10) || '';
+      const pEnd   = p.deadline  || '';
+      const s = pStart || pEnd, e = pEnd || pStart;
+      return s <= rangeTo && e >= rangeFrom;
+    }
+    if (hasSingle) return toYMD(p.deadline) === selectedDate || toYMD(p.startDate) === selectedDate;
+    return false;
+  }, [hasRange, hasSingle, rangeFrom, rangeTo, selectedDate]);
+
+  const taskMatchesDateFilter = useCallback((t) => {
+    if (hasRange)  return toYMD(t.dueDate) >= rangeFrom && toYMD(t.dueDate) <= rangeTo;
+    if (hasSingle) return toYMD(t.dueDate) === selectedDate;
+    return false;
+  }, [hasRange, hasSingle, rangeFrom, rangeTo, selectedDate]);
+
+  // Filtered Data
   const filteredProjects = useMemo(() => {
-    if (q) {
-      return projects.filter(p =>
-        p.name?.toLowerCase().includes(q) ||
-        p.status?.toLowerCase().includes(q) ||
-        p.priority?.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q)
-      );
-    }
-    if (selectedDate) {
-      return projects.filter(p => toYMD(p.deadline) === selectedDate || toYMD(p.startDate) === selectedDate);
-    }
+    if (q) return projects.filter(p =>
+      p.name?.toLowerCase().includes(q) || p.status?.toLowerCase().includes(q) ||
+      p.priority?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q)
+    );
+    if (isFiltered) return projects.filter(projectMatchesDateFilter);
     return [...projects].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5);
-  }, [projects, q, selectedDate]);
+  }, [projects, q, isFiltered, projectMatchesDateFilter]);
 
   const filteredTasks = useMemo(() => {
-    if (q) {
-      return members.flatMap(m =>
-        (m.tasks || [])
-          .filter(t =>
-            t.title?.toLowerCase().includes(q) ||
-            t.description?.toLowerCase().includes(q) ||
-            t.priority?.toLowerCase().includes(q) ||
-            m.name?.toLowerCase().includes(q)
-          )
-          .map(t => ({ ...t, memberName: m.name, memberId: m.id }))
-      );
-    }
-    if (selectedDate) {
-      return members.flatMap(m =>
-        (m.tasks || [])
-          .filter(t => toYMD(t.dueDate) === selectedDate)
-          .map(t => ({ ...t, memberName: m.name, memberId: m.id }))
-      );
-    }
+    if (q) return members.flatMap(m =>
+      (m.tasks || [])
+        .filter(t => t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q) ||
+          t.priority?.toLowerCase().includes(q) || m.name?.toLowerCase().includes(q))
+        .map(t => ({ ...t, memberName: m.name, memberId: m.id }))
+    );
+    if (isFiltered) return members.flatMap(m =>
+      (m.tasks || []).filter(taskMatchesDateFilter).map(t => ({ ...t, memberName: m.name, memberId: m.id }))
+    );
     return members
       .flatMap(m => (m.tasks || []).map(t => ({ ...t, memberName: m.name, memberId: m.id })))
-      .filter(t => t.status !== 'Done')
-      .slice(0, 5);
-  }, [members, q, selectedDate]);
+      .filter(t => t.status !== 'Done').slice(0, 5);
+  }, [members, q, isFiltered, taskMatchesDateFilter]);
 
   const hasResults  = filteredProjects.length > 0 || filteredTasks.length > 0;
   const isSearching = q.length > 0;
+
+  // Event Handlers
+  const handleSelectRange = useCallback((from, to) => {
+    setRangeFrom(from); setRangeTo(to);
+    if (from) setSelectedDate(null);
+  }, []);
+
+  const handleSelectDate = useCallback((d) => {
+    setSelectedDate(d);
+    setRangeFrom(null); setRangeTo(null);
+  }, []);
+
+  const clearFilter = () => { setSelectedDate(null); setRangeFrom(null); setRangeTo(null); };
 
   if (loading) return (
     <div className="min-h-screen bg-[#EEF2F7] flex items-center justify-center">
@@ -610,12 +713,9 @@ const Dashboard = () => {
         <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-6">
           <div className="flex items-center gap-3 flex-wrap">
             <Search size={18} className="text-teal-500" />
-            <p className="text-sm text-gray-500">
-              Results for <span className="font-semibold text-gray-800">"{searchQuery}"</span>
-            </p>
+            <p className="text-sm text-gray-500">Results for <span className="font-semibold text-gray-800">"{searchQuery}"</span></p>
             <span className="text-xs text-gray-400">{filteredProjects.length + filteredTasks.length} found</span>
           </div>
-
           {!hasResults && (
             <div className="bg-white rounded-2xl shadow-sm p-12 sm:p-16 text-center" style={{ border: `1px solid ${TL}` }}>
               <div className="text-5xl mb-4">🔍</div>
@@ -623,7 +723,6 @@ const Dashboard = () => {
               <p className="text-sm text-gray-400">Nothing matched "<span className="font-medium">{searchQuery}</span>". Try a different keyword.</p>
             </div>
           )}
-
           {filteredProjects.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
               <div className="flex items-center gap-2 px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
@@ -633,11 +732,7 @@ const Dashboard = () => {
               </div>
               <div className="overflow-x-auto w-full" style={{ scrollbarWidth: 'none' }}>
                 <table className="w-full min-w-[500px]">
-                  <colgroup>
-                    <col style={{ width: '22%' }} /><col style={{ width: '18%' }} />
-                    <col style={{ width: '15%' }} /><col style={{ width: '30%' }} />
-                    <col style={{ width: '15%' }} />
-                  </colgroup>
+                  <colgroup><col style={{ width: '22%' }}/><col style={{ width: '18%' }}/><col style={{ width: '15%' }}/><col style={{ width: '30%' }}/><col style={{ width: '15%' }}/></colgroup>
                   <thead>
                     <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
                       {['Project Name','Status','Priority','Description','Deadline'].map((h,i) => (
@@ -648,17 +743,13 @@ const Dashboard = () => {
                   </thead>
                   <tbody>
                     {filteredProjects.map((p, idx) => {
-                      const sCfg = statusColors[p.status]     || statusColors['Planning'];
+                      const sCfg = statusColors[p.status] || statusColors['Planning'];
                       const pCfg = priorityColors[p.priority] || priorityColors.Medium;
                       return (
                         <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} style={{ borderBottom: `1px solid ${TL}` }}>
                           <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><p className="text-[13px] font-semibold text-gray-900 truncate">{p.name}</p></td>
-                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${sCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`}/>{p.status}</span>
-                          </td>
-                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
-                            <span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${pCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`}/>{p.priority}</span>
-                          </td>
+                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><span className={`inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${sCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`}/>{p.status}</span></td>
+                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${pCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`}/>{p.priority}</span></td>
                           <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p></td>
                           <td className="px-3 sm:px-4 py-3"><span className="text-[11px] font-mono text-gray-500 whitespace-nowrap">{p.deadline || '—'}</span></td>
                         </tr>
@@ -669,7 +760,6 @@ const Dashboard = () => {
               </div>
             </div>
           )}
-
           {filteredTasks.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
               <div className="flex items-center gap-2 px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
@@ -686,9 +776,7 @@ const Dashboard = () => {
                     'Pending':     'text-gray-500 bg-gray-50 border-gray-200',
                   }[task.status] || 'text-gray-500 bg-gray-50 border-gray-200';
                   return (
-                    <div key={`${task.memberId}-${task.id}`}
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
-                      style={{ border: `1px solid ${TL}` }}>
+                    <div key={`${task.memberId}-${task.id}`} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors" style={{ border: `1px solid ${TL}` }}>
                       <Clock size={14} className="text-amber-400 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-semibold text-gray-800 truncate">{task.title}</p>
@@ -718,10 +806,8 @@ const Dashboard = () => {
     <div className="min-h-screen bg-[#EEF2F7]">
       <div className="p-4 sm:p-6 space-y-5 max-w-[1600px] mx-auto">
 
-        {/* ── ROW 1: 4 Stat Cards ── */}
+        {/* Row 1 — Stat Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-
-          {/* Card 1 — Projects */}
           <StatCard>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-teal-400 to-cyan-500">
               <FolderOpen size={18} className="text-white" />
@@ -734,8 +820,6 @@ const Dashboard = () => {
               </span>
             </div>
           </StatCard>
-
-          {/* Card 2 — Team Members */}
           <StatCard>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-400 to-purple-500">
               <Users size={18} className="text-white" />
@@ -746,21 +830,11 @@ const Dashboard = () => {
               <p className="text-xs text-gray-400 mt-1">{activeMembers} active</p>
             </div>
           </StatCard>
-
-          {/* Card 3 — Task Overview */}
-          <TasksStatCard
-            doneTasks={doneTasks}
-            inProgTasks={inProgTasks}
-            pendingTasks={pendingTasks}
-            allTasks={allTasks}
-          />
-
-          {/* Card 4 — Upcoming Deadlines */}
+          <TasksStatCard doneTasks={doneTasks} inProgTasks={inProgTasks} pendingTasks={pendingTasks} allTasks={allTasks} />
           <UpcomingDeadlinesStatCard members={members} />
-
         </div>
 
-        {/* ── TODAY'S DEADLINES BANNER ── */}
+        {/* Today's Deadlines Banner */}
         {todayDeadlines.length > 0 && (
           <div className="rounded-2xl px-4 sm:px-5 py-3.5 flex items-center gap-3 flex-wrap"
             style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
@@ -784,22 +858,21 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* ── SECTION HEADER BAR ── */}
+        {/* Section Header */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-[15px] font-bold text-gray-800">
-              {selectedDate ? `Results for ${dateBadgeLabel}` : 'Projects & Tasks'}
+              {isFiltered ? `Results for ${dateBadgeLabel}` : 'Projects & Tasks'}
             </h2>
             <p className="text-[12px] text-gray-400 mt-0.5">
-              {selectedDate
+              {isFiltered
                 ? `${filteredProjects.length} project${filteredProjects.length!==1?'s':''} · ${filteredTasks.length} task${filteredTasks.length!==1?'s':''}`
                 : 'Recent projects and pending tasks'}
             </p>
           </div>
-
           <div className="flex items-center gap-2">
-            {selectedDate && (
-              <button onClick={() => setSelectedDate(null)}
+            {isFiltered && (
+              <button onClick={clearFilter}
                 className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-gray-600 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100">
                 <X size={11}/> Clear
               </button>
@@ -807,57 +880,53 @@ const Dashboard = () => {
             <button ref={calBtnRef}
               onClick={() => setShowCalDrop(v => !v)}
               className={`flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl font-semibold text-[12px] sm:text-[13px] transition-all border
-                ${showCalDrop || selectedDate
+                ${showCalDrop || isFiltered
                   ? 'bg-teal-500 text-white border-teal-500 shadow-md'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50 shadow-sm'}`}
-              style={{ boxShadow: showCalDrop || selectedDate ? '0 4px 14px rgba(20,184,166,0.3)' : undefined }}>
+              style={{ boxShadow: showCalDrop || isFiltered ? '0 4px 14px rgba(20,184,166,0.3)' : undefined }}>
               <Calendar size={14}/>
-              <span className="hidden xs:inline sm:inline">{selectedDate ? dateBadgeLabel : 'Filter by Date'}</span>
-              <span className="inline xs:hidden sm:hidden">{selectedDate ? dateBadgeLabel : 'Date'}</span>
+              <span className="hidden xs:inline sm:inline">{isFiltered ? dateBadgeLabel : 'Filter by Date'}</span>
+              <span className="inline xs:hidden sm:hidden">{isFiltered ? dateBadgeLabel : 'Date'}</span>
               <ChevronDown size={12} style={{ transform: showCalDrop ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform .2s' }}/>
             </button>
           </div>
         </div>
 
+        {/* Calendar Dropdown */}
         {showCalDrop && (
           <CalendarDropdown
             anchorRef={calBtnRef}
             members={members}
             projects={projects}
             selectedDate={selectedDate}
-            onSelectDate={(d) => { setSelectedDate(d); }}
+            rangeFrom={rangeFrom}
+            rangeTo={rangeTo}
+            onSelectDate={handleSelectDate}
+            onSelectRange={handleSelectRange}
             onClose={() => setShowCalDrop(false)}
           />
         )}
 
-        {/* ── ROW 2: Recent Projects + Task Overview ── */}
+        {/* Row 2 — Projects Table + Task Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-          {/* Recent Projects Table */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
             <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
               <div className="flex items-center gap-2">
                 <BarChart2 size={15} className="text-teal-500" />
                 <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
-                  {selectedDate ? 'Projects' : 'Recent Projects'}
+                  {isFiltered ? 'Projects' : 'Recent Projects'}
                 </h3>
               </div>
-              <span className="text-xs text-gray-400">{filteredProjects.length} {selectedDate ? 'found' : 'total'}</span>
+              <span className="text-xs text-gray-400">{filteredProjects.length} {isFiltered ? 'found' : 'total'}</span>
             </div>
             {filteredProjects.length === 0 ? (
               <div className="py-16 text-center">
-                <p className="text-gray-400 text-sm">
-                  {selectedDate ? `No projects on ${dateBadgeLabel}` : 'No projects yet'}
-                </p>
+                <p className="text-gray-400 text-sm">{isFiltered ? 'No projects in this range' : 'No projects yet'}</p>
               </div>
             ) : (
               <div className="overflow-x-auto w-full" style={{ scrollbarWidth: 'none' }}>
                 <table className="w-full min-w-[500px]">
-                  <colgroup>
-                    <col style={{ width: '22%' }} /><col style={{ width: '18%' }} />
-                    <col style={{ width: '15%' }} /><col style={{ width: '30%' }} />
-                    <col style={{ width: '15%' }} />
-                  </colgroup>
+                  <colgroup><col style={{ width: '22%' }}/><col style={{ width: '18%' }}/><col style={{ width: '15%' }}/><col style={{ width: '30%' }}/><col style={{ width: '15%' }}/></colgroup>
                   <thead>
                     <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
                       {['Project Name','Status','Priority','Description','Deadline'].map((h,i) => (
@@ -868,21 +937,20 @@ const Dashboard = () => {
                   </thead>
                   <tbody>
                     {filteredProjects.map((p, idx) => {
-                      const sCfg = statusColors[p.status]     || statusColors['Planning'];
-                      const pCfg = priorityColors[p.priority] || priorityColors.Medium;
-                      const isStart    = toYMD(p.startDate) === selectedDate;
-                      const isDeadline = toYMD(p.deadline)  === selectedDate;
-                      const isTodayDL  = toYMD(p.deadline)  === todayYMD;
+                      const sCfg        = statusColors[p.status]   || statusColors['Planning'];
+                      const pCfg        = priorityColors[p.priority] || priorityColors.Medium;
+                      const isTodayDL   = toYMD(p.deadline)  === todayYMD;
+                      const isStart     = hasSingle && toYMD(p.startDate) === selectedDate;
+                      const isDeadline  = hasSingle && toYMD(p.deadline)  === selectedDate;
                       return (
-                        <tr key={p.id}
-                          className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
+                        <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
                           style={{ borderBottom: `1px solid ${TL}`, background: isTodayDL ? 'rgba(239,68,68,0.03)' : undefined }}>
                           <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="text-[13px] font-semibold text-gray-900 truncate">{p.name}</p>
-                              {selectedDate && isStart    && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-200 flex-shrink-0">Start</span>}
-                              {selectedDate && isDeadline && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex-shrink-0">Deadline</span>}
-                              {!selectedDate && isTodayDL && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 flex-shrink-0">Due Today</span>}
+                              {isStart    && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-200 flex-shrink-0">Start</span>}
+                              {isDeadline && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex-shrink-0">Deadline</span>}
+                              {!isFiltered && isTodayDL && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 flex-shrink-0">Due Today</span>}
                             </div>
                           </td>
                           <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
@@ -891,11 +959,11 @@ const Dashboard = () => {
                           <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
                             <span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${pCfg.text}`}><span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`}/>{p.priority}</span>
                           </td>
-                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}><p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p></td>
+                          <td className="px-3 sm:px-4 py-3" style={{ borderRight: `1px solid ${TL}` }}>
+                            <p className="text-[12px] text-gray-500 truncate">{p.description || '—'}</p>
+                          </td>
                           <td className="px-3 sm:px-4 py-3">
-                            <span className={`text-[11px] font-mono whitespace-nowrap ${isTodayDL ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
-                              {p.deadline || '—'}
-                            </span>
+                            <span className={`text-[11px] font-mono whitespace-nowrap ${isTodayDL ? 'text-red-500 font-bold' : 'text-gray-500'}`}>{p.deadline || '—'}</span>
                           </td>
                         </tr>
                       );
@@ -906,21 +974,19 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Right column — Task Overview + Upcoming Deadlines */}
           <div className="flex flex-col gap-5">
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
               <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 size={15} className="text-teal-500" />
                   <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
-                    {selectedDate ? 'Tasks' : 'Task Overview'}
+                    {isFiltered ? 'Tasks' : 'Task Overview'}
                   </h3>
                 </div>
-                {/* Live count badge */}
-                <span className="text-xs text-gray-400">{filteredTasks.length} {selectedDate ? 'found' : 'active'}</span>
+                <span className="text-xs text-gray-400">{filteredTasks.length} {isFiltered ? 'found' : 'active'}</span>
               </div>
               <div className="p-4 sm:p-5 space-y-4">
-                {!selectedDate && (
+                {!isFiltered && (
                   <>
                     <div className="grid grid-cols-3 gap-2 sm:gap-3">
                       {[
@@ -951,20 +1017,15 @@ const Dashboard = () => {
                     </div>
                   </>
                 )}
-
-                {/* ── FIXED: Task list — responsive with proper layout ── */}
                 {filteredTasks.length === 0 ? (
                   <div className="text-center py-6">
-                    <div className="text-2xl mb-2">{selectedDate ? '' : '🎉'}</div>
-                    <p className="text-xs text-gray-400">
-                      {selectedDate ? `No tasks on ${dateBadgeLabel}` : 'All caught up!'}
-                    </p>
+                    <p className="text-xs text-gray-400">{isFiltered ? 'No tasks in this range' : 'All caught up!'}</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {filteredTasks.map(task => {
-                      const pCfg  = priorityColors[task.priority] || priorityColors.Medium;
-                      const sCfg  = statusColors[task.status]     || statusColors['Pending'];
+                      const pCfg      = priorityColors[task.priority] || priorityColors.Medium;
+                      const sCfg      = statusColors[task.status]     || statusColors['Pending'];
                       const isTodayTask = toYMD(task.dueDate) === todayYMD;
                       return (
                         <div key={`${task.memberId}-${task.id}`}
@@ -979,20 +1040,13 @@ const Dashboard = () => {
                               <span className={`text-[10px] font-semibold ${pCfg.text}`}>{task.priority}</span>
                             </div>
                           </div>
-                          {/* Status / Due badge — responsive */}
                           <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                            {selectedDate ? (
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${sCfg.text} ${sCfg.bg} ${sCfg.border}`}>
-                                {task.status}
-                              </span>
+                            {isFiltered ? (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${sCfg.text} ${sCfg.bg} ${sCfg.border}`}>{task.status}</span>
                             ) : isTodayTask ? (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 whitespace-nowrap">
-                                Due Today
-                              </span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 whitespace-nowrap">Due Today</span>
                             ) : (
-                              <span className="text-[10px] font-mono text-gray-400 whitespace-nowrap">
-                                {task.dueDate || '—'}
-                              </span>
+                              <span className="text-[10px] font-mono text-gray-400 whitespace-nowrap">{task.dueDate || '—'}</span>
                             )}
                           </div>
                         </div>
@@ -1002,7 +1056,6 @@ const Dashboard = () => {
                 )}
               </div>
             </div>
-
             <UpcomingDeadlinesCard members={members} />
           </div>
         </div>

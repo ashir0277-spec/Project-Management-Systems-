@@ -14,7 +14,8 @@ import {
   CheckCircle2, Circle, ChevronDown, ChevronUp,
   Info, FileText, Image,
   MoreVertical,
-  CheckSquare, Minus, Copy, Mail, Link2
+  CheckSquare, Minus, Copy, Mail, Link2,
+  Edit
 } from 'lucide-react';
 import { BsWhatsapp } from 'react-icons/bs';
 
@@ -705,28 +706,28 @@ const TeamMembers = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [deleteTarget,  setDeleteTarget]  = useState(null);
   const [openMenuId,    setOpenMenuId]    = useState(null);
-  const [menuPos,       setMenuPos]       = useState({ top:0, right:0 });
+  const [menuPos,       setMenuPos]       = useState({ top:0, left:0 });
   const menuRef         = useRef(null);
   const taskDropdownRef = useRef(null);
   const [editMember, setEditMember] = useState(emptyMember());
 
   const baseColumns = [
-    { id:'index',       label:'#',           width:44,  accessor:(m,idx)=>idx+1,                  editable:false },
-    { id:'member',      label:'Member',       width:200, accessor:m=>m.name,                       editable:true, field:'name'   },
-    { id:'role',        label:'Role',         width:160, accessor:m=>m.role,                       editable:true, field:'role'   },
-    { id:'tasks',       label:'Tasks',        width:70,  accessor:m=>(m.tasks||[]).length,         editable:false },
-    { id:'status',      label:'Status',       width:110, accessor:m=>m.status,                     editable:true, field:'status' },
-    { id:'priority',    label:'Priority',     width:100, accessor:m=>getLatestTask(m)?.priority||'—', editable:false },
-    { id:'taskStatus',  label:'Task Status',  width:140, accessor:m=>getLatestTask(m)?.status||'—',  editable:false },
-    { id:'description', label:'Description',  width:190, accessor:m=>getLatestTask(m)?.title||'',    editable:false },
-    { id:'dueDate',     label:'Due Date',     width:100, accessor:m=>getLatestTask(m)?.dueDate||'—', editable:false },
-    { id:'view',        label:'',             width:48,  accessor:()=>null,                        editable:false },
-    { id:'menu',        label:'',             width:48,  accessor:()=>null,                        editable:false },
+    { id:'index',       label:'#',           width:'3%',   minPx:36,  accessor:(m,idx)=>idx+1,                     editable:false },
+    { id:'member',      label:'Member',       width:'15%',  minPx:160, accessor:m=>m.name,                          editable:true, field:'name'   },
+    { id:'role',        label:'Role',         width:'13%',  minPx:120, accessor:m=>m.role,                          editable:true, field:'role'   },
+    { id:'tasks',       label:'Tasks',        width:'8%',   minPx:48,  accessor:m=>(m.tasks||[]).length,            editable:false },
+    { id:'status',      label:'Status',       width:'8%',   minPx:90,  accessor:m=>m.status,                        editable:true, field:'status' },
+    { id:'priority',    label:'Priority',     width:'8%',   minPx:85,  accessor:m=>getLatestTask(m)?.priority||'—', editable:false },
+    { id:'taskStatus',  label:'Task Status',  width:'10%',  minPx:100, accessor:m=>getLatestTask(m)?.status||'—',   editable:false },
+    { id:'description', label:'Description',  width:'18%',  minPx:140, accessor:m=>getLatestTask(m)?.title||'',     editable:false },
+    { id:'dueDate',     label:'Due Date',     width:'9%',   minPx:85,  accessor:m=>getLatestTask(m)?.dueDate||'—',  editable:false },
+    { id:'view',        label:'',             width:'4%',   minPx:40,  accessor:()=>null,                           editable:false },
+    { id:'menu',        label:'',             width:'4%',   minPx:40,  accessor:()=>null,                           editable:false },
   ];
 
   const [columns]      = useState(baseColumns);
   const [columnOrder,  setColumnOrder]  = useState(baseColumns.map(c => c.id));
-  const [columnWidths, setColumnWidths] = useState(() => Object.fromEntries(baseColumns.map(c => [c.id, c.width])));
+  const [columnWidths, setColumnWidths] = useState(() => Object.fromEntries(baseColumns.map(c => [c.id, c.minPx])));
   const [editingCell,  setEditingCell]  = useState(null);
 
   const dragRow    = useRef(null);
@@ -923,6 +924,17 @@ const TeamMembers = () => {
     setShowEditModal(true);
   };
 
+  // ── shared menu trigger used in both mobile cards and desktop table ──
+  const triggerMenu = (e, memberId) => {
+    e.stopPropagation();
+    if (openMenuId === memberId) { setOpenMenuId(null); return; }
+    const rect  = e.currentTarget.getBoundingClientRect();
+    const menuW = 170, vw = window.innerWidth;
+    const leftPos = rect.right - menuW;
+    setMenuPos({ top: rect.bottom + 6, left: Math.max(8, Math.min(leftPos, vw - menuW - 8)) });
+    setOpenMenuId(memberId);
+  };
+
   const renderTableCell = (member, col, rowIdx) => {
     const value     = col.accessor(member, rowIdx);
     const isEditing = editingCell && editingCell.rowId===member.id && editingCell.colId===col.id;
@@ -1011,13 +1023,10 @@ const TeamMembers = () => {
     }
     if (col.id==='menu') {
       return (
-        <button onClick={e => {
-          e.stopPropagation();
-          if (openMenuId===member.id) { setOpenMenuId(null); return; }
-          const rect = e.currentTarget.getBoundingClientRect();
-          setMenuPos({ top:rect.bottom+6, right:window.innerWidth-rect.right });
-          setOpenMenuId(member.id);
-        }} className={`w-7 h-7 rounded-lg flex flex-col items-center justify-center gap-[3px] transition-all ${openMenuId===member.id?'bg-[#EEF2F7]':'hover:bg-[#EEF2F7]'}`}>
+        <button
+          onClick={e => triggerMenu(e, member.id)}
+          className={`w-7 h-7 rounded-lg flex flex-col items-center justify-center gap-[3px] transition-all ${openMenuId===member.id?'bg-[#EEF2F7]':'hover:bg-[#EEF2F7]'}`}
+        >
           {[0,1,2].map(i => <span key={i} className={`w-1 h-1 rounded-full block ${openMenuId===member.id?'bg-gray-600':'bg-gray-300'}`} />)}
         </button>
       );
@@ -1044,6 +1053,7 @@ const TeamMembers = () => {
     <div className="min-h-screen bg-[#EEF2F7]">
       <div className="h-[15px]" />
 
+      {/* ── Search / Filter bar ── */}
       <div className="px-4 md:px-8 pb-4 flex flex-wrap items-center gap-3 max-w-[1600px] mx-auto">
         <div className="relative flex-1 min-w-[180px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -1062,15 +1072,110 @@ const TeamMembers = () => {
       </div>
 
       <div className="px-4 md:px-8 pb-8 max-w-[1600px] mx-auto">
-        <div className="bg-white rounded-2xl shadow-sm w-full" style={{ border:`1px solid ${TL}`, overflow:'hidden' }}>
+
+        {/* ══════════════════════════════════════════════════════
+            MOBILE CARD VIEW  —  visible only on small screens
+        ══════════════════════════════════════════════════════ */}
+        <div className="block md:hidden space-y-3">
+          {filtered.length === 0 && (
+            <div className="text-center py-16 bg-white rounded-2xl" style={{ border:`1px solid ${TL}` }}>
+              <div className="text-4xl mb-3">👥</div>
+              <p className="text-gray-400 text-sm">No team members found.</p>
+            </div>
+          )}
+          {filtered.map(member => {
+            const task  = getLatestTask(member);
+            const sCfg  = statusCfg[member.status]  || statusCfg.Active;
+            const pCfg  = task ? (priorityCfg[task.priority]  || priorityCfg.Medium)    : null;
+            const tsCfg = task ? (taskStatusCfg[task.status]  || taskStatusCfg.Pending) : null;
+            const comp  = getCompletion(member);
+            return (
+              <div key={member.id} className="bg-white rounded-2xl p-4 shadow-sm" style={{ border:`1px solid ${TL}` }}>
+
+                {/* ── Header: avatar · name · actions ── */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="relative flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-sm font-bold">
+                      {member.avatar || generateAvatar(member.name)}
+                    </div>
+                    {comp < 50 && (
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white"
+                        title={`Profile ${comp}% complete`} />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-bold text-gray-900 truncate">{member.name}</p>
+                    <p className="text-[11px] text-gray-400 truncate">{member.email}</p>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button onClick={() => { setSelected(member); setShowDrawer(true); }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-teal-500 hover:bg-teal-50 transition-colors">
+                      <Eye size={15} />
+                    </button>
+                    <button onClick={e => triggerMenu(e, member.id)}
+                      className={`w-8 h-8 rounded-lg flex flex-col items-center justify-center gap-[3px] transition-all
+                        ${openMenuId === member.id ? 'bg-[#EEF2F7]' : 'hover:bg-[#EEF2F7]'}`}>
+                      {[0,1,2].map(i => (
+                        <span key={i} className={`w-1 h-1 rounded-full block ${openMenuId === member.id ? 'bg-gray-600' : 'bg-gray-300'}`} />
+                      ))}
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── Role · Status · Task count badges ── */}
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  <span className="text-[11px] font-semibold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full truncate max-w-[150px]">
+                    {member.role}
+                  </span>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${sCfg.badge}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`} />{member.status}
+                  </span>
+                  <span className="text-[11px] font-bold text-teal-600 bg-teal-50 border border-teal-100 px-2.5 py-1 rounded-full whitespace-nowrap">
+                    {(member.tasks||[]).length} task{(member.tasks||[]).length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                {/* ── Latest task card ── */}
+                {task ? (
+                  <div className="rounded-xl p-3 bg-gray-50" style={{ border:`1px solid ${TL}` }}>
+                    <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                      {pCfg && (
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${pCfg.badge}`}>
+                          <span className={`w-1 h-1 rounded-full ${pCfg.dot}`}/>{task.priority}
+                        </span>
+                      )}
+                      {tsCfg && (
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${tsCfg.bg} ${tsCfg.color} ${tsCfg.border}`}>
+                          <span className={`w-1 h-1 rounded-full ${tsCfg.dot}`}/>{task.status}
+                        </span>
+                      )}
+                      {task.dueDate && (
+                        <span className="text-[10px] font-mono text-gray-400 whitespace-nowrap ml-auto">📅 {task.dueDate}</span>
+                      )}
+                    </div>
+                    <p className="text-[12px] font-semibold text-gray-700 truncate">{task.title}</p>
+                    {task.description && <p className="text-[11px] text-gray-400 truncate mt-0.5">{task.description}</p>}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-300 text-center py-1">No tasks assigned</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ══════════════════════════════════════════════════════
+            DESKTOP TABLE VIEW  —  hidden on small screens
+        ══════════════════════════════════════════════════════ */}
+        <div className="hidden md:block bg-white rounded-2xl shadow-sm w-full" style={{ border:`1px solid ${TL}`, overflow:'hidden' }}>
           <div className="team-scroll-container"
-            style={{ overflowX:'auto', overflowY:'auto', maxHeight:'calc(100vh - 210px)', WebkitOverflowScrolling:'touch', scrollbarWidth:'none' }}>
+            style={{ overflowX:'auto', overflowY:'auto', maxHeight:'calc(100vh - 210px)', WebkitOverflowScrolling:'touch' }}>
             <style>{`.team-scroll-container::-webkit-scrollbar{height:6px;width:6px}.team-scroll-container::-webkit-scrollbar-track{background:rgba(238,242,247,0.9);border-radius:999px}.team-scroll-container::-webkit-scrollbar-thumb{background:rgba(20,184,166,0.55);border-radius:999px}.team-scroll-container::-webkit-scrollbar-thumb:hover{background:rgba(20,184,166,0.85)}`}</style>
-            <table className="border-collapse" style={{ tableLayout:'fixed', minWidth:'1210px' }}>
+            <table className="border-collapse" style={{ tableLayout:'fixed', width:'100%', minWidth:'820px' }}>
               <colgroup>
                 {columnOrder.map(colId => {
                   const col = columns.find(c => c.id===colId);
-                  return <col key={colId} style={{ width:col?`${columnWidths[colId]}px`:'auto' }} />;
+                  return <col key={colId} style={{ width: col ? col.width : 'auto' }} />;
                 })}
               </colgroup>
               <thead className="sticky top-0 z-10">
@@ -1084,7 +1189,7 @@ const TeamMembers = () => {
                         onDragOver={e  => handleColDragOver(e,  col.id)}
                         onDrop={e      => handleColDrop(e,      col.id)}
                         className="py-3.5 px-3 text-xs font-semibold text-gray-600 uppercase tracking-wider select-none whitespace-nowrap text-center relative"
-                        style={{ borderRight:idx<columnOrder.length-1?`1px solid ${TL}`:undefined, width:columnWidths[col.id], cursor:'grab' }}>
+                        style={{ borderRight:idx<columnOrder.length-1?`1px solid ${TL}`:undefined, width:col.width, cursor:'grab' }}>
                         {col.label}
                         <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-teal-300"
                           onMouseDown={e => handleResizeStart(e, col.id)}
@@ -1135,16 +1240,18 @@ const TeamMembers = () => {
               </tbody>
             </table>
           </div>
-        </div>
+        </div>{/* end desktop table */}
+
       </div>
 
+      {/* ── FIXED portal context menu ── */}
       {openMenuId && (
         <div ref={menuRef} onClick={e => e.stopPropagation()}
           className="fixed z-[9999] bg-white rounded-xl overflow-hidden p-1"
-          style={{ top:menuPos.top, right:menuPos.right, minWidth:'165px', border:`1px solid ${TL}`, boxShadow:'0 10px 30px rgba(0,0,0,0.15)' }}>
+          style={{ top:menuPos.top, left:menuPos.left, minWidth:'165px', border:`1px solid ${TL}`, boxShadow:'0 10px 30px rgba(0,0,0,0.15)' }}>
           <button onClick={() => { const m=members.find(x=>x.id===openMenuId); setOpenMenuId(null); if(m) openEditModal(m); }}
             className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-            ✏️ Edit Member
+            <Edit size={16}/> Edit Member
           </button>
           <button onClick={() => { const m=members.find(x=>x.id===openMenuId); setOpenMenuId(null); if(m) setDeleteTarget(m); }}
             className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-[13px] font-medium text-red-500 hover:bg-red-50 transition-colors">
@@ -1387,9 +1494,9 @@ const TeamMembers = () => {
   );
 };
 
-// ─── INVITE PAGE ──────────────────────────────────────────────────────────────
+// ─── INVITE PAGE ──
 
-// ─── Invite Docs Tab ─────────────────────────────────────────────────────────
+// ─── Invite Docs Tab ──
 const InviteDocsTab = ({ docs, onAdd, onRemove }) => {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -1453,7 +1560,7 @@ const InviteDocsTab = ({ docs, onAdd, onRemove }) => {
   );
 };
 
-// ─── Invite Media Tab ─────────────────────────────────────────────────────────
+// ─── Invite Media Tab ─
 const InviteMediaTab = ({ media, onAdd, onRemove }) => {
   const [lightbox, setLightbox] = useState(null);
   const mediaInputRef = useRef(null);
@@ -1521,10 +1628,7 @@ const InviteMediaTab = ({ media, onAdd, onRemove }) => {
 };
 
 
-// ─── INVITE PAGE COMPONENT ────────────────────────────────────────────────────
-// Replace the existing InvitePage export in TeamMembers.jsx with this version.
-// Everything else in the file stays the same.
-
+// ─── INVITE PAGE COMPONENT ──
 export const InvitePage = () => {
   const { token } = useParams();
   const [invite,    setInvite]   = useState(null);
@@ -1576,7 +1680,6 @@ export const InvitePage = () => {
     } catch { alert('Error. Please try again.'); }
   };
 
-  // ── Loading ──
   if (loading) return (
     <div style={{ minHeight:'100svh', background:'#f0f4f8', display:'flex', alignItems:'center', justifyContent:'center' }}>
       <div style={{ textAlign:'center' }}>
@@ -1587,7 +1690,6 @@ export const InvitePage = () => {
     </div>
   );
 
-  // ── Error ──
   if (error) return (
     <div style={{ minHeight:'100svh', background:'#f0f4f8', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
       <div style={{ background:'#fff', borderRadius:20, padding:'40px 32px', maxWidth:400, width:'100%', textAlign:'center', border:`1px solid ${TL}`, boxShadow:'0 8px 32px rgba(0,0,0,0.08)' }}>
@@ -1600,7 +1702,6 @@ export const InvitePage = () => {
     </div>
   );
 
-  // ── Success ──
   if (step === 'success') return (
     <div style={{ minHeight:'100svh', background:'#f0f4f8', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
       <div style={{ background:'#fff', borderRadius:20, padding:'40px 32px', maxWidth:400, width:'100%', textAlign:'center', border:`1px solid ${TL}`, boxShadow:'0 8px 32px rgba(0,0,0,0.08)' }}>
@@ -1638,18 +1739,29 @@ export const InvitePage = () => {
         @keyframes spin { to { transform: rotate(360deg); } }
         .invite-tab-btn { transition: all 0.2s ease; }
         .invite-tab-btn:hover { background: rgba(20,184,166,0.06); }
-        .invite-input:focus { box-shadow: 0 0 0 3px rgba(20,184,166,0.15); }
         .invite-scroll::-webkit-scrollbar { width: 4px; }
         .invite-scroll::-webkit-scrollbar-thumb { background: rgba(20,184,166,0.3); border-radius: 99px; }
+
         @media (max-width: 640px) {
-          .invite-card { margin: 0 !important; border-radius: 0 !important; min-height: 100svh !important; }
+          .invite-outer  { align-items: flex-start !important; padding: 0 !important; min-height: 100svh !important; }
+          .invite-card   { border-radius: 0 !important; width: 100% !important; max-width: 100% !important; min-height: 100svh !important; box-shadow: none !important; }
+          .invite-header { padding: 12px 16px 10px !important; }
+          .invite-tabs button { min-width: 52px !important; padding: 6px 2px 5px !important; }
+          .invite-tabs span.tab-label { font-size: 9px !important; }
+          .invite-form   { padding: 12px 16px !important; }
+          .invite-footer { padding: 8px 16px 20px !important; }
+          .invite-form .form-gap { gap: 12px !important; }
+          .invite-form .grid-2  { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+        }
+
+        @media (min-width: 641px) {
+          .invite-outer  { align-items: center !important; padding: 24px 16px !important; }
+          .invite-card   { height: calc(100svh - 48px) !important; max-height: 700px !important; }
+          .invite-form   { flex: 1 !important; min-height: 0 !important; overflow-y: auto !important; }
         }
       `}</style>
 
-      {/* Outer centering wrapper */}
-      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 16px', boxSizing:'border-box', minHeight:'100svh' }}>
-
-        {/* ── Card ── */}
+      <div className="invite-outer" style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 16px', boxSizing:'border-box', minHeight:'100svh' }}>
         <div className="invite-card" style={{
           background: '#ffffff',
           borderRadius: 12,
@@ -1660,13 +1772,9 @@ export const InvitePage = () => {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          height: 'calc(100svh - 48px)',
-          maxHeight: 700,
         }}>
 
-          {/* ── Header ── */}
-          <div style={{ background:'linear-gradient(135deg, #0f766e 0%, #0891b2 100%)', padding:'14px 28px 12px', flexShrink:0, position:'relative', overflow:'hidden' }}>
-            {/* Decorative circles */}
+          <div className="invite-header" style={{ background:'linear-gradient(135deg, #0f766e 0%, #0891b2 100%)', padding:'14px 28px 12px', flexShrink:0, position:'relative', overflow:'hidden' }}>
             <div style={{ position:'absolute', top:-30, right:-30, width:120, height:120, borderRadius:'50%', background:'rgba(255,255,255,0.06)' }} />
             <div style={{ position:'absolute', bottom:-20, right:60, width:80, height:80, borderRadius:'50%', background:'rgba(255,255,255,0.04)' }} />
 
@@ -1680,7 +1788,6 @@ export const InvitePage = () => {
               </div>
             </div>
 
-            {/* Progress bar */}
             <div style={{ marginTop:10, position:'relative' }}>
               <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
                 <span style={{ fontSize:11, color:'rgba(255,255,255,0.65)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em' }}>Profile Completion</span>
@@ -1692,8 +1799,7 @@ export const InvitePage = () => {
             </div>
           </div>
 
-          {/* ── Tabs ── */}
-          <div style={{ display:'flex', borderBottom:`1px solid ${TL}`, flexShrink:0, overflowX:'auto', scrollbarWidth:'none', background:'#fafafa' }}>
+          <div className="invite-tabs" style={{ display:'flex', borderBottom:`1px solid ${TL}`, flexShrink:0, overflowX:'auto', scrollbarWidth:'none', background:'#fafafa' }}>
             {INVITE_TABS.map((tab, i) => {
               const isActive = activeTab === tab.key;
               const isPast   = i < tabIdx;
@@ -1709,7 +1815,7 @@ export const InvitePage = () => {
                     minWidth:72, position:'relative',
                   }}>
                   <span style={{ fontSize:12 }}>{tab.icon}</span>
-                  <span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.04em', textTransform:'uppercase', color: isActive ? '#0d9488' : isPast ? '#94a3b8' : '#9ca3af', whiteSpace:'nowrap' }}>
+                  <span className="tab-label" style={{ fontSize:10, fontWeight:700, letterSpacing:'0.04em', textTransform:'uppercase', color: isActive ? '#0d9488' : isPast ? '#94a3b8' : '#9ca3af', whiteSpace:'nowrap' }}>
                     {tab.label}
                   </span>
                   {isPast && (
@@ -1722,16 +1828,15 @@ export const InvitePage = () => {
             })}
           </div>
 
-          {/* ── Form Content ── */}
-          <div className="invite-scroll" style={{ flex:1, minHeight:0, overflowY:'auto', padding:'20px 28px', scrollbarWidth:'thin' }}>
+          <div className="invite-scroll invite-form" style={{ flex:1, padding:'20px 28px' }}>
 
             {activeTab === 'basic' && (
-              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+              <div className="form-gap" style={{ display:'flex', flexDirection:'column', gap:20 }}>
                 <div>
                   <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>Basic Information</p>
                 </div>
                 <Field label="Full Name" required>{inpReq('name','text','e.g. Ali Hassan')}</Field>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                   <Field label="Role" required>{sel('role',ROLES,true)}</Field>
                   <Field label="Status" required>{sel('status',['Active','Away','Inactive'],true)}</Field>
                 </div>
@@ -1741,10 +1846,10 @@ export const InvitePage = () => {
             )}
 
             {activeTab === 'personal' && (
-              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+              <div className="form-gap" style={{ display:'flex', flexDirection:'column', gap:20 }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Personal Details <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
                 <Field label="Home Address">{inp('address','text','Street, City, Province')}</Field>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                   <Field label="Date of Birth">{inp('dob','date')}</Field>
                   <Field label="CNIC">{inp('cnic','text','00000-0000000-0')}</Field>
                 </div>
@@ -1753,17 +1858,17 @@ export const InvitePage = () => {
             )}
 
             {activeTab === 'work' && (
-              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+              <div className="form-gap" style={{ display:'flex', flexDirection:'column', gap:20 }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Work Information <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                   <Field label="Department">{inp('department','text','e.g. Engineering')}</Field>
                   <Field label="Experience">{inp('experience','text','e.g. 2 years')}</Field>
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                   <Field label="Joining Date">{inp('joiningDate','date')}</Field>
                   <Field label="Employment Type">{sel('employmentType',EMPLOYMENT_TYPES)}</Field>
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                   <Field label="Work Location">{inp('workLocation','text','Office / Remote')}</Field>
                   <Field label="Manager">{inp('manager','text','Manager name')}</Field>
                 </div>
@@ -1772,9 +1877,9 @@ export const InvitePage = () => {
             )}
 
             {activeTab === 'bank' && (
-              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+              <div className="form-gap" style={{ display:'flex', flexDirection:'column', gap:20 }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Bank Details <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                   <Field label="Bank Name">{inp('bankName','text','e.g. HBL, MCB')}</Field>
                   <Field label="Payment Method">{sel('paymentMethod',PAYMENT_METHODS)}</Field>
                 </div>
@@ -1807,10 +1912,7 @@ export const InvitePage = () => {
             )}
           </div>
 
-          {/* ── Footer ── */}
-          <div style={{ flexShrink:0, padding:'10px 28px 12px', borderTop:`1px solid ${TL}`, background:'#fafafa' }}>
-
-            {/* Prev / dots / Next */}
+          <div className="invite-footer" style={{ flexShrink:0, padding:'10px 28px 12px', borderTop:`1px solid ${TL}`, background:'#fafafa' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
               {tabIdx > 0 ? (
                 <button type="button" onClick={() => setActiveTab(INVITE_TABS[tabIdx - 1].key)}
@@ -1818,7 +1920,6 @@ export const InvitePage = () => {
                   ← Prev
                 </button>
               ) : <div style={{ width:70, flexShrink:0 }} />}
-
 
               {tabIdx < INVITE_TABS.length - 1 ? (
                 <button type="button" onClick={() => setActiveTab(INVITE_TABS[tabIdx + 1].key)}
@@ -1828,7 +1929,6 @@ export const InvitePage = () => {
               ) : <div style={{ width:70, flexShrink:0 }} />}
             </div>
 
-            {/* Submit button */}
             <button onClick={handleSubmit}
               style={{
                 width:'100%', padding:'10px', borderRadius:12, border:'none', cursor:'pointer',
@@ -1842,7 +1942,6 @@ export const InvitePage = () => {
               <CheckCircle2 size={16} />
               Submit & Join Team
             </button>
-
           </div>
         </div>
       </div>
