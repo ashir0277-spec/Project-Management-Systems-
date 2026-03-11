@@ -1,6 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-//  AddMemberPage.jsx  —  Full-page Add Member (route: /team/add)
-// ─────────────────────────────────────────────────────────────────────────────
+
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {

@@ -1,4 +1,4 @@
-// UsersRecord.jsx – Excel-like Interactive Team Members Table
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';

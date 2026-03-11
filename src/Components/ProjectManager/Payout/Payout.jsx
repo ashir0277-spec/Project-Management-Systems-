@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Plus, Eye, AlertCircle, CheckCircle2, Trash2, Circle, Search, X } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 
-// ─── Firebase imports ────────────────────────────────────────────────────────
+// ─── Firebase imports
 import { db } from '../../firebase';
 import {
   collection, doc,
@@ -13,7 +13,7 @@ import {
   query, orderBy,
 } from 'firebase/firestore';
 
-// ─── Helpers / constants ─────────────────────────────────────────────────────
+// ─── Helpers / constants 
 const TL  = 'rgba(51,51,51,0.20)';
 const TLB = 'rgba(51,51,51,0.30)';
 

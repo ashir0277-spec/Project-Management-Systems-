@@ -1,6 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-//  TeamMembers.jsx  —  Updated: Add Member button navigates to /add-member page
-// ─────────────────────────────────────────────────────────────────────────────
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
 
