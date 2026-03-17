@@ -467,7 +467,7 @@ const MemberSummaryCard = ({ member, memberRecs, dates }) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// REPORT MODAL — Fixed height, sm screen friendly, simplified period picker
+// REPORT MODAL
 // ═══════════════════════════════════════════════════════════════════════════
 const ReportModal = ({ member, members, onClose }) => {
   const isAll   = !member;
@@ -489,9 +489,8 @@ const ReportModal = ({ member, members, onClose }) => {
   const periodRef = useRef(null);
   const [showRangeCal, setShowRangeCal] = useState(false);
   const calBtnRef = useRef(null);
-  // Weekly: which month to browse + which week index is selected
   const [weekMonth, setWeekMonth] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`);
-  const [selectedWeekIdx, setSelectedWeekIdx] = useState(null); // null = auto current week
+  const [selectedWeekIdx, setSelectedWeekIdx] = useState(null);
 
   useEffect(() => {
     const fn = (e) => { if (periodRef.current && !periodRef.current.contains(e.target)) setPeriodOpen(false); };
@@ -501,12 +500,10 @@ const ReportModal = ({ member, members, onClose }) => {
 
   const rangeLabel = rf && rt ? (rf === rt ? fmtShort(rf) : `${fmtShort(rf)} → ${fmtShort(rt)}`) : 'Pick date';
 
-  // Get all Mon–Fri weeks for a given YYYY-MM month
   const getWeeksOfMonth = (ym) => {
     const [y, m] = ym.split('-').map(Number);
     const weeks = [];
     let d = new Date(y, m-1, 1);
-    // find first Monday
     while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
     while (d.getMonth() === m-1 || (d.getMonth() === (m%12) && new Date(y,m-1,1).getMonth() !== d.getMonth())) {
       const mon = new Date(d);
@@ -520,7 +517,6 @@ const ReportModal = ({ member, members, onClose }) => {
 
   const weeksOfMonth = useMemo(() => getWeeksOfMonth(weekMonth), [weekMonth]);
 
-  // Auto-select current week index on mount or when weekMonth changes
   const resolvedWeekIdx = useMemo(() => {
     if (selectedWeekIdx !== null) return selectedWeekIdx;
     const today = todayYMD;
@@ -641,7 +637,6 @@ const ReportModal = ({ member, members, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4" style={{ background:'rgba(0,0,0,0.45)', backdropFilter:'blur(6px)' }}>
-      {/* FIXED: max-h-[95vh] for tall screens, full height on mobile with proper scrolling */}
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col" style={{ border:`1px solid ${TL}`, maxHeight:'95vh', height:'95vh' }}>
 
         {/* ── Header ── */}
@@ -654,7 +649,6 @@ const ReportModal = ({ member, members, onClose }) => {
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* ── Simplified Period Picker ── */}
             <div ref={periodRef} className="relative">
               <button onClick={() => setPeriodOpen(v => !v)}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border transition-all
@@ -676,10 +670,7 @@ const ReportModal = ({ member, members, onClose }) => {
               {periodOpen && (
                 <div className="absolute right-0 top-full mt-1.5 z-[100] bg-white rounded-2xl shadow-2xl" style={{ border:`1px solid ${TL}`, minWidth:190 }}>
                   <div className="p-2 space-y-0.5">
-
-                    {/* Weekly — with month nav + week rows */}
                     <div className={`rounded-xl border transition-all ${period==='weekly' ? 'border-teal-400 bg-teal-50' : 'border-gray-200 bg-gray-50'}`}>
-                      {/* Header: "Weekly" label + month nav */}
                       <div className="flex items-center gap-1 px-3 py-2" style={{ borderBottom:`1px solid rgba(51,51,51,0.08)` }}>
                         <Calendar size={12} className={period==='weekly' ? 'text-teal-600' : 'text-gray-400'}/>
                         <span className={`text-[12px] font-semibold flex-1 ${period==='weekly' ? 'text-teal-700' : 'text-gray-700'}`}>Weekly</span>
@@ -697,7 +688,6 @@ const ReportModal = ({ member, members, onClose }) => {
                           setWeekMonth(next); setSelectedWeekIdx(0); setPeriod('weekly');
                         }} className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:bg-white hover:text-teal-600"><ChevronRight size={11}/></button>
                       </div>
-                      {/* Week rows */}
                       <div className="p-1.5 space-y-0.5">
                         {weeksOfMonth.map((wk, i) => {
                           const isSelected = period==='weekly' && resolvedWeekIdx===i;
@@ -716,7 +706,6 @@ const ReportModal = ({ member, members, onClose }) => {
                       </div>
                     </div>
 
-                    {/* Monthly */}
                     <button onClick={() => setPeriod('monthly')}
                       className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all
                         ${period==='monthly' ? 'border-teal-400 bg-teal-50' : 'border-transparent hover:bg-gray-50'}`}>
@@ -738,7 +727,6 @@ const ReportModal = ({ member, members, onClose }) => {
                       </div>
                     )}
 
-                    {/* Custom — clicking opens calendar directly, no extra "Pick range" button */}
                     <button ref={calBtnRef} onClick={() => { setPeriod('custom'); setShowRangeCal(true); }}
                       className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all
                         ${period==='custom' ? 'border-teal-400 bg-teal-50' : 'border-transparent hover:bg-gray-50'}`}>
@@ -780,7 +768,7 @@ const ReportModal = ({ member, members, onClose }) => {
           {data && (
             <div className="ml-auto flex items-center gap-1.5">
               <button onClick={dlCSV} className="px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1 sm:gap-1.5">
-                <Download size={11}/> <span className="hidden sm:inline">CSV</span><span className="sm:hidden">CSV</span>
+                <Download size={11}/> CSV
               </button>
               <button onClick={() => setSOpen(v => !v)} className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1 sm:gap-1.5 transition-all ${sOpen?'bg-blue-500 text-white border-blue-500':'text-blue-600 bg-blue-50 border-blue-200 hover:bg-blue-100'}`}>
                 <Share2 size={11}/> <span className="hidden sm:inline">Share</span>
@@ -812,9 +800,8 @@ const ReportModal = ({ member, members, onClose }) => {
           </div>
         )}
 
-        {/* ── CONTENT AREA — flex-1 + overflow-auto so it fills remaining height ── */}
+        {/* ── CONTENT AREA ── */}
         <div className="flex-1 overflow-auto p-3 sm:p-4" style={{ scrollbarWidth:'thin' }}>
-
           {loading && (
             <div className="flex items-center justify-center py-20">
               <div className="text-center space-y-3">
@@ -831,7 +818,6 @@ const ReportModal = ({ member, members, onClose }) => {
             </div>
           )}
 
-          {/* ── SUMMARY VIEW ── */}
           {!loading && data && view === 'summary' && (
             <div className="space-y-4">
               {isAll && teamAggregate && (
@@ -868,7 +854,6 @@ const ReportModal = ({ member, members, onClose }) => {
                   </div>
                 </div>
               )}
-              {/* Responsive grid: 1 col on mobile, 2 col on md+ */}
               <div className={`grid gap-3 sm:gap-4 ${targets.length === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
                 {targets.map(m => (
                   <MemberSummaryCard key={m.id} member={m} memberRecs={data.recs[m.id]} dates={data.dates}/>
@@ -877,7 +862,6 @@ const ReportModal = ({ member, members, onClose }) => {
             </div>
           )}
 
-          {/* ── TABLE VIEW ── */}
           {!loading && data && view === 'table' && (
             <div className="overflow-x-auto -mx-1" style={{ scrollbarWidth:'thin' }}>
               <table style={{ minWidth: Math.max(500, data.dates.length * 38 + 320) }}>
@@ -951,72 +935,138 @@ const ReportModal = ({ member, members, onClose }) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// REPORTS BUTTON + DROPDOWN — simplified, clean
+// REPORTS BUTTON + DROPDOWN — portal-based, viewport-aware
 // ═══════════════════════════════════════════════════════════════════════════
 const ReportsBtn = ({ members }) => {
   const [open,   setOpen]   = useState(false);
   const [target, setTarget] = useState(undefined);
   const [search, setSearch] = useState('');
-  const ref = useRef(null);
+  const [pos,    setPos]    = useState({ top: 0, left: 0, width: 224 });
+  const dropRef = useRef(null);
+  const btnRef  = useRef(null);
+
+  const recalc = () => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const vw   = window.innerWidth;
+    const w    = Math.min(224, vw - 16);
+    let left   = rect.right - w;
+    if (left < 8) left = 8;
+    setPos({ top: rect.bottom + 6, left, width: w });
+  };
+
   useEffect(() => {
-    const fn = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', fn); return () => document.removeEventListener('mousedown', fn);
-  }, []);
+    if (open) recalc();
+  }, [open]);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (
+        dropRef.current && !dropRef.current.contains(e.target) &&
+        btnRef.current  && !btnRef.current.contains(e.target)
+      ) setOpen(false);
+    };
+    const onScroll = () => setOpen(false);
+    const onResize = () => { if (open) recalc(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [open]);
+
   const filtered = members.filter(m => m.name?.toLowerCase().includes(search.toLowerCase()));
+
   return (
     <>
-      <div ref={ref} className="relative">
-        <button onClick={() => setOpen(v => !v)}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-semibold border bg-white text-gray-700 border-gray-200 hover:border-violet-300 hover:text-violet-600 hover:bg-violet-50 shadow-sm transition-all">
-          <FileText size={14}/> Reports
-          <ChevronDown size={12} style={{ transform:open?'rotate(180deg)':'rotate(0)', transition:'transform .15s' }}/>
-        </button>
-        {open && (
-          <div className="absolute right-0 top-full mt-1.5 z-50 bg-white rounded-2xl shadow-2xl overflow-hidden w-56" style={{ border:`1px solid ${TL}` }}>
+      <button
+        ref={btnRef}
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-semibold border bg-white text-gray-700 border-gray-200 hover:border-violet-300 hover:text-violet-600 hover:bg-violet-50 shadow-sm transition-all"
+      >
+        <FileText size={14}/> Reports
+        <ChevronDown size={12} style={{ transform: open ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform .15s' }}/>
+      </button>
 
-            {/* All Members */}
-            <div className="px-3 pt-3 pb-2">
-              <button onClick={() => { setTarget(null); setOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-violet-50 transition-colors group border border-gray-200 hover:border-violet-300">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center flex-shrink-0">
-                  <Users size={13} className="text-white"/>
-                </div>
-                <div className="text-left">
-                  <p className="text-[12px] font-bold text-gray-800 group-hover:text-violet-700">All Members</p>
-                  <p className="text-[10px] text-gray-400">{members.length} people</p>
-                </div>
-              </button>
+      {open && ReactDOM.createPortal(
+        <div
+          ref={dropRef}
+          style={{
+            position: 'fixed',
+            top:    pos.top,
+            left:   pos.left,
+            width:  pos.width,
+            zIndex: 9999,
+            background: '#fff',
+            borderRadius: 16,
+            border: `1px solid ${TL}`,
+            boxShadow: '0 16px 40px rgba(0,0,0,0.14)',
+            overflow: 'hidden',
+          }}
+        >
+          {/* All Members */}
+          <div className="px-3 pt-3 pb-2">
+            <button
+              onClick={() => { setTarget(null); setOpen(false); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-violet-50 transition-colors group border border-gray-200 hover:border-violet-300"
+            >
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center flex-shrink-0">
+                <Users size={13} className="text-white"/>
+              </div>
+              <div className="text-left">
+                <p className="text-[12px] font-bold text-gray-800 group-hover:text-violet-700">All Members</p>
+                <p className="text-[10px] text-gray-400">{members.length} people</p>
+              </div>
+            </button>
+          </div>
+
+          {/* Individual */}
+          <div style={{ borderTop: `1px solid ${TL}` }}>
+            <div className="px-3 pt-2.5 pb-1">
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Individual</p>
             </div>
-
-            {/* Individual Member */}
-            <div style={{ borderTop:`1px solid ${TL}` }}>
-              <div className="px-3 pt-2.5 pb-1">
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Individual</p>
+            <div className="px-3 pb-2">
+              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg" style={{ background: '#F5F7FA', border: `1px solid ${TL}` }}>
+                <Search size={11} className="text-gray-400 flex-shrink-0"/>
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search member..."
+                  className="flex-1 bg-transparent text-[11px] text-gray-700 outline-none placeholder-gray-400"
+                />
               </div>
-              <div className="px-3 pb-2">
-                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg" style={{ background:'#F5F7FA', border:`1px solid ${TL}` }}>
-                  <Search size={11} className="text-gray-400 flex-shrink-0"/>
-                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search member..." className="flex-1 bg-transparent text-[11px] text-gray-700 outline-none placeholder-gray-400"/>
-                </div>
-              </div>
-              <div className="max-h-48 overflow-y-auto px-3 pb-3" style={{ scrollbarWidth:'thin' }}>
-                {filtered.length===0 && <p className="text-center text-[11px] text-gray-400 py-3">No results</p>}
-                {filtered.map(m => (
-                  <button key={m.id} onClick={() => { setTarget(m); setOpen(false); }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors mb-0.5">
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">{m.name?.charAt(0).toUpperCase()}</div>
-                    <div className="text-left min-w-0">
-                      <p className="text-[11px] font-semibold text-gray-800 truncate">{m.name}</p>
-                      {m.role && <p className="text-[10px] text-gray-400 truncate">{m.role}</p>}
-                    </div>
-                  </button>
-                ))}
-              </div>
+            </div>
+            <div className="max-h-48 overflow-y-auto px-3 pb-3" style={{ scrollbarWidth: 'thin' }}>
+              {filtered.length === 0 && (
+                <p className="text-center text-[11px] text-gray-400 py-3">No results</p>
+              )}
+              {filtered.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => { setTarget(m); setOpen(false); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors mb-0.5"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
+                    {m.name?.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="text-left min-w-0">
+                    <p className="text-[11px] font-semibold text-gray-800 truncate">{m.name}</p>
+                    {m.role && <p className="text-[10px] text-gray-400 truncate">{m.role}</p>}
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
-        )}
-      </div>
-      {target !== undefined && <ReportModal member={target} members={members} onClose={() => setTarget(undefined)}/>}
+        </div>,
+        document.body
+      )}
+
+      {target !== undefined && (
+        <ReportModal member={target} members={members} onClose={() => setTarget(undefined)}/>
+      )}
     </>
   );
 };
@@ -1153,8 +1203,8 @@ const Attendance = () => {
           </div>
         </div>
 
-        {/* Stats cards — 3 col on sm+, stacked on xs */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        {/* Stats cards */}
+        <div className="grid-cols-1 grid sm:grid-cols-3 gap-2 sm:gap-3">
           {[
             { l:'Present Today', v:todayStats.p,  g:'from-emerald-400 to-teal-500', t:'text-emerald-600', I:UserCheck   },
             { l:'Absent Today',  v:todayStats.ab, g:'from-rose-400 to-red-500',      t:'text-red-600',     I:UserX       },
@@ -1249,7 +1299,6 @@ const Attendance = () => {
               </table>
             </div>
           ) : (
-            /* Single date view — horizontal scroll on sm */
             <div className="overflow-x-auto" style={{ scrollbarWidth:'none' }}>
               <table className="w-full" style={{ minWidth:800 }}>
                 <colgroup>{Array.from({length:8}).map((_,i) => <col key={i} style={{width:'12.5%'}}/>)}</colgroup>

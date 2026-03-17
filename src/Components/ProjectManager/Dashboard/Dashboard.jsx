@@ -48,43 +48,43 @@ const daysUntil = (dateStr) => {
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
 const StatCard = ({ children }) => (
-  <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-col gap-3" style={{ border: `1px solid ${TL}` }}>
+  <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col gap-2.5 sm:gap-3" style={{ border: `1px solid ${TL}` }}>
     {children}
   </div>
 );
 
 // ── Tasks Stat Card ────────────────────────────────────────────────────────────
 const TasksStatCard = ({ doneTasks, inProgTasks, pendingTasks, allTasks }) => (
-  <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-col gap-3" style={{ border: `1px solid ${TL}` }}>
+  <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col gap-2.5 sm:gap-3" style={{ border: `1px solid ${TL}` }}>
     <div className="flex items-center justify-between">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-emerald-400 to-teal-500">
-        <CheckCircle2 size={18} className="text-white" />
+      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-emerald-400 to-teal-500">
+        <CheckCircle2 size={16} className="text-white" />
       </div>
-      <span className="text-[11px] font-semibold text-gray-400">{allTasks.length} total</span>
+      <span className="text-[10px] sm:text-[11px] font-semibold text-gray-400">{allTasks.length} total</span>
     </div>
     <div>
-      <p className="text-sm font-bold text-gray-700 mb-2.5">Task Overview</p>
-      <div className="grid grid-cols-3 gap-2">
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-center">
-          <p className="text-lg font-bold text-emerald-600">{doneTasks}</p>
-          <p className="text-[10px] text-gray-500 mt-0.5 font-medium">Done</p>
+      <p className="text-xs sm:text-sm font-bold text-gray-700 mb-2">Task Overview</p>
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2 text-center">
+          <p className="text-base sm:text-lg font-bold text-emerald-600">{doneTasks}</p>
+          <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5 font-medium">Done</p>
         </div>
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-center">
-          <p className="text-lg font-bold text-amber-600">{inProgTasks}</p>
-          <p className="text-[10px] text-gray-500 mt-0.5 font-medium">In Prog.</p>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-2 text-center">
+          <p className="text-base sm:text-lg font-bold text-amber-600">{inProgTasks}</p>
+          <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5 font-medium">In Prog.</p>
         </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-center">
-          <p className="text-lg font-bold text-gray-500">{pendingTasks}</p>
-          <p className="text-[10px] text-gray-500 mt-0.5 font-medium">Pending</p>
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-2 text-center">
+          <p className="text-base sm:text-lg font-bold text-gray-500">{pendingTasks}</p>
+          <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5 font-medium">Pending</p>
         </div>
       </div>
       {allTasks.length > 0 && (
-        <div className="mt-3">
+        <div className="mt-2.5">
           <div className="h-1.5 rounded-full bg-[#EEF2F7] overflow-hidden">
             <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-500 transition-all"
               style={{ width: `${Math.round((doneTasks / allTasks.length) * 100)}%` }}/>
           </div>
-          <p className="text-[10px] text-gray-400 mt-1 text-right font-medium">
+          <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1 text-right font-medium">
             {Math.round((doneTasks / allTasks.length) * 100)}% complete
           </p>
         </div>
@@ -111,38 +111,38 @@ const UpcomingDeadlinesStatCard = ({ members }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-col gap-3" style={{ border: `1px solid ${TL}` }}>
+    <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col gap-2.5 sm:gap-3" style={{ border: `1px solid ${TL}` }}>
       <div className="flex items-center justify-between">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500">
-          <CalendarClock size={18} className="text-white" />
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500">
+          <CalendarClock size={16} className="text-white" />
         </div>
-        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+        <span className={`text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full border ${
           upcoming.length > 0 ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-gray-50 text-gray-400 border-gray-200'
         }`}>
-          {upcoming.length} within 7d
+          {upcoming.length} / 7d
         </span>
       </div>
       <div>
-        <p className="text-sm font-bold text-gray-700 mb-2.5">Upcoming Deadlines</p>
+        <p className="text-xs sm:text-sm font-bold text-gray-700 mb-2">Upcoming Deadlines</p>
         {upcoming.length === 0 ? (
-          <div className="text-center py-3">
-            <p className="text-[11px] text-gray-400">No deadlines this week!</p>
+          <div className="text-center py-2">
+            <p className="text-[10px] text-gray-400">No deadlines this week!</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {upcoming.map((task, i) => {
               const badge = deadlineBadge(task._days);
               return (
-                <div key={`${task.id}-${i}`} className="flex items-center gap-2 p-2 rounded-xl bg-gray-50"
+                <div key={`${task.id}-${i}`} className="flex items-center gap-1.5 p-1.5 sm:p-2 rounded-xl bg-gray-50"
                   style={{ border: `1px solid ${TL}` }}>
                   <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                     task._days <= 0 ? 'bg-red-500' : task._days <= 1 ? 'bg-amber-500' : 'bg-slate-300'
                   }`} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-gray-800 truncate">{task.title}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{task.memberName}</p>
+                    <p className="text-[10px] sm:text-[11px] font-semibold text-gray-800 truncate">{task.title}</p>
+                    <p className="text-[9px] sm:text-[10px] text-gray-400 truncate">{task.memberName}</p>
                   </div>
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${badge.cls}`}>
+                  <span className={`text-[8px] sm:text-[9px] font-bold px-1 sm:px-1.5 py-0.5 rounded-full border flex-shrink-0 ${badge.cls}`}>
                     {badge.label}
                   </span>
                 </div>
@@ -173,12 +173,12 @@ const UrgentCard = ({ members }) => {
 
   if (!urgent) return (
     <StatCard>
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-rose-400 to-red-500">
-        <AlertTriangle size={18} className="text-white" />
+      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-rose-400 to-red-500">
+        <AlertTriangle size={16} className="text-white" />
       </div>
       <div>
-        <p className="text-2xl font-bold text-gray-900">—</p>
-        <p className="text-sm font-medium text-gray-500 mt-0.5">Urgent Task</p>
+        <p className="text-xl sm:text-2xl font-bold text-gray-900">—</p>
+        <p className="text-xs sm:text-sm font-medium text-gray-500 mt-0.5">Urgent Task</p>
         <p className="text-xs text-emerald-500 mt-1 font-medium">All clear! 🎉</p>
       </div>
     </StatCard>
@@ -193,15 +193,15 @@ const UrgentCard = ({ members }) => {
     urgent._days === 0    ? 'Due today!' : `${urgent._days}d left`;
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-col gap-3 relative overflow-hidden"
+    <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col gap-2.5 sm:gap-3 relative overflow-hidden"
       style={{ border: `1.5px solid rgba(239,68,68,0.25)` }}>
       <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-red-100 opacity-70 blur-xl pointer-events-none" />
       <div className="flex items-center justify-between">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-rose-400 to-red-500">
-          <AlertTriangle size={18} className="text-white" />
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-rose-400 to-red-500">
+          <AlertTriangle size={16} className="text-white" />
         </div>
         {deadlineLabel && (
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+          <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full ${
             isOverdue ? 'bg-red-100 text-red-600' :
             isNear    ? 'bg-amber-100 text-amber-600' :
                         'bg-slate-100 text-slate-500'
@@ -209,15 +209,15 @@ const UrgentCard = ({ members }) => {
         )}
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-bold text-gray-900 leading-snug truncate">{urgent.title}</p>
+        <p className="text-xs sm:text-sm font-bold text-gray-900 leading-snug truncate">{urgent.title}</p>
         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${pCfg.text}`}>
+          <span className={`inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold ${pCfg.text}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`} />{urgent.priority}
           </span>
           <span className="text-gray-300 text-xs">·</span>
-          <span className="text-[11px] text-gray-400 truncate">{urgent.memberName}</span>
+          <span className="text-[10px] sm:text-[11px] text-gray-400 truncate">{urgent.memberName}</span>
         </div>
-        <p className="text-xs text-gray-400 mt-1">Urgent Task</p>
+        <p className="text-[10px] sm:text-xs text-gray-400 mt-1">Urgent Task</p>
       </div>
     </div>
   );
@@ -242,46 +242,77 @@ const UpcomingDeadlinesCard = ({ members }) => {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
-      <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
-        <CalendarClock size={16} className="text-amber-500" />
-        <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Upcoming Deadlines</h2>
-        <span className="ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
+      <div className="flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+        <CalendarClock size={15} className="text-amber-500" />
+        <h2 className="text-xs sm:text-sm font-bold text-gray-800 uppercase tracking-wider">Upcoming Deadlines</h2>
+        <span className="ml-auto text-[10px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
           {upcoming.length} within 7d
         </span>
       </div>
-      <div className="p-5">
+      <div className="p-3 sm:p-5">
         {upcoming.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-gray-400">No deadlines in the next 7 days!</p>
+          <div className="text-center py-6 sm:py-8">
+            <p className="text-xs sm:text-sm text-gray-400">No deadlines in the next 7 days!</p>
           </div>
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {upcoming.map((task, i) => {
               const badge = deadlineBadge(task._days);
               const pCfg  = priorityColors[task.priority] || priorityColors.Medium;
               return (
                 <div key={`${task.id}-${i}`}
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl hover:bg-gray-50 transition-colors"
                   style={{ border: `1px solid ${TL}` }}>
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                     task._days <= 0 ? 'bg-red-500' :
                     task._days <= 1 ? 'bg-amber-500' : 'bg-slate-300'
                   }`} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-gray-800 truncate">{task.title}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[11px] text-gray-400">{task.memberName}</span>
+                    <p className="text-[12px] font-semibold text-gray-800 truncate">{task.title}</p>
+                    <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5">
+                      <span className="text-[10px] sm:text-[11px] text-gray-400 truncate max-w-[80px] sm:max-w-none">{task.memberName}</span>
                       <span className="text-gray-300">·</span>
-                      <span className={`text-[11px] font-semibold ${pCfg.text}`}>{task.priority}</span>
+                      <span className={`text-[10px] sm:text-[11px] font-semibold ${pCfg.text}`}>{task.priority}</span>
                     </div>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${badge.cls}`}>
+                  <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full flex-shrink-0 ${badge.cls}`}>
                     {badge.label}
                   </span>
                 </div>
               );
             })}
           </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── Mobile Projects Card (replaces table on xs screens) ──────────────────────
+const MobileProjectCard = ({ p }) => {
+  const sCfg = statusColors[p.status]     || statusColors['Planning'];
+  const pCfg = priorityColors[p.priority] || priorityColors.Medium;
+  const isTodayDL = toYMD(p.deadline) === todayYMD;
+  return (
+    <div className="p-3 rounded-xl" style={{ border: `1px solid ${TL}`, background: isTodayDL ? 'rgba(239,68,68,0.03)' : 'white' }}>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[13px] font-semibold text-gray-900 flex-1 min-w-0 leading-tight">{p.name}</p>
+        {isTodayDL && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 flex-shrink-0">Due Today</span>}
+      </div>
+      {p.description && <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">{p.description}</p>}
+      <div className="flex items-center gap-2 mt-2 flex-wrap">
+        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${sCfg.text}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`}/>{p.status}
+        </span>
+        <span className="text-gray-200">·</span>
+        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${pCfg.text}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`}/>{p.priority}
+        </span>
+        {p.deadline && (
+          <>
+            <span className="text-gray-200">·</span>
+            <span className={`text-[10px] font-mono ${isTodayDL ? 'text-red-500 font-bold' : 'text-gray-400'}`}>{p.deadline}</span>
+          </>
         )}
       </div>
     </div>
@@ -303,7 +334,7 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFro
     return base ? parseInt(base.slice(5,7))-1 : today.getMonth();
   });
   const [showYearPicker, setShowYearPicker] = useState(false);
-  const [pos,            setPos]            = useState({ top: 0, left: 0 });
+  const [pos,            setPos]            = useState({ top: 0, left: 0, width: 320 });
 
   const [rangeStart, setRangeStart] = useState(rangeFrom || null);
   const [rangeEnd,   setRangeEnd]   = useState(rangeTo   || null);
@@ -311,13 +342,23 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFro
 
   const yearRange = Array.from({ length: 11 }, (_, i) => today.getFullYear() - 5 + i);
 
+  // ── Responsive positioning ──────────────────────────────────────────────────
   useEffect(() => {
     if (!anchorRef.current) return;
-    const rect = anchorRef.current.getBoundingClientRect();
-    const dropW = 340;
-    let left = rect.right - dropW;
-    if (left < 8) left = 8;
-    setPos({ top: rect.bottom + 6, left });
+
+    const recalc = () => {
+      const rect    = anchorRef.current.getBoundingClientRect();
+      const vw      = window.innerWidth;
+      const dropW   = vw < 380 ? vw - 16 : 340;   // full-width minus margin on tiny screens
+      let   left    = rect.right - dropW;
+      if (left < 8)      left = 8;
+      if (left + dropW > vw - 8) left = Math.max(8, vw - dropW - 8);
+      setPos({ top: rect.bottom + 6, left, width: dropW });
+    };
+
+    recalc();
+    window.addEventListener('resize', recalc);
+    return () => window.removeEventListener('resize', recalc);
   }, [anchorRef]);
 
   useEffect(() => {
@@ -370,7 +411,6 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFro
   for (let d=1;d<=42-cells.length;d++) cells.push({day:d,            month:'next', ymd:toYMD(new Date(viewYear,viewMonth+1,d))});
   const weeks = Array.from({length:6},(_,i)=>cells.slice(i*7,i*7+7));
 
-  // Range helpers
   const effectiveEnd = rangeEnd || hoverDate;
   const rFrom = rangeStart && effectiveEnd ? (rangeStart <= effectiveEnd ? rangeStart : effectiveEnd) : rangeStart;
   const rTo   = rangeStart && effectiveEnd ? (rangeStart <= effectiveEnd ? effectiveEnd : rangeStart) : null;
@@ -420,25 +460,24 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFro
   };
 
   const label     = activeLabel();
-  const hasFilter = mode === 'range' ? (rFrom && rTo) : !!selectedDate;
 
   return ReactDOM.createPortal(
     <div ref={dropRef}
       style={{
-        position: 'fixed', top: pos.top, left: pos.left, width: 340, zIndex: 9999,
+        position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 9999,
         background: '#fff', borderRadius: 18, border: `1px solid ${TL}`,
         boxShadow: '0 16px 48px rgba(0,0,0,0.16)', overflow: 'hidden',
       }}>
 
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${TL}` }}>
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3" style={{ borderBottom: `1px solid ${TL}` }}>
         <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-teal-500"/>
-          <span className="text-[13px] font-bold text-gray-800">Filter by Date</span>
+          <Calendar size={13} className="text-teal-500"/>
+          <span className="text-[12px] sm:text-[13px] font-bold text-gray-800">Filter by Date</span>
         </div>
         <div className="flex items-center gap-1">
           <button onClick={goToday}
-            className="text-[11px] font-semibold px-2.5 py-1 rounded-lg text-teal-600 bg-teal-50 hover:bg-teal-100 border border-teal-200 transition-colors">
+            className="text-[10px] sm:text-[11px] font-semibold px-2 py-1 rounded-lg text-teal-600 bg-teal-50 hover:bg-teal-100 border border-teal-200 transition-colors">
             Today
           </button>
           <button onClick={onClose}
@@ -449,10 +488,10 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFro
       </div>
 
       {/* Mode Toggle */}
-      <div className="flex gap-1 px-4 pt-3 pb-1">
+      <div className="flex gap-1 px-3 sm:px-4 pt-2.5 pb-1">
         {['single', 'range'].map(m => (
           <button key={m} onClick={() => { setMode(m); clearAll(); }}
-            className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border transition-all
+            className={`flex-1 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-bold border transition-all
               ${mode===m ? 'bg-teal-500 text-white border-teal-500' : 'text-gray-500 bg-gray-50 border-gray-200 hover:border-teal-300 hover:text-teal-600'}`}>
             {m === 'single' ? 'Single Day' : 'Date Range'}
           </button>
@@ -461,34 +500,34 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFro
 
       {/* Range Hint */}
       {mode === 'range' && (
-        <div className="px-4 pb-1">
-          <p className="text-[10px] text-gray-400 text-center">
+        <div className="px-3 sm:px-4 pb-1">
+          <p className="text-[9px] sm:text-[10px] text-gray-400 text-center">
             {!rangeStart ? 'Click a start date' : !rangeEnd ? 'Now click an end date' : 'Range selected ✓'}
           </p>
         </div>
       )}
 
       {/* Month Navigation */}
-      <div className="flex items-center justify-between px-4 pt-2 pb-1">
+      <div className="flex items-center justify-between px-3 sm:px-4 pt-2 pb-1">
         <button onClick={prevMonth} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
           <ChevronLeft size={14}/>
         </button>
         <div className="flex items-center gap-1.5">
-          <span className="text-sm font-bold text-gray-800">{MONTHS[viewMonth].slice(0,3)}</span>
+          <span className="text-xs sm:text-sm font-bold text-gray-800">{MONTHS[viewMonth].slice(0,3)}</span>
           <div className="relative">
             <button onClick={() => setShowYearPicker(v=>!v)}
-              className={`flex items-center gap-0.5 px-2 py-0.5 rounded-lg text-sm font-bold border transition-all
+              className={`flex items-center gap-0.5 px-2 py-0.5 rounded-lg text-xs sm:text-sm font-bold border transition-all
                 ${showYearPicker ? 'bg-teal-500 text-white border-teal-500' : 'text-teal-600 bg-teal-50 hover:bg-teal-100 border-teal-200'}`}>
               {viewYear}
               <ChevronDown size={10} style={{ transform: showYearPicker ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform .2s' }}/>
             </button>
             {showYearPicker && (
               <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-white rounded-xl shadow-xl overflow-hidden"
-                style={{ border: `1px solid ${TL}`, width: 130 }}>
-                <div className="p-1 max-h-40 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                style={{ border: `1px solid ${TL}`, width: 120 }}>
+                <div className="p-1 max-h-36 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                   {yearRange.map(yr => (
                     <button key={yr} onClick={() => { setViewYear(yr); setShowYearPicker(false); }}
-                      className={`w-full py-1.5 rounded-lg text-[12px] font-semibold transition-colors
+                      className={`w-full py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold transition-colors
                         ${yr===viewYear ? 'bg-teal-500 text-white' : yr===today.getFullYear() ? 'text-teal-600 bg-teal-50' : 'text-gray-700 hover:bg-gray-50'}`}>
                       {yr}
                     </button>
@@ -504,14 +543,14 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFro
       </div>
 
       {/* Day Headers */}
-      <div className="grid grid-cols-7 px-3 pb-1">
+      <div className="grid grid-cols-7 px-2 sm:px-3 pb-1">
         {DAYS.map(d => (
-          <div key={d} className="text-center text-[9px] font-bold text-gray-400 uppercase tracking-wider py-0.5">{d}</div>
+          <div key={d} className="text-center text-[8px] sm:text-[9px] font-bold text-gray-400 uppercase tracking-wider py-0.5">{d}</div>
         ))}
       </div>
 
       {/* Calendar Grid */}
-      <div className="px-2.5 pb-2 space-y-0.5">
+      <div className="px-2 sm:px-2.5 pb-2 space-y-0.5">
         {weeks.map((week, wi) => (
           <div key={wi} className="grid grid-cols-7 gap-0.5">
             {week.map(cell => {
@@ -536,8 +575,8 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFro
                   onMouseEnter={() => mode==='range' && rangeStart && !rangeEnd && setHoverDate(cell.ymd)}
                   onMouseLeave={() => mode==='range' && setHoverDate(null)}
                   className="relative flex flex-col items-center justify-center rounded-xl transition-all group"
-                  style={{ height: 32, background: bg, border }}>
-                  <span className={`text-[11px] font-semibold leading-none
+                  style={{ height: 30, background: bg, border }}>
+                  <span className={`text-[10px] sm:text-[11px] font-semibold leading-none
                     ${isSel||isStart||isEnd ? 'text-white' : isTod ? 'text-teal-600' : isMid ? 'text-teal-700' : !isCur ? 'text-gray-300' : 'text-gray-700 group-hover:text-gray-900'}`}>
                     {cell.day}
                   </span>
@@ -556,12 +595,12 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFro
 
       {/* Quick Filters — Single Mode Only */}
       {mode === 'single' && (
-        <div className="px-3 pb-3 pt-2" style={{ borderTop: `1px solid ${TL}` }}>
-          <div className="flex gap-1.5">
+        <div className="px-2.5 sm:px-3 pb-3 pt-2" style={{ borderTop: `1px solid ${TL}` }}>
+          <div className="flex gap-1 sm:gap-1.5">
             {[{label:'Yesterday',ymd:yday},{label:'Today',ymd:todayYMD},{label:'Tomorrow',ymd:tmrw}].map(f => (
               <button key={f.label}
                 onClick={() => onSelectDate(selectedDate===f.ymd ? null : f.ymd)}
-                className={`flex-1 py-1.5 rounded-xl text-[11px] font-semibold border transition-all
+                className={`flex-1 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-semibold border transition-all
                   ${selectedDate===f.ymd ? 'bg-teal-500 text-white border-teal-500' : 'text-gray-600 bg-gray-50 border-gray-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50'}`}>
                 {f.label}
               </button>
@@ -572,11 +611,11 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFro
 
       {/* Active Filter Label */}
       {label && (
-        <div className="px-3 pb-3" style={{ borderTop: mode==='range' ? `1px solid ${TL}` : undefined, paddingTop: mode==='range' ? 8 : 0 }}>
+        <div className="px-2.5 sm:px-3 pb-3" style={{ borderTop: mode==='range' ? `1px solid ${TL}` : undefined, paddingTop: mode==='range' ? 8 : 0 }}>
           <div className="rounded-xl px-3 py-1.5 flex items-center gap-2"
             style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(20,184,166,0.2)' }}>
             <span className="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0"/>
-            <span className="text-[11px] font-semibold text-teal-700 truncate">Showing: {label}</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-teal-700 truncate">Showing: {label}</span>
           </div>
         </div>
       )}
@@ -625,7 +664,6 @@ const Dashboard = () => {
   const yesterday = toYMD(new Date(Date.now() - 86400000));
   const tomorrow  = toYMD(new Date(Date.now() + 86400000));
 
-  // Date Filter State
   const hasRange   = rangeFrom && rangeTo;
   const hasSingle  = !!selectedDate && !hasRange;
   const isFiltered = hasRange || hasSingle;
@@ -641,7 +679,6 @@ const Dashboard = () => {
     : selectedDate === tomorrow  ? 'Tomorrow'
     : (() => { const d = new Date(selectedDate+'T00:00:00'); return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)} ${d.getFullYear()}`; })();
 
-  // Date Filter Helpers
   const projectMatchesDateFilter = useCallback((p) => {
     if (hasRange) {
       const pStart = p.startDate || p.createdAt?.slice(0,10) || '';
@@ -659,7 +696,6 @@ const Dashboard = () => {
     return false;
   }, [hasRange, hasSingle, rangeFrom, rangeTo, selectedDate]);
 
-  // Filtered Data
   const filteredProjects = useMemo(() => {
     if (q) return projects.filter(p =>
       p.name?.toLowerCase().includes(q) || p.status?.toLowerCase().includes(q) ||
@@ -687,7 +723,6 @@ const Dashboard = () => {
   const hasResults  = filteredProjects.length > 0 || filteredTasks.length > 0;
   const isSearching = q.length > 0;
 
-  // Event Handlers
   const handleSelectRange = useCallback((from, to) => {
     setRangeFrom(from); setRangeTo(to);
     if (from) setSelectedDate(null);
@@ -710,28 +745,38 @@ const Dashboard = () => {
   if (isSearching) {
     return (
       <div className="min-h-screen bg-[#EEF2F7]">
-        <div className="p-4 sm:p-6 max-w-[1600px] mx-auto space-y-6">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Search size={18} className="text-teal-500" />
-            <p className="text-sm text-gray-500">Results for <span className="font-semibold text-gray-800">"{searchQuery}"</span></p>
+        <div className="p-3 sm:p-6 max-w-[1600px] mx-auto space-y-4 sm:space-y-6">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Search size={16} className="text-teal-500 flex-shrink-0" />
+            <p className="text-xs sm:text-sm text-gray-500">
+              Results for <span className="font-semibold text-gray-800">"{searchQuery}"</span>
+            </p>
             <span className="text-xs text-gray-400">{filteredProjects.length + filteredTasks.length} found</span>
           </div>
+
           {!hasResults && (
-            <div className="bg-white rounded-2xl shadow-sm p-12 sm:p-16 text-center" style={{ border: `1px solid ${TL}` }}>
-              <div className="text-5xl mb-4">🔍</div>
-              <p className="text-lg font-semibold text-gray-700 mb-2">No results found</p>
-              <p className="text-sm text-gray-400">Nothing matched "<span className="font-medium">{searchQuery}</span>". Try a different keyword.</p>
+            <div className="bg-white rounded-2xl shadow-sm p-10 sm:p-16 text-center" style={{ border: `1px solid ${TL}` }}>
+              <div className="text-4xl sm:text-5xl mb-3 sm:mb-4">🔍</div>
+              <p className="text-base sm:text-lg font-semibold text-gray-700 mb-1.5 sm:mb-2">No results found</p>
+              <p className="text-xs sm:text-sm text-gray-400">Nothing matched "<span className="font-medium">{searchQuery}</span>".</p>
             </div>
           )}
+
           {filteredProjects.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
-              <div className="flex items-center gap-2 px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
-                <BarChart2 size={16} className="text-teal-500" />
-                <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Projects</h2>
+              <div className="flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+                <BarChart2 size={15} className="text-teal-500" />
+                <h2 className="text-xs sm:text-sm font-bold text-gray-800 uppercase tracking-wider">Projects</h2>
                 <span className="ml-auto text-xs text-gray-400">{filteredProjects.length} found</span>
               </div>
-              {/* ── FIXED: table-fixed + no overflow-x-auto ── */}
-              <div className="w-full">
+
+              {/* Mobile: cards */}
+              <div className="block sm:hidden p-3 space-y-2">
+                {filteredProjects.map(p => <MobileProjectCard key={p.id} p={p} />)}
+              </div>
+
+              {/* Desktop: table */}
+              <div className="hidden sm:block w-full">
                 <table className="w-full table-fixed">
                   <colgroup>
                     <col style={{ width: '24%' }}/>
@@ -743,7 +788,7 @@ const Dashboard = () => {
                   <thead>
                     <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
                       {['Project Name','Status','Priority','Description','Deadline'].map((h,i) => (
-                        <th key={h} className="py-2.5 px-2 sm:px-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left"
+                        <th key={h} className="py-2.5 px-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left"
                           style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>{h}</th>
                       ))}
                     </tr>
@@ -754,25 +799,25 @@ const Dashboard = () => {
                       const pCfg = priorityColors[p.priority] || priorityColors.Medium;
                       return (
                         <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} style={{ borderBottom: `1px solid ${TL}` }}>
-                          <td className="px-2 sm:px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
+                          <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
                             <p className="text-[12px] font-semibold text-gray-900 truncate">{p.name}</p>
                           </td>
-                          <td className="px-2 sm:px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
+                          <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
                             <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${sCfg.text}`}>
                               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sCfg.dot}`}/>
                               <span className="truncate">{p.status}</span>
                             </span>
                           </td>
-                          <td className="px-2 sm:px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
+                          <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
                             <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${pCfg.text}`}>
                               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pCfg.dot}`}/>
                               <span className="truncate">{p.priority}</span>
                             </span>
                           </td>
-                          <td className="px-2 sm:px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
+                          <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
                             <p className="text-[11px] text-gray-500 truncate">{p.description || '—'}</p>
                           </td>
-                          <td className="px-2 sm:px-3 py-2.5">
+                          <td className="px-3 py-2.5">
                             <span className="text-[11px] font-mono block truncate text-gray-500">{p.deadline || '—'}</span>
                           </td>
                         </tr>
@@ -783,14 +828,15 @@ const Dashboard = () => {
               </div>
             </div>
           )}
+
           {filteredTasks.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
-              <div className="flex items-center gap-2 px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
-                <CheckCircle2 size={16} className="text-teal-500" />
-                <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Tasks</h2>
+              <div className="flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+                <CheckCircle2 size={15} className="text-teal-500" />
+                <h2 className="text-xs sm:text-sm font-bold text-gray-800 uppercase tracking-wider">Tasks</h2>
                 <span className="ml-auto text-xs text-gray-400">{filteredTasks.length} found</span>
               </div>
-              <div className="p-4 sm:p-5 space-y-2.5">
+              <div className="p-3 sm:p-5 space-y-2">
                 {filteredTasks.map(task => {
                   const pCfg  = priorityColors[task.priority] || priorityColors.Medium;
                   const tsCfg = {
@@ -799,19 +845,21 @@ const Dashboard = () => {
                     'Pending':     'text-gray-500 bg-gray-50 border-gray-200',
                   }[task.status] || 'text-gray-500 bg-gray-50 border-gray-200';
                   return (
-                    <div key={`${task.memberId}-${task.id}`} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors" style={{ border: `1px solid ${TL}` }}>
-                      <Clock size={14} className="text-amber-400 flex-shrink-0" />
+                    <div key={`${task.memberId}-${task.id}`}
+                      className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl hover:bg-gray-50 transition-colors"
+                      style={{ border: `1px solid ${TL}` }}>
+                      <Clock size={13} className="text-amber-400 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-semibold text-gray-800 truncate">{task.title}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                          <span className="text-[11px] text-gray-400">{task.memberName}</span>
+                        <p className="text-[12px] sm:text-[13px] font-semibold text-gray-800 truncate">{task.title}</p>
+                        <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 flex-wrap">
+                          <span className="text-[10px] sm:text-[11px] text-gray-400 truncate max-w-[80px] sm:max-w-none">{task.memberName}</span>
                           <span className="text-gray-300">·</span>
-                          <span className={`text-[11px] font-semibold ${pCfg.text}`}>{task.priority}</span>
+                          <span className={`text-[10px] sm:text-[11px] font-semibold ${pCfg.text}`}>{task.priority}</span>
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${tsCfg}`}>{task.status}</span>
-                        <span className="text-[10px] font-mono text-gray-400">{task.dueDate || '—'}</span>
+                        <span className={`text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full border ${tsCfg}`}>{task.status}</span>
+                        <span className="text-[9px] sm:text-[10px] font-mono text-gray-400">{task.dueDate || '—'}</span>
                       </div>
                     </div>
                   );
@@ -827,53 +875,55 @@ const Dashboard = () => {
   // ── Normal Dashboard View ─────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#EEF2F7]">
-      <div className="p-4 sm:p-6 space-y-5 max-w-[1600px] mx-auto">
+      <div className="p-3 sm:p-6 space-y-3 sm:space-y-5 max-w-[1600px] mx-auto">
 
-        {/* Row 1 — Stat Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Row 1 — Stat Cards: 2×2 on mobile, 4 across on sm+ */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-3">
           <StatCard>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-teal-400 to-cyan-500">
-              <FolderOpen size={18} className="text-white" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-teal-400 to-cyan-500">
+              <FolderOpen size={16} className="text-white" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{projects.length}</p>
-              <p className="text-sm font-medium text-gray-500 mt-0.5">Projects</p>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 mt-1.5">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{projects.length}</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-500 mt-0.5">Projects</p>
+              <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 mt-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-teal-500"/>{activeProjects} Active
               </span>
             </div>
           </StatCard>
+
           <StatCard>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-400 to-purple-500">
-              <Users size={18} className="text-white" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-400 to-purple-500">
+              <Users size={16} className="text-white" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{members.length}</p>
-              <p className="text-sm font-medium text-gray-500 mt-0.5">Team Members</p>
-              <p className="text-xs text-gray-400 mt-1">{activeMembers} active</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{members.length}</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-500 mt-0.5">Team Members</p>
+              <p className="text-[10px] sm:text-xs text-gray-400 mt-1">{activeMembers} active</p>
             </div>
           </StatCard>
+
           <TasksStatCard doneTasks={doneTasks} inProgTasks={inProgTasks} pendingTasks={pendingTasks} allTasks={allTasks} />
           <UpcomingDeadlinesStatCard members={members} />
         </div>
 
         {/* Today's Deadlines Banner */}
         {todayDeadlines.length > 0 && (
-          <div className="rounded-2xl px-4 sm:px-5 py-3.5 flex items-center gap-3 flex-wrap"
+          <div className="rounded-2xl px-3 sm:px-5 py-3 flex items-start sm:items-center gap-2 sm:gap-3 flex-wrap"
             style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <AlertCircle size={15} className="text-red-500"/>
-              <span className="text-[13px] font-bold text-red-600">Today's Deadlines</span>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <AlertCircle size={14} className="text-red-500"/>
+              <span className="text-[12px] sm:text-[13px] font-bold text-red-600">Today's Deadlines</span>
             </div>
-            <div className="flex items-center gap-2 flex-wrap flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap flex-1">
               {todayDeadlines.map(p => {
                 const sCfg = statusColors[p.status] || statusColors['Planning'];
                 return (
-                  <span key={p.id} className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-[12px] font-semibold text-gray-800"
+                  <span key={p.id} className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded-full bg-white text-[11px] sm:text-[12px] font-semibold text-gray-800"
                     style={{ border: '1px solid rgba(239,68,68,0.25)' }}>
                     <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`}/>
-                    {p.name}
-                    <span className={`text-[10px] font-bold ml-0.5 ${sCfg.text}`}>{p.status}</span>
+                    <span className="truncate max-w-[100px] sm:max-w-none">{p.name}</span>
+                    <span className={`text-[9px] sm:text-[10px] font-bold ml-0.5 hidden sm:inline ${sCfg.text}`}>{p.status}</span>
                   </span>
                 );
               })}
@@ -882,18 +932,18 @@ const Dashboard = () => {
         )}
 
         {/* Section Header */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h2 className="text-[15px] font-bold text-gray-800">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="min-w-0">
+            <h2 className="text-[13px] sm:text-[15px] font-bold text-gray-800 truncate">
               {isFiltered ? `Results for ${dateBadgeLabel}` : 'Projects & Tasks'}
             </h2>
-            <p className="text-[12px] text-gray-400 mt-0.5">
+            <p className="text-[11px] sm:text-[12px] text-gray-400 mt-0.5">
               {isFiltered
                 ? `${filteredProjects.length} project${filteredProjects.length!==1?'s':''} · ${filteredTasks.length} task${filteredTasks.length!==1?'s':''}`
                 : 'Recent projects and pending tasks'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {isFiltered && (
               <button onClick={clearFilter}
                 className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-gray-600 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100">
@@ -902,15 +952,17 @@ const Dashboard = () => {
             )}
             <button ref={calBtnRef}
               onClick={() => setShowCalDrop(v => !v)}
-              className={`flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl font-semibold text-[12px] sm:text-[13px] transition-all border
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-2 rounded-xl font-semibold text-[11px] sm:text-[13px] transition-all border
                 ${showCalDrop || isFiltered
                   ? 'bg-teal-500 text-white border-teal-500 shadow-md'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50 shadow-sm'}`}
               style={{ boxShadow: showCalDrop || isFiltered ? '0 4px 14px rgba(20,184,166,0.3)' : undefined }}>
-              <Calendar size={14}/>
-              <span className="hidden xs:inline sm:inline">{isFiltered ? dateBadgeLabel : 'Filter by Date'}</span>
-              <span className="inline xs:hidden sm:hidden">{isFiltered ? dateBadgeLabel : 'Date'}</span>
-              <ChevronDown size={12} style={{ transform: showCalDrop ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform .2s' }}/>
+              <Calendar size={13}/>
+              {/* Show truncated label on mobile, full on sm+ */}
+              <span className="max-w-[90px] sm:max-w-none truncate">
+                {isFiltered ? dateBadgeLabel : 'Filter by Date'}
+              </span>
+              <ChevronDown size={11} style={{ transform: showCalDrop ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform .2s', flexShrink: 0 }}/>
             </button>
           </div>
         </div>
@@ -931,163 +983,173 @@ const Dashboard = () => {
         )}
 
         {/* Row 2 — Projects Table + Task Overview */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-5">
 
-          {/* ── FIXED Projects Table — no scroll, table-fixed ── */}
+          {/* Projects Panel */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
-            <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4" style={{ borderBottom: `1px solid ${TL}` }}>
               <div className="flex items-center gap-2">
-                <BarChart2 size={15} className="text-teal-500" />
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
+                <BarChart2 size={14} className="text-teal-500" />
+                <h3 className="text-xs sm:text-sm font-bold text-gray-800 uppercase tracking-wider">
                   {isFiltered ? 'Projects' : 'Recent Projects'}
                 </h3>
               </div>
               <span className="text-xs text-gray-400">{filteredProjects.length} {isFiltered ? 'found' : 'total'}</span>
             </div>
+
             {filteredProjects.length === 0 ? (
-              <div className="py-16 text-center">
-                <p className="text-gray-400 text-sm">{isFiltered ? 'No projects in this range' : 'No projects yet'}</p>
+              <div className="py-12 sm:py-16 text-center">
+                <p className="text-gray-400 text-xs sm:text-sm">{isFiltered ? 'No projects in this range' : 'No projects yet'}</p>
               </div>
             ) : (
-              <div className="w-full">
-                <table className="w-full table-fixed">
-                  <colgroup>
-                    <col style={{ width: '24%' }}/>
-                    <col style={{ width: '18%' }}/>
-                    <col style={{ width: '14%' }}/>
-                    <col style={{ width: '28%' }}/>
-                    <col style={{ width: '16%' }}/>
-                  </colgroup>
-                  <thead>
-                    <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
-                      {['Project Name','Status','Priority','Description','Deadline'].map((h,i) => (
-                        <th key={h} className="py-2.5 px-2 sm:px-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left"
-                          style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredProjects.map((p, idx) => {
-                      const sCfg       = statusColors[p.status]     || statusColors['Planning'];
-                      const pCfg       = priorityColors[p.priority] || priorityColors.Medium;
-                      const isTodayDL  = toYMD(p.deadline)  === todayYMD;
-                      const isStart    = hasSingle && toYMD(p.startDate) === selectedDate;
-                      const isDeadline = hasSingle && toYMD(p.deadline)  === selectedDate;
-                      return (
-                        <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
-                          style={{ borderBottom: `1px solid ${TL}`, background: isTodayDL ? 'rgba(239,68,68,0.03)' : undefined }}>
-                          <td className="px-2 sm:px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
-                            <p className="text-[12px] font-semibold text-gray-900 truncate">{p.name}</p>
-                            {(isStart || isDeadline || (!isFiltered && isTodayDL)) && (
-                              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                                {isStart    && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-200">Start</span>}
-                                {isDeadline && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">Deadline</span>}
-                                {!isFiltered && isTodayDL && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200">Due Today</span>}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-2 sm:px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
-                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${sCfg.text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sCfg.dot}`}/>
-                              <span className="truncate">{p.status}</span>
-                            </span>
-                          </td>
-                          <td className="px-2 sm:px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
-                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${pCfg.text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pCfg.dot}`}/>
-                              <span className="truncate">{p.priority}</span>
-                            </span>
-                          </td>
-                          <td className="px-2 sm:px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
-                            <p className="text-[11px] text-gray-500 truncate">{p.description || '—'}</p>
-                          </td>
-                          <td className="px-2 sm:px-3 py-2.5">
-                            <span className={`text-[11px] font-mono block truncate ${isTodayDL ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
-                              {p.deadline || '—'}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                {/* Mobile: card list */}
+                <div className="block sm:hidden p-3 space-y-2">
+                  {filteredProjects.map(p => <MobileProjectCard key={p.id} p={p} />)}
+                </div>
+
+                {/* Tablet+: table */}
+                <div className="hidden sm:block w-full">
+                  <table className="w-full table-fixed">
+                    <colgroup>
+                      <col style={{ width: '24%' }}/>
+                      <col style={{ width: '18%' }}/>
+                      <col style={{ width: '14%' }}/>
+                      <col style={{ width: '28%' }}/>
+                      <col style={{ width: '16%' }}/>
+                    </colgroup>
+                    <thead>
+                      <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
+                        {['Project Name','Status','Priority','Description','Deadline'].map((h,i) => (
+                          <th key={h} className="py-2.5 px-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left"
+                            style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredProjects.map((p, idx) => {
+                        const sCfg       = statusColors[p.status]     || statusColors['Planning'];
+                        const pCfg       = priorityColors[p.priority] || priorityColors.Medium;
+                        const isTodayDL  = toYMD(p.deadline)  === todayYMD;
+                        const isStart    = hasSingle && toYMD(p.startDate) === selectedDate;
+                        const isDeadline = hasSingle && toYMD(p.deadline)  === selectedDate;
+                        return (
+                          <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
+                            style={{ borderBottom: `1px solid ${TL}`, background: isTodayDL ? 'rgba(239,68,68,0.03)' : undefined }}>
+                            <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
+                              <p className="text-[12px] font-semibold text-gray-900 truncate">{p.name}</p>
+                              {(isStart || isDeadline || (!isFiltered && isTodayDL)) && (
+                                <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                  {isStart    && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-200">Start</span>}
+                                  {isDeadline && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">Deadline</span>}
+                                  {!isFiltered && isTodayDL && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200">Due Today</span>}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
+                              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${sCfg.text}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sCfg.dot}`}/>
+                                <span className="truncate">{p.status}</span>
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
+                              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${pCfg.text}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pCfg.dot}`}/>
+                                <span className="truncate">{p.priority}</span>
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
+                              <p className="text-[11px] text-gray-500 truncate">{p.description || '—'}</p>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <span className={`text-[11px] font-mono block truncate ${isTodayDL ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+                                {p.deadline || '—'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
 
-          <div className="flex flex-col gap-5">
+          {/* Right column */}
+          <div className="flex flex-col gap-3 sm:gap-5">
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: `1px solid ${TL}` }}>
-              <div className="flex items-center justify-between px-4 sm:px-6 py-4" style={{ borderBottom: `1px solid ${TL}` }}>
+              <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4" style={{ borderBottom: `1px solid ${TL}` }}>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-teal-500" />
-                  <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
+                  <CheckCircle2 size={14} className="text-teal-500" />
+                  <h3 className="text-xs sm:text-sm font-bold text-gray-800 uppercase tracking-wider">
                     {isFiltered ? 'Tasks' : 'Task Overview'}
                   </h3>
                 </div>
                 <span className="text-xs text-gray-400">{filteredTasks.length} {isFiltered ? 'found' : 'active'}</span>
               </div>
-              <div className="p-4 sm:p-5 space-y-4">
+              <div className="p-3 sm:p-5 space-y-3 sm:space-y-4">
                 {!isFiltered && (
                   <>
-                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
                       {[
                         { label: 'Done',        count: doneTasks,    color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
                         { label: 'In Progress', count: inProgTasks,  color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-200'   },
                         { label: 'Pending',     count: pendingTasks, color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200'    },
                       ].map(({ label, count, color, bg, border }) => (
                         <div key={label} className={`${bg} border ${border} rounded-xl p-2 sm:p-3 text-center`}>
-                          <p className={`text-xl font-bold ${color}`}>{count}</p>
+                          <p className={`text-lg sm:text-xl font-bold ${color}`}>{count}</p>
                           <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5 font-medium leading-tight">{label}</p>
                         </div>
                       ))}
                     </div>
                     {allTasks.length > 0 && (
                       <div>
-                        <div className="flex justify-between mb-1.5">
-                          <span className="text-xs text-gray-500 font-medium">Completion Rate</span>
-                          <span className="text-xs font-bold text-teal-600">{Math.round((doneTasks / allTasks.length) * 100)}%</span>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-[11px] sm:text-xs text-gray-500 font-medium">Completion Rate</span>
+                          <span className="text-[11px] sm:text-xs font-bold text-teal-600">{Math.round((doneTasks / allTasks.length) * 100)}%</span>
                         </div>
-                        <div className="h-2 rounded-full bg-[#EEF2F7] overflow-hidden">
+                        <div className="h-1.5 sm:h-2 rounded-full bg-[#EEF2F7] overflow-hidden">
                           <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-500 transition-all"
                             style={{ width: `${Math.round((doneTasks / allTasks.length) * 100)}%` }}/>
                         </div>
                       </div>
                     )}
-                    <div style={{ borderTop: `1px solid ${TL}` }} className="pt-3">
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Pending Tasks</p>
+                    <div style={{ borderTop: `1px solid ${TL}` }} className="pt-2 sm:pt-3">
+                      <p className="text-[10px] sm:text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2 sm:mb-3">Pending Tasks</p>
                     </div>
                   </>
                 )}
                 {filteredTasks.length === 0 ? (
-                  <div className="text-center py-6">
+                  <div className="text-center py-4 sm:py-6">
                     <p className="text-xs text-gray-400">{isFiltered ? 'No tasks in this range' : 'All caught up!'}</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-1.5 sm:space-y-2">
                     {filteredTasks.map(task => {
                       const pCfg      = priorityColors[task.priority] || priorityColors.Medium;
                       const sCfg      = statusColors[task.status]     || statusColors['Pending'];
                       const isTodayTask = toYMD(task.dueDate) === todayYMD;
                       return (
                         <div key={`${task.memberId}-${task.id}`}
-                          className="flex items-start gap-2 sm:gap-2.5 p-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+                          className="flex items-start gap-2 p-2 sm:p-2.5 rounded-xl hover:bg-gray-50 transition-colors"
                           style={{ border: `1px solid ${TL}` }}>
-                          <Clock size={13} className={`flex-shrink-0 mt-0.5 ${isTodayTask ? 'text-red-400' : 'text-amber-400'}`}/>
+                          <Clock size={12} className={`flex-shrink-0 mt-0.5 ${isTodayTask ? 'text-red-400' : 'text-amber-400'}`}/>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[12px] font-semibold text-gray-800 truncate">{task.title}</p>
+                            <p className="text-[11px] sm:text-[12px] font-semibold text-gray-800 truncate">{task.title}</p>
                             <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                              <span className="text-[10px] text-gray-400 truncate max-w-[80px]">{task.memberName}</span>
+                              <span className="text-[10px] text-gray-400 truncate max-w-[70px] sm:max-w-[80px]">{task.memberName}</span>
                               <span className="text-gray-300 text-[10px]">·</span>
                               <span className={`text-[10px] font-semibold ${pCfg.text}`}>{task.priority}</span>
                             </div>
                           </div>
                           <div className="flex-shrink-0 flex flex-col items-end gap-1">
                             {isFiltered ? (
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${sCfg.text} ${sCfg.bg} ${sCfg.border}`}>{task.status}</span>
+                              <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full border whitespace-nowrap ${sCfg.text} ${sCfg.bg} ${sCfg.border}`}>{task.status}</span>
                             ) : isTodayTask ? (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 whitespace-nowrap">Due Today</span>
+                              <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 whitespace-nowrap">Due Today</span>
                             ) : (
-                              <span className="text-[10px] font-mono text-gray-400 whitespace-nowrap">{task.dueDate || '—'}</span>
+                              <span className="text-[9px] sm:text-[10px] font-mono text-gray-400 whitespace-nowrap">{task.dueDate || '—'}</span>
                             )}
                           </div>
                         </div>

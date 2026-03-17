@@ -254,7 +254,7 @@ const DocumentsUploader = ({ documents, onAdd, onRemove }) => {
           </div>
           <div style={{ textAlign:'center' }}>
             <p style={{ fontSize:13, fontWeight:600, color:isDragging?'#14b8a6':'#6b7280', margin:0 }}>{isDragging?'Drop files here!':'Drag & drop or click to browse'}</p>
-            <p style={{ fontSize:11, color:'#9ca3af', margin:'4px 0 0' }}>PDF, DOC, XLS, PPT, TXT, ZIP supported</p>
+            <p style={{ fontSize:11, color:'#9ca3af', margin:'4px 0 0' }}></p>
           </div>
           <button type="button" onClick={e=>{ e.stopPropagation(); fileInputRef.current?.click(); }}
             style={{ position:'absolute', bottom:10, right:10, width:30, height:30, borderRadius:8, background:'#14b8a6', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', boxShadow:'0 2px 8px rgba(20,184,166,0.4)' }}>
@@ -359,7 +359,7 @@ const MediaGrid = ({ media, onAdd, onRemove }) => {
             </div>
             <div style={{ textAlign:'center' }}>
               <p style={{ fontSize:13, fontWeight:600, color:'#9ca3af', margin:0 }}>No media added yet</p>
-              <p style={{ fontSize:11, color:'#d1d5db', margin:'4px 0 0' }}>Click to add images, videos or audio</p>
+              
             </div>
           </div>
         ) : (
