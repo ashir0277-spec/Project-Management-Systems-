@@ -1627,16 +1627,31 @@ const InviteMediaTab = ({ media, onAdd, onRemove }) => {
 
 
 // ─── INVITE PAGE COMPONENT ──
+// TeamMembers.jsx
+// NOTE: Replace the InvitePage export at the bottom of your existing TeamMembers.jsx
+// with the new InvitePage below. Keep everything else exactly the same.
+// 
+// ─── FIND AND REPLACE ───────────────────────────────────────────────────────
+// Find:   export const InvitePage = () => {
+// Replace with the new InvitePage component below
+// ────────────────────────────────────────────────────────────────────────────
+
+// ─── INVITE PAGE COMPONENT ────────────────────────────────────────────────────
 export const InvitePage = () => {
   const { token } = useParams();
-  const [invite,    setInvite]   = useState(null);
-  const [loading,   setLoading]  = useState(true);
-  const [error,     setError]    = useState('');
-  const [step,      setStep]     = useState('form');
-  const [activeTab, setActiveTab] = useState('basic');
-  const [inviteDocs,  setInviteDocs]  = useState([]);
-  const [inviteMedia, setInviteMedia] = useState([]);
-  const [formData,  setFormData] = useState({
+  const [invite,       setInvite]       = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState('');
+  const [step,         setStep]         = useState('form');
+  const [submitting,   setSubmitting]   = useState(false);
+  const [errors,       setErrors]       = useState({});
+  const [documents,    setDocuments]    = useState([]);
+  const [media,        setMedia]        = useState([]);
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [cnicFront,    setCnicFront]    = useState(null);
+  const [cnicBack,     setCnicBack]     = useState(null);
+  const [openSections, setOpenSections] = useState({ basic:true, personal:false, work:false, bank:false, files:false });
+  const [formData, setFormData] = useState({
     name:'', email:'', phone:'', role:ROLES[0], status:'Active',
     address:'', dob:'', cnic:'', emergencyContact:'',
     department:'', experience:'', joiningDate:'', employmentType:'Full-Time',
@@ -1645,13 +1660,16 @@ export const InvitePage = () => {
     paymentMethod:'Bank Transfer', payCycle:'Monthly',
   });
 
+  const toggleSection = key => setOpenSections(p => ({...p, [key]:!p[key]}));
+  const ch = (f,v) => { setFormData(p=>({...p,[f]:v})); if(errors[f]) setErrors(p=>({...p,[f]:null})); };
+
   useEffect(() => {
     const fetchInvite = async () => {
       try {
-        const snap = await getDoc(doc(db, 'invites', token));
-        if (!snap.exists())        setError('Invalid invite link.');
-        else if (snap.data().used) setError('This invite has already been used.');
-        else setInvite({ id: snap.id, ...snap.data() });
+        const snap = await getDoc(doc(db,'invites',token));
+        if(!snap.exists())        setError('Invalid invite link.');
+        else if(snap.data().used) setError('This invite has already been used.');
+        else setInvite({ id:snap.id, ...snap.data() });
       } catch { setError('Something went wrong.'); }
       finally  { setLoading(false); }
     };
@@ -1659,288 +1677,325 @@ export const InvitePage = () => {
   }, [token]);
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.email || !formData.phone) {
-      alert('Please fill all required fields.'); return;
+    const errs = {};
+    if(!formData.name?.trim())  errs.name  = 'Full name is required';
+    if(!formData.email?.trim()) errs.email = 'Email is required';
+    if(!formData.phone?.trim()) errs.phone = 'Phone is required';
+    if(Object.keys(errs).length){
+      setErrors(errs);
+      setOpenSections(p=>({...p,basic:true}));
+      window.scrollTo({top:0,behavior:'smooth'});
+      return;
     }
+    setSubmitting(true);
     try {
-      await addDoc(collection(db, 'teamMembers'), {
+      await addDoc(collection(db,'teamMembers'), {
         ...formData,
-        documents: inviteDocs.map(f  => ({ name:f.name, size:f.size, type:f.type })),
-        media:     inviteMedia.map(f => ({ name:f.name, size:f.size, type:f.type })),
-        projects: 0,
-        avatar:   generateAvatar(formData.name),
-        joinDate: getCurrentMonthYear(),
-        tasks: [], order: 0,
-        createdAt: serverTimestamp(),
+        documents:    documents.map(f=>({name:f.name,size:f.size,type:f.type})),
+        media:        media.map(f=>({name:f.name,size:f.size,type:f.type})),
+        profilePhoto: profilePhoto?{name:profilePhoto.name,size:profilePhoto.size,type:profilePhoto.type}:null,
+        cnicFront:    cnicFront   ?{name:cnicFront.name,   size:cnicFront.size,   type:cnicFront.type   }:null,
+        cnicBack:     cnicBack    ?{name:cnicBack.name,    size:cnicBack.size,    type:cnicBack.type    }:null,
+        projects:0, avatar:generateAvatar(formData.name),
+        joinDate:getCurrentMonthYear(), tasks:[], order:0,
+        createdAt:serverTimestamp(),
       });
-      await updateDoc(doc(db, 'invites', invite.id), { used: true });
+      await updateDoc(doc(db,'invites',invite.id), { used:true });
       setStep('success');
     } catch { alert('Error. Please try again.'); }
+    finally  { setSubmitting(false); }
   };
 
-  if (loading) return (
-    <div style={{ minHeight:'100svh', background:'#f0f4f8', display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ textAlign:'center' }}>
-        <div style={{ width:44, height:44, borderRadius:'50%', border:'3px solid rgba(13,148,136,0.2)', borderTopColor:'#0d9488', animation:'spin 0.8s linear infinite', margin:'0 auto' }} />
-        <p style={{ marginTop:14, color:'#64748b', fontWeight:500, fontSize:13 }}>Loading invitation...</p>
+  // ── Loading ──
+  if(loading) return (
+    <div style={{minHeight:'100svh',background:'#f0f4f8',display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div style={{textAlign:'center'}}>
+        <div style={{width:44,height:44,borderRadius:'50%',border:'3px solid rgba(13,148,136,0.2)',borderTopColor:'#0d9488',animation:'spin 0.8s linear infinite',margin:'0 auto'}}/>
+        <p style={{marginTop:14,color:'#64748b',fontWeight:500,fontSize:13}}>Loading invitation...</p>
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
-  if (error) return (
-    <div style={{ minHeight:'100svh', background:'#f0f4f8', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-      <div style={{ background:'#fff', borderRadius:20, padding:'40px 32px', maxWidth:400, width:'100%', textAlign:'center', border:`1px solid ${TL}`, boxShadow:'0 8px 32px rgba(0,0,0,0.08)' }}>
-        <div style={{ width:56, height:56, borderRadius:'50%', background:'#fef2f2', border:'1px solid #fecaca', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
-          <AlertCircle size={24} style={{ color:'#ef4444' }} />
+  // ── Error ──
+  if(error) return (
+    <div style={{minHeight:'100svh',background:'#f0f4f8',display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+      <div style={{background:'#fff',borderRadius:20,padding:'40px 32px',maxWidth:400,width:'100%',textAlign:'center',border:`1px solid ${TL}`,boxShadow:'0 8px 32px rgba(0,0,0,0.08)'}}>
+        <div style={{width:56,height:56,borderRadius:'50%',background:'#fef2f2',border:'1px solid #fecaca',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
+          <AlertCircle size={24} style={{color:'#ef4444'}}/>
         </div>
-        <h3 style={{ fontSize:17, fontWeight:700, color:'#111827', marginBottom:8 }}>Invite Error</h3>
-        <p style={{ fontSize:13, color:'#6b7280', lineHeight:1.6 }}>{error}</p>
+        <h3 style={{fontSize:17,fontWeight:700,color:'#111827',marginBottom:8}}>Invite Error</h3>
+        <p style={{fontSize:13,color:'#6b7280',lineHeight:1.6}}>{error}</p>
       </div>
     </div>
   );
 
-  if (step === 'success') return (
-    <div style={{ minHeight:'100svh', background:'#f0f4f8', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-      <div style={{ background:'#fff', borderRadius:20, padding:'40px 32px', maxWidth:400, width:'100%', textAlign:'center', border:`1px solid ${TL}`, boxShadow:'0 8px 32px rgba(0,0,0,0.08)' }}>
-        <div style={{ width:56, height:56, borderRadius:'50%', background:'#f0fdf4', border:'1px solid #bbf7d0', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
-          <CheckCircle2 size={24} style={{ color:'#10b981' }} />
+  // ── Success ──
+  if(step==='success') return (
+    <div style={{minHeight:'100svh',background:'linear-gradient(135deg,#e0f2fe,#f0fdfa,#ecfdf5)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+      <div style={{background:'#fff',borderRadius:20,padding:'48px 36px',maxWidth:440,width:'100%',textAlign:'center',border:`1px solid ${TL}`,boxShadow:'0 20px 60px rgba(0,0,0,0.10)'}}>
+        <div style={{width:72,height:72,borderRadius:'50%',background:'linear-gradient(135deg,#14b8a6,#06b6d4)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 20px',boxShadow:'0 8px 24px rgba(20,184,166,0.35)'}}>
+          <CheckCircle2 size={32} style={{color:'#fff'}}/>
         </div>
-        <h3 style={{ fontSize:17, fontWeight:700, color:'#111827', marginBottom:8 }}>Welcome to the team! 🎉</h3>
-        <p style={{ fontSize:13, color:'#6b7280', lineHeight:1.6 }}>Your details have been saved successfully. You can now close this page.</p>
+        <h3 style={{fontSize:22,fontWeight:800,color:'#111827',marginBottom:10}}>Welcome to the team! 🎉</h3>
+        <p style={{fontSize:14,color:'#6b7280',lineHeight:1.7}}>Your profile has been saved successfully. You can now close this page.</p>
       </div>
     </div>
   );
 
-  const iMI    = 'w-full px-4 py-3 rounded-xl text-sm text-gray-800 bg-white placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition-all';
-  const iMIopt = 'w-full px-4 py-3 rounded-xl text-sm text-gray-800 bg-gray-50 placeholder-gray-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/10 focus:outline-none transition-all';
-  const ch = (f, v) => setFormData(p => ({ ...p, [f]: v }));
-  const inp    = (f, t='text', ph='') => <input type={t} value={formData[f]||''} onChange={e=>ch(f,e.target.value)} placeholder={ph} className={iMIopt} style={{border:`1px solid ${TL}`}}/>;
-  const inpReq = (f, t='text', ph='') => <input type={t} value={formData[f]||''} onChange={e=>ch(f,e.target.value)} placeholder={ph} className={iMI}    style={{border:`1px solid ${TL}`}}/>;
-  const sel    = (f, opts, req=false) => <select value={formData[f]||opts[0]} onChange={e=>ch(f,e.target.value)} className={req?iMI:iMIopt} style={{border:`1px solid ${TL}`}}>{opts.map(o=><option key={o}>{o}</option>)}</select>;
+  // ── Shared input styles ──
+  const iBase = {width:'100%',padding:'12px 16px',borderRadius:12,fontSize:14,color:'#1f2937',outline:'none',transition:'all 0.2s',boxSizing:'border-box'};
+  const iReq  = {...iBase,background:'#fff'};
+  const iOpt  = {...iBase,background:'#f9fafb'};
 
-  const INVITE_TABS = [
-    { key:'basic',     label:'Basic',     icon:'' },
-    { key:'personal',  label:'Personal',  icon:'' },
-    { key:'work',      label:'Work',      icon:'' },
-    { key:'bank',      label:'Bank',      icon:'' },
-    { key:'documents', label:'Documents', icon:'' },
-    { key:'media',     label:'Media',     icon:'' },
-  ];
+  const inp  = (f,t='text',ph='') => (
+    <input type={t} value={formData[f]||''} onChange={e=>ch(f,e.target.value)} placeholder={ph}
+      style={{...iOpt, border:`1px solid ${errors[f]?'#f87171':TL}`}}/>
+  );
+  const inpR = (f,t='text',ph='') => (
+    <input type={t} value={formData[f]||''} onChange={e=>ch(f,e.target.value)} placeholder={ph}
+      style={{...iReq, border:`1px solid ${errors[f]?'#f87171':TL}`}}/>
+  );
+  const sel  = (f,opts) => (
+    <select value={formData[f]||opts[0]} onChange={e=>ch(f,e.target.value)}
+      style={{...iOpt, border:`1px solid ${TL}`, appearance:'none', cursor:'pointer'}}>
+      {opts.map(o=><option key={o}>{o}</option>)}
+    </select>
+  );
 
-  const tabIdx = INVITE_TABS.findIndex(t => t.key === activeTab);
-  const progress = Math.round(((tabIdx + 1) / INVITE_TABS.length) * 100);
+  const IField = ({label, required, error, children}) => (
+    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+      <label style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:required?'#374151':'#9ca3af'}}>
+        {label}
+        {required  && <span style={{color:'#f87171',marginLeft:2}}>*</span>}
+        {!required && <span style={{fontSize:10,fontWeight:400,textTransform:'none',letterSpacing:'normal',color:'#d1d5db',marginLeft:6}}>(optional)</span>}
+      </label>
+      {children}
+      {error && <p style={{fontSize:11,color:'#ef4444',margin:0}}>{error}</p>}
+    </div>
+  );
+
+  const IRow2 = ({children}) => (
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:16}}>
+      {children}
+    </div>
+  );
+
+  // ── Collapsible Section ──
+  const ISection = ({skey, title, subtitle, icon, children}) => {
+    const open = openSections[skey];
+    return (
+      <div style={{background:'#fff',borderRadius:16,border:`1px solid ${TL}`,overflow:'hidden'}}>
+        <button type="button" onClick={()=>toggleSection(skey)}
+          style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'20px 24px',background:'transparent',border:'none',cursor:'pointer',textAlign:'left'}}
+          onMouseEnter={e=>e.currentTarget.style.background='#f9fafb'}
+          onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <div style={{width:40,height:40,borderRadius:12,background:'linear-gradient(135deg,#14b8a6,#06b6d4)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',flexShrink:0}}>
+              {icon}
+            </div>
+            <div>
+              <p style={{fontSize:14,fontWeight:700,color:'#111827',margin:0}}>{title}</p>
+              {subtitle&&<p style={{fontSize:12,color:'#9ca3af',margin:'3px 0 0'}}>{subtitle}</p>}
+            </div>
+          </div>
+          <div style={{color:'#9ca3af',flexShrink:0}}>
+            {open ? <ChevronUp size={18}/> : <ChevronDown size={18}/>}
+          </div>
+        </button>
+        {open && (
+          <div style={{padding:'0 24px 28px',borderTop:`1px solid ${TL}`}}>
+            <div style={{display:'flex',flexDirection:'column',gap:20,paddingTop:24}}>
+              {children}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── Image upload box ──
+  const ImgBox = ({label, sublabel, icon, file, onUpload, onRemove}) => {
+    const inputRef = useRef(null);
+    const [preview, setPreview] = useState(null);
+    const [lb, setLb] = useState(false);
+    useEffect(()=>{
+      if(!file){setPreview(null);return;}
+      if(file instanceof File){const url=URL.createObjectURL(file);setPreview(url);return()=>URL.revokeObjectURL(url);}
+    },[file]);
+    return (
+      <>
+        {lb&&preview&&<Lightbox src={preview} name={label} onClose={()=>setLb(false)}/>}
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'#6b7280',margin:0}}>{label}</p>
+          {!file ? (
+            <div onClick={()=>inputRef.current?.click()}
+              style={{border:'2px dashed #e5e7eb',borderRadius:12,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,padding:'28px 16px',transition:'all 0.2s'}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor='#14b8a6';e.currentTarget.style.background='rgba(20,184,166,0.04)';}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='#e5e7eb';e.currentTarget.style.background='transparent';}}>
+              <div style={{width:44,height:44,borderRadius:12,background:'#f3f4f6',display:'flex',alignItems:'center',justifyContent:'center'}}>{icon}</div>
+              <div style={{textAlign:'center'}}>
+                <p style={{fontSize:12,fontWeight:600,color:'#6b7280',margin:0}}>{sublabel}</p>
+                <p style={{fontSize:11,color:'#d1d5db',margin:'4px 0 0'}}>Click to browse</p>
+              </div>
+              <input ref={inputRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files[0])onUpload(e.target.files[0]);e.target.value='';}}/>
+            </div>
+          ) : (
+            <div style={{position:'relative',borderRadius:12,overflow:'hidden',border:'2px solid #14b8a6',aspectRatio:'16/9'}}
+              className="group">
+              {preview
+                ? <img src={preview} alt={label} style={{width:'100%',height:'100%',objectFit:'cover',cursor:'pointer'}} onClick={()=>setLb(true)}/>
+                : <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8,background:'rgba(20,184,166,0.05)'}}>
+                    <CheckCircle2 size={20} color="#14b8a6"/>
+                    <p style={{fontSize:11,fontWeight:600,color:'#14b8a6',textAlign:'center',padding:'0 8px'}}>{file.name}</p>
+                  </div>
+              }
+              <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.4)',opacity:0,transition:'opacity 0.2s',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}
+                onMouseEnter={e=>e.currentTarget.style.opacity='1'}
+                onMouseLeave={e=>e.currentTarget.style.opacity='0'}>
+                {preview&&<button type="button" onClick={()=>setLb(true)} style={{width:36,height:36,borderRadius:8,background:'rgba(255,255,255,0.2)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff'}}><Eye size={15}/></button>}
+                <button type="button" onClick={onRemove} style={{width:36,height:36,borderRadius:8,background:'rgba(239,68,68,0.8)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff'}}><Trash2 size={15}/></button>
+              </div>
+              <span style={{position:'absolute',top:8,left:8,fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#14b8a6',color:'#fff'}}>✓</span>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
+
+  const ic = {color:'#fff'};
 
   return (
-    <div style={{ minHeight:'100svh', background:'linear-gradient(135deg, #e0f2fe 0%, #f0fdfa 50%, #ecfdf5 100%)', display:'flex', flexDirection:'column' }}>
+    <div style={{minHeight:'100svh',background:'linear-gradient(135deg,#e0f2fe 0%,#f0fdfa 50%,#ecfdf5 100%)'}}>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .invite-tab-btn { transition: all 0.2s ease; }
-        .invite-tab-btn:hover { background: rgba(20,184,166,0.06); }
-        .invite-scroll::-webkit-scrollbar { width: 4px; }
-        .invite-scroll::-webkit-scrollbar-thumb { background: rgba(20,184,166,0.3); border-radius: 99px; }
-
-        @media (max-width: 640px) {
-          .invite-outer  { align-items: flex-start !important; padding: 0 !important; min-height: 100svh !important; }
-          .invite-card   { border-radius: 0 !important; width: 100% !important; max-width: 100% !important; min-height: 100svh !important; box-shadow: none !important; }
-          .invite-header { padding: 12px 16px 10px !important; }
-          .invite-tabs button { min-width: 52px !important; padding: 6px 2px 5px !important; }
-          .invite-tabs span.tab-label { font-size: 9px !important; }
-          .invite-form   { padding: 12px 16px !important; }
-          .invite-footer { padding: 8px 16px 20px !important; }
-          .invite-form .form-gap { gap: 12px !important; }
-          .invite-form .grid-2  { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
-        }
-
-        @media (min-width: 641px) {
-          .invite-outer  { align-items: center !important; padding: 24px 16px !important; }
-          .invite-card   { height: calc(100svh - 48px) !important; max-height: 700px !important; }
-          .invite-form   { flex: 1 !important; min-height: 0 !important; overflow-y: auto !important; }
-        }
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @media(max-width:640px){.invite-grid-2{grid-template-columns:1fr!important}.invite-grid-3{grid-template-columns:1fr 1fr!important}}
+        @media(max-width:400px){.invite-grid-3{grid-template-columns:1fr!important}}
       `}</style>
 
-      <div className="invite-outer" style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 16px', boxSizing:'border-box', minHeight:'100svh' }}>
-        <div className="invite-card" style={{
-          background: '#ffffff',
-          borderRadius: 12,
-          width: '100%',
-          maxWidth: 1000,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.10), 0 4px 16px rgba(0,0,0,0.06)',
-          border: `1px solid rgba(20,184,166,0.15)`,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}>
+      {/* ── Header ── */}
+      <div style={{background:'linear-gradient(135deg,#0f766e,#0891b2)',padding:'20px 5%',position:'sticky',top:0,zIndex:10,boxShadow:'0 4px 20px rgba(0,0,0,0.15)'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:16}}>
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <div style={{width:40,height:40,borderRadius:12,background:'rgba(255,255,255,0.18)',display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid rgba(255,255,255,0.25)',flexShrink:0}}>
+              <CheckCircle2 size={20} style={{color:'#fff'}}/>
+            </div>
+            <div>
+              <h1 style={{fontSize:16,fontWeight:800,color:'#fff',margin:0,letterSpacing:'-0.02em'}}>Complete Your Profile</h1>
+              <p style={{fontSize:11,color:'rgba(255,255,255,0.7)',margin:'2px 0 0'}}>You've been invited to join the team</p>
+            </div>
+          </div>
+          <button onClick={handleSubmit} disabled={submitting}
+            style={{padding:'10px 22px',borderRadius:12,background:'rgba(255,255,255,0.2)',border:'1px solid rgba(255,255,255,0.35)',cursor:'pointer',fontSize:13,fontWeight:700,color:'#fff',backdropFilter:'blur(4px)',transition:'all 0.2s',opacity:submitting?0.6:1,whiteSpace:'nowrap',flexShrink:0}}
+            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.3)'}
+            onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.2)'}>
+            {submitting?'Saving...':'✓ Submit & Join'}
+          </button>
+        </div>
+      </div>
 
-          <div className="invite-header" style={{ background:'linear-gradient(135deg, #0f766e 0%, #0891b2 100%)', padding:'14px 28px 12px', flexShrink:0, position:'relative', overflow:'hidden' }}>
-            <div style={{ position:'absolute', top:-30, right:-30, width:120, height:120, borderRadius:'50%', background:'rgba(255,255,255,0.06)' }} />
-            <div style={{ position:'absolute', bottom:-20, right:60, width:80, height:80, borderRadius:'50%', background:'rgba(255,255,255,0.04)' }} />
+      {/* ── Body ── */}
+      <div style={{padding:'28px 5% 60px'}}>
 
-            <div style={{ display:'flex', alignItems:'center', gap:16, position:'relative' }}>
-              <div style={{ width:38, height:38, borderRadius:12, background:'rgba(255,255,255,0.18)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:'1px solid rgba(255,255,255,0.25)' }}>
-                <CheckCircle2 size={18} style={{ color:'#fff' }} />
-              </div>
-              <div>
-                <h1 style={{ fontSize:16, fontWeight:800, color:'#fff', margin:0, lineHeight:1.2, letterSpacing:'-0.02em' }}>Complete Your Profile</h1>
-                <p style={{ fontSize:11, color:'rgba(255,255,255,0.75)', margin:'2px 0 0', fontWeight:400 }}>You've been invited to join the team</p>
+        {/* Error banner */}
+        {Object.keys(errors).length>0 && (
+          <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 18px',borderRadius:12,background:'#fef2f2',border:'1px solid #fecaca',marginBottom:20}}>
+            <span style={{fontSize:13,fontWeight:600,color:'#ef4444'}}> Please fill required fields highlighted below</span>
+          </div>
+        )}
+
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+
+          {/* 1 Basic */}
+          <ISection skey="basic" title="Basic Information" subtitle="Required — your name, role and contact" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={ic}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}>
+            <IField label="Full Name" required error={errors.name}>{inpR('name','text','e.g. Ali Hassan')}</IField>
+            <IRow2>
+              <IField label="Role" required>{sel('role',ROLES)}</IField>
+              <IField label="Status" required>{sel('status',['Active','Away','Inactive'])}</IField>
+            </IRow2>
+            <IField label="Email Address" required error={errors.email}>{inpR('email','email','ali@company.com')}</IField>
+            <IField label="Phone Number" required error={errors.phone}>{inpR('phone','tel','+92 300 0000000')}</IField>
+          </ISection>
+
+          {/* 2 Personal */}
+          <ISection skey="personal" title="Personal Details" subtitle="Address, DOB, CNIC and emergency contact" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={ic}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}>
+            <IField label="Home Address">{inp('address','text','Street, City, Province')}</IField>
+            <IRow2>
+              <IField label="Date of Birth">{inp('dob','date')}</IField>
+              <IField label="CNIC Number">{inp('cnic','text','00000-0000000-0')}</IField>
+            </IRow2>
+            <IField label="Emergency Contact">{inp('emergencyContact','text','Name – +92 300 0000000')}</IField>
+          </ISection>
+
+          {/* 3 Work */}
+          <ISection skey="work" title="Work Information" subtitle="Department, salary, joining date and more" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={ic}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>}>
+            <IRow2>
+              <IField label="Department">{inp('department','text','e.g. Engineering')}</IField>
+              <IField label="Experience">{inp('experience','text','e.g. 2 years')}</IField>
+            </IRow2>
+            <IRow2>
+              <IField label="Joining Date">{inp('joiningDate','date')}</IField>
+              <IField label="Employment Type">{sel('employmentType',EMPLOYMENT_TYPES)}</IField>
+            </IRow2>
+            <IRow2>
+              <IField label="Work Location">{inp('workLocation','text','Office / Remote')}</IField>
+              <IField label="Manager">{inp('manager','text','Manager name')}</IField>
+            </IRow2>
+            <IField label="Monthly Salary (PKR)">{inp('salary','number','0')}</IField>
+          </ISection>
+
+          {/* 4 Bank */}
+          <ISection skey="bank" title="Bank Details" subtitle="Payment method and account information" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={ic}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>}>
+            <IRow2>
+              <IField label="Bank Name">{inp('bankName','text','e.g. HBL, MCB')}</IField>
+              <IField label="Payment Method">{sel('paymentMethod',PAYMENT_METHODS)}</IField>
+            </IRow2>
+            <IField label="Account Holder Name">{inp('accountTitle','text','Full name on account')}</IField>
+            <IField label="Account Number">{inp('accountNumber','text','0000000000000000')}</IField>
+            <IField label="IBAN">{inp('iban','text','PK00XXXX0000000000000000')}</IField>
+          </ISection>
+
+          {/* 5 Files */}
+          <ISection skey="files" title="Identity, Documents & Media" subtitle="Profile photo, CNIC, documents and media files" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={ic}><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="16" x2="12" y2="16"/></svg>}>
+
+            {/* Identity photos */}
+            <div>
+              <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'#6b7280',margin:'0 0 14px'}}>Profile &amp; Identity Photos</p>
+              <div className="invite-grid-3" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
+                <ImgBox label="Profile Photo"  sublabel="Upload profile photo"  icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>} file={profilePhoto} onUpload={f=>setProfilePhoto(f)} onRemove={()=>setProfilePhoto(null)}/>
+                <ImgBox label="CNIC Front"     sublabel="Front side of CNIC"    icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>} file={cnicFront} onUpload={f=>setCnicFront(f)} onRemove={()=>setCnicFront(null)}/>
+                <ImgBox label="CNIC Back"      sublabel="Back side of CNIC"     icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>} file={cnicBack}  onUpload={f=>setCnicBack(f)}  onRemove={()=>setCnicBack(null)}/>
               </div>
             </div>
 
-            <div style={{ marginTop:10, position:'relative' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                <span style={{ fontSize:11, color:'rgba(255,255,255,0.65)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em' }}>Profile Completion</span>
-                <span style={{ fontSize:12, color:'rgba(255,255,255,0.9)', fontWeight:700 }}>{progress}%</span>
-              </div>
-              <div style={{ height:4, background:'rgba(255,255,255,0.2)', borderRadius:99, overflow:'hidden' }}>
-                <div style={{ height:'100%', width:`${progress}%`, background:'rgba(255,255,255,0.85)', borderRadius:99, transition:'width 0.4s ease' }} />
-              </div>
-            </div>
-          </div>
+            <div style={{height:1,background:'rgba(51,51,51,0.08)'}}/>
 
-          <div className="invite-tabs" style={{ display:'flex', borderBottom:`1px solid ${TL}`, flexShrink:0, overflowX:'auto', scrollbarWidth:'none', background:'#fafafa' }}>
-            {INVITE_TABS.map((tab, i) => {
-              const isActive = activeTab === tab.key;
-              const isPast   = i < tabIdx;
-              return (
-                <button key={tab.key}
-                  className="invite-tab-btn"
-                  onClick={() => setActiveTab(tab.key)}
-                  style={{
-                    flex:1, padding:'10px 4px 8px', border:'none', cursor:'pointer',
-                    borderBottom: isActive ? '2px solid #0d9488' : '2px solid transparent',
-                    background: isActive ? '#fff' : 'transparent',
-                    display:'flex', flexDirection:'column', alignItems:'center', gap:3,
-                    minWidth:72, position:'relative',
-                  }}>
-                  <span style={{ fontSize:12 }}>{tab.icon}</span>
-                  <span className="tab-label" style={{ fontSize:10, fontWeight:700, letterSpacing:'0.04em', textTransform:'uppercase', color: isActive ? '#0d9488' : isPast ? '#94a3b8' : '#9ca3af', whiteSpace:'nowrap' }}>
-                    {tab.label}
-                  </span>
-                  {isPast && (
-                    <span style={{ position:'absolute', top:6, right:8, width:14, height:14, borderRadius:'50%', background:'#10b981', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                      <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2L7 1" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="invite-scroll invite-form" style={{ flex:1, padding:'20px 28px' }}>
-
-            {activeTab === 'basic' && (
-              <div className="form-gap" style={{ display:'flex', flexDirection:'column', gap:20 }}>
-                <div>
-                  <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>Basic Information</p>
-                </div>
-                <Field label="Full Name" required>{inpReq('name','text','e.g. Ali Hassan')}</Field>
-                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                  <Field label="Role" required>{sel('role',ROLES,true)}</Field>
-                  <Field label="Status" required>{sel('status',['Active','Away','Inactive'],true)}</Field>
-                </div>
-                <Field label="Email" required>{inpReq('email','email','ali@company.com')}</Field>
-                <Field label="Phone" required>{inpReq('phone','tel','+92 300 0000000')}</Field>
-              </div>
-            )}
-
-            {activeTab === 'personal' && (
-              <div className="form-gap" style={{ display:'flex', flexDirection:'column', gap:20 }}>
-                <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Personal Details <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
-                <Field label="Home Address">{inp('address','text','Street, City, Province')}</Field>
-                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                  <Field label="Date of Birth">{inp('dob','date')}</Field>
-                  <Field label="CNIC">{inp('cnic','text','00000-0000000-0')}</Field>
-                </div>
-                <Field label="Emergency Contact">{inp('emergencyContact','text','Name - +92 300 0000000')}</Field>
-              </div>
-            )}
-
-            {activeTab === 'work' && (
-              <div className="form-gap" style={{ display:'flex', flexDirection:'column', gap:20 }}>
-                <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Work Information <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
-                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                  <Field label="Department">{inp('department','text','e.g. Engineering')}</Field>
-                  <Field label="Experience">{inp('experience','text','e.g. 2 years')}</Field>
-                </div>
-                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                  <Field label="Joining Date">{inp('joiningDate','date')}</Field>
-                  <Field label="Employment Type">{sel('employmentType',EMPLOYMENT_TYPES)}</Field>
-                </div>
-                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                  <Field label="Work Location">{inp('workLocation','text','Office / Remote')}</Field>
-                  <Field label="Manager">{inp('manager','text','Manager name')}</Field>
-                </div>
-                <Field label="Monthly Salary (PKR)">{inp('salary','number','0')}</Field>
-              </div>
-            )}
-
-            {activeTab === 'bank' && (
-              <div className="form-gap" style={{ display:'flex', flexDirection:'column', gap:20 }}>
-                <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Bank Details <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
-                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                  <Field label="Bank Name">{inp('bankName','text','e.g. HBL, MCB')}</Field>
-                  <Field label="Payment Method">{sel('paymentMethod',PAYMENT_METHODS)}</Field>
-                </div>
-                <Field label="Account Holder Name">{inp('accountTitle','text','Full name on account')}</Field>
-                <Field label="Account Number">{inp('accountNumber','text','0000000000000000')}</Field>
-                <Field label="IBAN">{inp('iban','text','PK00XXXX0000000000000000')}</Field>
-              </div>
-            )}
-
-            {activeTab === 'documents' && (
-              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-                <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Documents <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
-                <InviteDocsTab
-                  docs={inviteDocs}
-                  onAdd={f => setInviteDocs(p => [...p, f])}
-                  onRemove={i => setInviteDocs(p => p.filter((_,idx) => idx !== i))}
-                />
-              </div>
-            )}
-
-            {activeTab === 'media' && (
-              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-                <p style={{ fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Media Files <span style={{ color:'#cbd5e1', fontWeight:400, fontSize:10, textTransform:'none', letterSpacing:'normal' }}>(optional)</span></p>
-                <InviteMediaTab
-                  media={inviteMedia}
-                  onAdd={f => setInviteMedia(p => [...p, f])}
-                  onRemove={i => setInviteMedia(p => p.filter((_,idx) => idx !== i))}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="invite-footer" style={{ flexShrink:0, padding:'10px 28px 12px', borderTop:`1px solid ${TL}`, background:'#fafafa' }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-              {tabIdx > 0 ? (
-                <button type="button" onClick={() => setActiveTab(INVITE_TABS[tabIdx - 1].key)}
-                  style={{ padding:'8px 18px', borderRadius:12, border:`1px solid ${TL}`, background:'#fff', fontSize:12, fontWeight:600, color:'#6b7280', cursor:'pointer', flexShrink:0, transition:'all 0.2s' }}>
-                  ← Prev
-                </button>
-              ) : <div style={{ width:70, flexShrink:0 }} />}
-
-              {tabIdx < INVITE_TABS.length - 1 ? (
-                <button type="button" onClick={() => setActiveTab(INVITE_TABS[tabIdx + 1].key)}
-                  style={{ padding:'8px 18px', borderRadius:12, border:'1px solid rgba(13,148,136,0.3)', background:'rgba(240,253,250,0.8)', fontSize:12, fontWeight:700, color:'#0d9488', cursor:'pointer', flexShrink:0, transition:'all 0.2s' }}>
-                  Next →
-                </button>
-              ) : <div style={{ width:70, flexShrink:0 }} />}
+            {/* Documents */}
+            <div>
+              <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'#6b7280',margin:'0 0 14px'}}>Documents</p>
+              <InviteDocsTab docs={documents} onAdd={f=>setDocuments(p=>[...p,f])} onRemove={i=>setDocuments(p=>p.filter((_,idx)=>idx!==i))}/>
             </div>
 
-            <button onClick={handleSubmit}
-              style={{
-                width:'100%', padding:'10px', borderRadius:12, border:'none', cursor:'pointer',
-                background:'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)',
-                color:'#fff', fontSize:14, fontWeight:700, letterSpacing:'0.01em',
-                boxShadow:'0 4px 16px rgba(13,148,136,0.35)',
-                transition:'all 0.2s', display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-              }}
-              onMouseEnter={e => e.currentTarget.style.boxShadow = '0 6px 20px rgba(13,148,136,0.5)'}
-              onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(13,148,136,0.35)'}>
-              <CheckCircle2 size={16} />
-              Submit & Join Team
-            </button>
-          </div>
+            <div style={{height:1,background:'rgba(51,51,51,0.08)'}}/>
+
+            {/* Other Media */}
+            <div>
+              <p style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'#6b7280',margin:'0 0 14px'}}>Other Media</p>
+              <InviteMediaTab media={media} onAdd={f=>setMedia(p=>[...p,f])} onRemove={i=>setMedia(p=>p.filter((_,idx)=>idx!==i))}/>
+            </div>
+
+          </ISection>
+
+          {/* Submit button bottom */}
+          <button onClick={handleSubmit} disabled={submitting}
+            style={{width:'100%',padding:'16px',borderRadius:14,background:'linear-gradient(135deg,#14b8a6,#06b6d4)',border:'none',cursor:'pointer',fontSize:15,fontWeight:800,color:'#fff',boxShadow:'0 6px 20px rgba(20,184,166,0.4)',opacity:submitting?0.6:1,transition:'all 0.2s',display:'flex',alignItems:'center',justifyContent:'center',gap:10}}
+            onMouseEnter={e=>!submitting&&(e.currentTarget.style.boxShadow='0 8px 28px rgba(20,184,166,0.55)')}
+            onMouseLeave={e=>e.currentTarget.style.boxShadow='0 6px 20px rgba(20,184,166,0.4)'}>
+            <CheckCircle2 size={18}/>
+            {submitting?'Saving your profile...':'✓ Submit & Join Team'}
+          </button>
+
         </div>
       </div>
     </div>

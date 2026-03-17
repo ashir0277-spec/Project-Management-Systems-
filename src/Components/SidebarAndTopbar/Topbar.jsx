@@ -1,35 +1,48 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Plus, Menu } from 'lucide-react';
+import { Plus, Menu, Link2 } from 'lucide-react';
 
-const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNewPayout, searchValue, onSearchChange }) => {
+const TopBar = ({
+  onToggleSidebar,
+  onNewClient,
+  onNewProject,
+  onNewMember,
+  onNewPayout,
+  onNewExpense,
+  onGenerateInvite,
+  searchValue,
+  onSearchChange,
+}) => {
   const location = useLocation();
 
-  // Page Detection
-  const isTeamMembers = location.pathname.includes('team');
+  const isAddMember   = location.pathname.includes('/add');
+  const isTeamMembers = location.pathname.includes('team') && !isAddMember;
   const isClients     = location.pathname.includes('clients');
   const isProjects    = location.pathname.includes('projects');
   const isPayout      = location.pathname.includes('payout');
   const isSettings    = location.pathname.includes('settings');
   const isUserRecord  = location.pathname.includes('userrecord') || location.pathname.includes('users');
-  const isDashboard   = !isTeamMembers && !isClients && !isProjects && !isPayout && !isSettings && !isUserRecord;
+  const isFinance     = location.pathname.includes('finance');
+  const isDashboard   = !isTeamMembers && !isAddMember && !isClients && !isProjects && !isPayout && !isSettings && !isUserRecord && !isFinance;
 
-  // Page Title
   const pageTitle =
-    isUserRecord  ? 'User Records'  :
-    isTeamMembers ? 'Team Members'  :
-    isClients     ? 'Clients'       :
-    isProjects    ? 'Projects'      :
-    isPayout      ? 'Payout'        :
-    isSettings    ? 'Settings'      : 'Dashboard';
+    isAddMember   ? 'Team Members'       :
+    isUserRecord  ? 'User Records'       :
+    isTeamMembers ? 'Team Members'       :
+    isClients     ? 'Clients'            :
+    isProjects    ? 'Projects'           :
+    isPayout      ? 'Payout'             :
+    isFinance     ? 'Finance & Expenses' :
+    isSettings    ? 'Settings'           : 'Dashboard';
 
-  // Page Subtitle
   const pageSubtitle =
-    isUserRecord  ? 'Manage Your team members'                          :
+    isAddMember   ? 'View, add and manage your team members'            :
+    isUserRecord  ? 'Manage your team members'                          :
     isTeamMembers ? 'View, add and manage your team members'            :
     isClients     ? 'Manage your client relationships and documents'    :
     isProjects    ? 'Track and manage all your projects'                :
     isPayout      ? 'Manage payouts and transactions'                   :
+    isFinance     ? 'Track salaries, bills & company expenses'          :
     isSettings    ? 'Configure your workspace settings'                 :
     "Welcome back! Here's what's happening with your projects today.";
 
@@ -53,7 +66,7 @@ const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNew
           </div>
 
           {/* Right — Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
 
             {isProjects && (
               <button onClick={onNewProject}
@@ -69,11 +82,20 @@ const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNew
               </button>
             )}
 
+            {/* Team Members page ONLY — Generate Link + Add Member */}
             {isTeamMembers && (
-              <button onClick={onNewMember}
-                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 text-white font-semibold rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 transition-all shadow-lg text-xs sm:text-sm whitespace-nowrap">
-                <Plus size={15} /><span>Add Member</span>
-              </button>
+              <>
+                <button onClick={onGenerateInvite}
+                  className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 font-semibold rounded-lg border border-teal-400 text-teal-600 bg-teal-50 hover:bg-teal-100 transition-all text-xs sm:text-sm whitespace-nowrap">
+                  <Link2 size={14} />
+                  <span className="hidden sm:inline">Generate Link</span>
+                  <span className="sm:hidden">Link</span>
+                </button>
+                <button onClick={onNewMember}
+                  className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 text-white font-semibold rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 transition-all shadow-lg text-xs sm:text-sm whitespace-nowrap">
+                  <Plus size={15} /><span>Add Member</span>
+                </button>
+              </>
             )}
 
             {isPayout && (
@@ -83,7 +105,14 @@ const TopBar = ({ onToggleSidebar, onNewClient, onNewProject, onNewMember, onNew
               </button>
             )}
 
-            {/* Search Bar */}
+            {isFinance && (
+              <button onClick={onNewExpense}
+                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 text-white font-semibold rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 transition-all shadow-lg text-xs sm:text-sm whitespace-nowrap">
+                <Plus size={15} /><span>Add Expense</span>
+              </button>
+            )}
+
+            {/* Search Bar — Dashboard only */}
             {isDashboard && (
               <div className="relative">
                 <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[16px] h-[16px] text-[#475569]"

@@ -31,9 +31,8 @@ const INIT_COLS = [
   { key: 'phone',    label: 'Phone',       width: 130, align: 'left',   editable: true, field: 'phone' },
   { key: 'email',    label: 'Email',       width: 185, align: 'left',   editable: true, field: 'email' },
   { key: 'industry', label: 'Industry',    width: 125, align: 'left',   editable: true, field: 'industry' },
-  { key: 'revenue',  label: 'Revenue',     width: 100, align: 'right',  editable: true, field: 'revenue' },
-
-  { key: 'actions',  label: 'Actions',     width: 130, fixed: true, align: 'center' },
+  { key: 'revenue',  label: 'Revenue',     width: 100, align: 'left',  editable: true, field: 'revenue' },
+  { key: 'actions',  label: 'Actions',     width: 130, fixed: true, align: 'left' },
 ];
 
 const INDUSTRIES = ['Technology','Consulting','Marketing','Design','Finance','Healthcare','Education','Real Estate','Manufacturing','Retail'];

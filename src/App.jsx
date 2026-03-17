@@ -16,6 +16,9 @@ import UsersRecord from "./Components/ProjectManager/UsersRecord";
 import UserDetails from "./Components/ProjectManager/UserDetails";
 import { InvitePage } from './Components/ProjectManager/TeamMembers/TeamMembers';
 import AddMemberPage from "./Components/ProjectManager/TeamMembers/AddMemberPage";
+import Attendance from "./Components/Pages/Attendance";
+import AttendancePublic from "./Components/Pages/AttendancePublic";
+import Finance from "./Components/ProjectManager/Finance";
 
 function App() {
   return (
@@ -23,6 +26,7 @@ function App() {
       <ToastContainer />
       <BrowserRouter>
         <Routes>
+          
           <Route path="/"               element={<LoginPage />} />
           <Route path="/forgotpassword" element={<ForgotPassword />} />
            <Route path="/invite/:token" element={<InvitePage />} />
@@ -35,7 +39,10 @@ function App() {
             <Route path="/payout"              element={<Payout />} />
             <Route path="/userrecord"          element={<UsersRecord />} />
             <Route path="/userrecord/:id"  element={<UserDetails />} />
-            <Route path="/userdetails/:id"     element={<UserDetails />} /> 
+            <Route path="/userdetails/:id"     element={<UserDetails />} />
+            <Route path="/mark-attendance/:linkId" element={<AttendancePublic />} />
+            <Route path="/attendance" element={<Attendance />} />
+            <Route path="/finance" element={<Finance />} /> 
             <Route path="/settings"            element={<Settings />} />
           </Route>
         </Routes>

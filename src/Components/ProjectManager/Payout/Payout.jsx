@@ -47,16 +47,16 @@ const recalcPaid = async (clientId, milestones) => {
 // ─── Column definitions ───────────────────────────────────────────────────────
 const INIT_COLS = [
   { key: 'idx',         label: '#',            width: 48,  align: 'center', fixed: true   },
-  { key: 'project',     label: 'Project',      width: 160, align: 'left',   field: 'project' },
-  { key: 'name',        label: 'Client Name',  width: 180, align: 'left',   field: 'name' },
+  { key: 'project',     label: 'Project',      width: 160, align: 'center',   field: 'project' },
+  { key: 'name',        label: 'Client Name',  width: 180, align: 'center',   field: 'name' },
   { key: 'dueDate',     label: 'Due Date',     width: 110, align: 'center', field: 'dueDate' },
   { key: 'status',      label: 'Status',       width: 110, align: 'center', field: 'status' },
-  { key: 'totalBudget', label: 'Total Budget', width: 120, align: 'right',  field: 'totalBudget' },
-  { key: 'paidAmount',  label: 'Paid',         width: 100, align: 'right',  field: 'paidAmount' },
-  { key: 'remaining',   label: 'Remaining',    width: 110, align: 'right'  },
+  { key: 'totalBudget', label: 'Total Budget', width: 120, align: 'center',  field: 'totalBudget' },
+  { key: 'paidAmount',  label: 'Paid',         width: 100, align: 'center',  field: 'paidAmount' },
+  { key: 'remaining',   label: 'Remaining',    width: 110, align: 'center'  },
   { key: 'progress',    label: 'Progress',     width: 170, align: 'center' },
   { key: 'eye',         label: '',             width: 48,  align: 'center', fixed: true   },
-  { key: 'menu',        label: '',             width: 48,  align: 'center', fixed: true   },
+  { key: 'menu',        label: '',             width: 48,  align: 'right', fixed: true   },
 ];
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -404,7 +404,7 @@ export default function PayoutDashboard() {
     const progress  = pct(client.paidAmount, client.totalBudget);
     const cfg       = statusCfg[client.status] || statusCfg.Active;
 
-    const justifyMap = { center: 'center', right: 'flex-end', left: 'flex-start' };
+    const justifyMap = { center: 'center', right: 'flex-center', left: 'flex-start' };
     const justify    = justifyMap[col.align] || 'flex-start';
 
     // Single consistent wrapper for all cells
@@ -546,7 +546,7 @@ export default function PayoutDashboard() {
               setMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
               setOpenMenuId(client.id);
             }}
-            className={`w-7 h-7 rounded-lg flex flex-col items-center justify-center gap-[3px] transition-all ${openMenuId === client.id ? 'bg-[#EEF2F7]' : 'hover:bg-[#EEF2F7]'}`}>
+            className={`w-7 h-7 rounded-lg flex flex-col  justify-center gap-[3px] transition-all ${openMenuId === client.id ? 'bg-[#EEF2F7]' : 'hover:bg-[#EEF2F7]'}`}>
             {[0,1,2].map(i => (
               <span key={i} className={`w-1 h-1 rounded-full block ${openMenuId === client.id ? 'bg-gray-600' : 'bg-gray-300'}`} />
             ))}
