@@ -357,9 +357,9 @@ const UserDetails = () => {
             badge={<span className="text-xs text-gray-400">{media.length} files</span>}>
             {media.length === 0 && !member.profileImage ? (
               <div className="text-center py-12">
-                <div className="text-4xl mb-3">🖼️</div>
+                <div className="text-4xl mb-3"></div>
                 <p className="text-gray-500 font-semibold">No media uploaded</p>
-                <p className="text-gray-400 text-sm mt-1">Images, videos and audio will appear here</p>
+                <p className="text-gray-400 text-sm mt-1">Images, videos and  will appear here</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">

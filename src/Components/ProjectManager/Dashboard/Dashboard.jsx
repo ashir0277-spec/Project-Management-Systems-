@@ -288,36 +288,72 @@ const UpcomingDeadlinesCard = ({ members }) => {
   );
 };
 
-// ── Mobile Projects Card (replaces table on xs screens) ──────────────────────
-const MobileProjectCard = ({ p }) => {
-  const sCfg = statusColors[p.status]     || statusColors['Planning'];
-  const pCfg = priorityColors[p.priority] || priorityColors.Medium;
-  const isTodayDL = toYMD(p.deadline) === todayYMD;
-  return (
-    <div className="p-3 rounded-xl" style={{ border: `1px solid ${TL}`, background: isTodayDL ? 'rgba(239,68,68,0.03)' : 'white' }}>
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[13px] font-semibold text-gray-900 flex-1 min-w-0 leading-tight">{p.name}</p>
-        {isTodayDL && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 flex-shrink-0">Due Today</span>}
-      </div>
-      {p.description && <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">{p.description}</p>}
-      <div className="flex items-center gap-2 mt-2 flex-wrap">
-        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${sCfg.text}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dot}`}/>{p.status}
-        </span>
-        <span className="text-gray-200">·</span>
-        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${pCfg.text}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${pCfg.dot}`}/>{p.priority}
-        </span>
-        {p.deadline && (
-          <>
-            <span className="text-gray-200">·</span>
-            <span className={`text-[10px] font-mono ${isTodayDL ? 'text-red-500 font-bold' : 'text-gray-400'}`}>{p.deadline}</span>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
+// ── Projects Table (shared, scrollable on small screens) ──────────────────────
+const ProjectsTable = ({ filteredProjects, isFiltered, hasSingle, selectedDate, todayYMD }) => (
+  <div className="w-full overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+    <table className="w-full" style={{ minWidth: 560 }}>
+      <colgroup>
+        <col style={{ width: '24%' }}/>
+        <col style={{ width: '18%' }}/>
+        <col style={{ width: '14%' }}/>
+        <col style={{ width: '28%' }}/>
+        <col style={{ width: '16%' }}/>
+      </colgroup>
+      <thead>
+        <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
+          {['Project Name','Status','Priority','Description','Deadline'].map((h,i) => (
+            <th key={h} className="py-2.5 px-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left whitespace-nowrap"
+              style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {filteredProjects.map((p, idx) => {
+          const sCfg       = statusColors[p.status]     || statusColors['Planning'];
+          const pCfg       = priorityColors[p.priority] || priorityColors.Medium;
+          const isTodayDL  = toYMD(p.deadline)  === todayYMD;
+          const isStart    = hasSingle && toYMD(p.startDate) === selectedDate;
+          const isDeadline = hasSingle && toYMD(p.deadline)  === selectedDate;
+          return (
+            <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
+              style={{ borderBottom: `1px solid ${TL}`, background: isTodayDL ? 'rgba(239,68,68,0.03)' : undefined }}>
+              <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
+                <p className="text-[12px] font-semibold text-gray-900 truncate">{p.name}</p>
+                {(isStart || isDeadline || (!isFiltered && isTodayDL)) && (
+                  <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                    {isStart    && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-200">Start</span>}
+                    {isDeadline && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">Deadline</span>}
+                    {!isFiltered && isTodayDL && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200">Due Today</span>}
+                  </div>
+                )}
+              </td>
+              <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
+                <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${sCfg.text}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sCfg.dot}`}/>
+                  <span className="truncate">{p.status}</span>
+                </span>
+              </td>
+              <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
+                <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${pCfg.text}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pCfg.dot}`}/>
+                  <span className="truncate">{p.priority}</span>
+                </span>
+              </td>
+              <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
+                <p className="text-[11px] text-gray-500 truncate">{p.description || '—'}</p>
+              </td>
+              <td className="px-3 py-2.5">
+                <span className={`text-[11px] font-mono block truncate ${isTodayDL ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+                  {p.deadline || '—'}
+                </span>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+);
 
 // ── Calendar Dropdown (portal) ────────────────────────────────────────────────
 const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFrom, rangeTo, onSelectDate, onSelectRange, onClose }) => {
@@ -342,20 +378,17 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFro
 
   const yearRange = Array.from({ length: 11 }, (_, i) => today.getFullYear() - 5 + i);
 
-  // ── Responsive positioning ──────────────────────────────────────────────────
   useEffect(() => {
     if (!anchorRef.current) return;
-
     const recalc = () => {
       const rect    = anchorRef.current.getBoundingClientRect();
       const vw      = window.innerWidth;
-      const dropW   = vw < 380 ? vw - 16 : 340;   // full-width minus margin on tiny screens
+      const dropW   = vw < 380 ? vw - 16 : 340;
       let   left    = rect.right - dropW;
       if (left < 8)      left = 8;
       if (left + dropW > vw - 8) left = Math.max(8, vw - dropW - 8);
       setPos({ top: rect.bottom + 6, left, width: dropW });
     };
-
     recalc();
     window.addEventListener('resize', recalc);
     return () => window.removeEventListener('resize', recalc);
@@ -459,7 +492,7 @@ const CalendarDropdown = ({ anchorRef, members, projects, selectedDate, rangeFro
     return null;
   };
 
-  const label     = activeLabel();
+  const label = activeLabel();
 
   return ReactDOM.createPortal(
     <div ref={dropRef}
@@ -770,62 +803,14 @@ const Dashboard = () => {
                 <span className="ml-auto text-xs text-gray-400">{filteredProjects.length} found</span>
               </div>
 
-              {/* Mobile: cards */}
-              <div className="block sm:hidden p-3 space-y-2">
-                {filteredProjects.map(p => <MobileProjectCard key={p.id} p={p} />)}
-              </div>
-
-              {/* Desktop: table */}
-              <div className="hidden sm:block w-full">
-                <table className="w-full table-fixed">
-                  <colgroup>
-                    <col style={{ width: '24%' }}/>
-                    <col style={{ width: '18%' }}/>
-                    <col style={{ width: '14%' }}/>
-                    <col style={{ width: '28%' }}/>
-                    <col style={{ width: '16%' }}/>
-                  </colgroup>
-                  <thead>
-                    <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
-                      {['Project Name','Status','Priority','Description','Deadline'].map((h,i) => (
-                        <th key={h} className="py-2.5 px-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left"
-                          style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredProjects.map((p, idx) => {
-                      const sCfg = statusColors[p.status] || statusColors['Planning'];
-                      const pCfg = priorityColors[p.priority] || priorityColors.Medium;
-                      return (
-                        <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} style={{ borderBottom: `1px solid ${TL}` }}>
-                          <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
-                            <p className="text-[12px] font-semibold text-gray-900 truncate">{p.name}</p>
-                          </td>
-                          <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
-                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${sCfg.text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sCfg.dot}`}/>
-                              <span className="truncate">{p.status}</span>
-                            </span>
-                          </td>
-                          <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
-                            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${pCfg.text}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pCfg.dot}`}/>
-                              <span className="truncate">{p.priority}</span>
-                            </span>
-                          </td>
-                          <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
-                            <p className="text-[11px] text-gray-500 truncate">{p.description || '—'}</p>
-                          </td>
-                          <td className="px-3 py-2.5">
-                            <span className="text-[11px] font-mono block truncate text-gray-500">{p.deadline || '—'}</span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              {/* Scrollable table — all screen sizes */}
+              <ProjectsTable
+                filteredProjects={filteredProjects}
+                isFiltered={isFiltered}
+                hasSingle={hasSingle}
+                selectedDate={selectedDate}
+                todayYMD={todayYMD}
+              />
             </div>
           )}
 
@@ -877,7 +862,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-[#EEF2F7]">
       <div className="p-3 sm:p-6 space-y-3 sm:space-y-5 max-w-[1600px] mx-auto">
 
-        {/* Row 1 — Stat Cards: 2×2 on mobile, 4 across on sm+ */}
+        {/* Row 1 — Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-3">
           <StatCard>
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-teal-400 to-cyan-500">
@@ -958,7 +943,6 @@ const Dashboard = () => {
                   : 'bg-white text-gray-700 border-gray-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50 shadow-sm'}`}
               style={{ boxShadow: showCalDrop || isFiltered ? '0 4px 14px rgba(20,184,166,0.3)' : undefined }}>
               <Calendar size={13}/>
-              {/* Show truncated label on mobile, full on sm+ */}
               <span className="max-w-[90px] sm:max-w-none truncate">
                 {isFiltered ? dateBadgeLabel : 'Filter by Date'}
               </span>
@@ -1002,77 +986,14 @@ const Dashboard = () => {
                 <p className="text-gray-400 text-xs sm:text-sm">{isFiltered ? 'No projects in this range' : 'No projects yet'}</p>
               </div>
             ) : (
-              <>
-                {/* Mobile: card list */}
-                <div className="block sm:hidden p-3 space-y-2">
-                  {filteredProjects.map(p => <MobileProjectCard key={p.id} p={p} />)}
-                </div>
-
-                {/* Tablet+: table */}
-                <div className="hidden sm:block w-full">
-                  <table className="w-full table-fixed">
-                    <colgroup>
-                      <col style={{ width: '24%' }}/>
-                      <col style={{ width: '18%' }}/>
-                      <col style={{ width: '14%' }}/>
-                      <col style={{ width: '28%' }}/>
-                      <col style={{ width: '16%' }}/>
-                    </colgroup>
-                    <thead>
-                      <tr className="bg-[#EEF2F7]" style={{ borderBottom: `1px solid ${TLB}` }}>
-                        {['Project Name','Status','Priority','Description','Deadline'].map((h,i) => (
-                          <th key={h} className="py-2.5 px-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left"
-                            style={{ borderRight: i < 4 ? `1px solid ${TL}` : undefined }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredProjects.map((p, idx) => {
-                        const sCfg       = statusColors[p.status]     || statusColors['Planning'];
-                        const pCfg       = priorityColors[p.priority] || priorityColors.Medium;
-                        const isTodayDL  = toYMD(p.deadline)  === todayYMD;
-                        const isStart    = hasSingle && toYMD(p.startDate) === selectedDate;
-                        const isDeadline = hasSingle && toYMD(p.deadline)  === selectedDate;
-                        return (
-                          <tr key={p.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
-                            style={{ borderBottom: `1px solid ${TL}`, background: isTodayDL ? 'rgba(239,68,68,0.03)' : undefined }}>
-                            <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
-                              <p className="text-[12px] font-semibold text-gray-900 truncate">{p.name}</p>
-                              {(isStart || isDeadline || (!isFiltered && isTodayDL)) && (
-                                <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                                  {isStart    && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-200">Start</span>}
-                                  {isDeadline && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">Deadline</span>}
-                                  {!isFiltered && isTodayDL && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200">Due Today</span>}
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
-                              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${sCfg.text}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sCfg.dot}`}/>
-                                <span className="truncate">{p.status}</span>
-                              </span>
-                            </td>
-                            <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
-                              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${pCfg.text}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pCfg.dot}`}/>
-                                <span className="truncate">{p.priority}</span>
-                              </span>
-                            </td>
-                            <td className="px-3 py-2.5" style={{ borderRight: `1px solid ${TL}` }}>
-                              <p className="text-[11px] text-gray-500 truncate">{p.description || '—'}</p>
-                            </td>
-                            <td className="px-3 py-2.5">
-                              <span className={`text-[11px] font-mono block truncate ${isTodayDL ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
-                                {p.deadline || '—'}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </>
+              /* Scrollable table — all screen sizes */
+              <ProjectsTable
+                filteredProjects={filteredProjects}
+                isFiltered={isFiltered}
+                hasSingle={hasSingle}
+                selectedDate={selectedDate}
+                todayYMD={todayYMD}
+              />
             )}
           </div>
 

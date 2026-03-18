@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -8,7 +7,7 @@ import {
   Users, Search, ChevronRight, BarChart2,
   Mail, Phone, X, Building2, User, GripVertical,
   MoreHorizontal, Trash2, CheckSquare, Square,
-  MoreVertical
+  MoreVertical, Eye
 } from 'lucide-react';
 
 const TL  = 'rgba(51,51,51,0.12)';
@@ -134,18 +133,17 @@ const DeleteConfirmModal = ({ members, onConfirm, onCancel }) => {
   );
 };
 
-// ── Row 3-dot Menu — Portal-based so td overflow:hidden doesn't clip it ──────
-const RowMenu = ({ anchorEl, onDelete, onClose }) => {
+// ── Row 3-dot Menu — Portal-based ─────────────────────────────────────────────
+const RowMenu = ({ anchorEl, onView, onDelete, onClose }) => {
   const menuRef = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!anchorEl) return;
     const rect = anchorEl.getBoundingClientRect();
-    const menuW = 160;
+    const menuW = 170;
     let left = rect.right + window.scrollX - menuW;
     let top  = rect.bottom + window.scrollY + 4;
-    // keep inside viewport
     if (left < 8) left = 8;
     if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
     setPos({ top, left });
@@ -170,7 +168,7 @@ const RowMenu = ({ anchorEl, onDelete, onClose }) => {
         top: pos.top,
         left: pos.left,
         zIndex: 9999,
-        minWidth: 160,
+        minWidth: 170,
         background: '#fff',
         borderRadius: 12,
         border: '1px solid rgba(0,0,0,0.08)',
@@ -179,6 +177,26 @@ const RowMenu = ({ anchorEl, onDelete, onClose }) => {
         animation: 'fadeInScale 0.14s ease',
       }}
     >
+      {/* View Details */}
+      <button
+        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onView(); onClose(); }}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+          padding: '9px 14px', fontSize: 13, fontWeight: 500,
+          color: '#0f766e', background: 'none', border: 'none',
+          cursor: 'pointer', textAlign: 'left', borderRadius: 8,
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = '#f0fdfa'}
+        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+      >
+        <Eye size={13} />
+        View Details
+      </button>
+
+      {/* Divider */}
+      <div style={{ margin: '3px 10px', borderTop: '1px solid #f3f4f6' }} />
+
+      {/* Delete */}
       <button
         onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); onClose(); }}
         style={{
@@ -234,7 +252,6 @@ const GlobalMenu = ({ filtered, selectedIds, selectionMode, onSelectAll, onDesel
       </div>
 
       {!selectionMode ? (
-        /* Not in selection mode — show "Select All" to enter mode */
         <button
           style={btnStyle()}
           onClick={(e) => { e.stopPropagation(); onEnableSelection(); onClose(); }}
@@ -245,7 +262,6 @@ const GlobalMenu = ({ filtered, selectedIds, selectionMode, onSelectAll, onDesel
           Select All
         </button>
       ) : (
-        /* In selection mode */
         <>
           <button
             style={btnStyle()}
@@ -301,7 +317,6 @@ const UsersRecord = () => {
   const [editVal,     setEditVal]     = useState('');
   const [selectedRow, setSelectedRow] = useState(null);
 
-  // selectionMode = checkboxes are visible
   const [selectionMode,  setSelectionMode]  = useState(false);
   const [selectedIds,    setSelectedIds]    = useState(new Set());
   const [rowMenuId,      setRowMenuId]      = useState(null);
@@ -309,7 +324,6 @@ const UsersRecord = () => {
   const [globalMenuOpen, setGlobalMenuOpen] = useState(false);
   const [deleteTarget,   setDeleteTarget]   = useState(null);
 
-  // cols = checkbox col prepended only when selectionMode is on
   const cols = useMemo(() =>
     selectionMode ? [CHECKBOX_COL, ...baseCols] : baseCols
   , [selectionMode, baseCols]);
@@ -654,6 +668,8 @@ const UsersRecord = () => {
         .table-scroll-wrap::-webkit-scrollbar { height: 5px; }
         .table-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
         .table-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+        .xl-row { cursor: pointer; }
+        .xl-row:hover .row-navigate-hint { opacity: 1 !important; }
         @keyframes fadeInScale { from { opacity:0; transform:scale(0.95) translateY(4px); } to { opacity:1; transform:scale(1) translateY(0); } }
       `}</style>
 
@@ -661,7 +677,6 @@ const UsersRecord = () => {
 
         {/* ── Toolbar ── */}
         <div className="bg-white rounded-2xl shadow-sm p-3 flex flex-wrap items-center gap-2" style={{ border: `1px solid ${TL}` }}>
-          {/* Search */}
           <div className="flex items-center gap-2 flex-1 min-w-[160px] px-3 py-2 rounded-xl bg-[#EEF2F7]" style={{ border: `1px solid ${TL}` }}>
             <Search size={13} className="text-gray-400 flex-shrink-0" />
             <input
@@ -672,7 +687,6 @@ const UsersRecord = () => {
             {search && <button onClick={() => setSearch('')} className="text-gray-400 hover:text-gray-600"><X size={13} /></button>}
           </div>
 
-          {/* Role filter */}
           {roles.length > 1 && (
             <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
               className="text-[12px] font-semibold px-2.5 py-2 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 outline-none cursor-pointer hover:border-teal-300 transition-colors flex-shrink-0">
@@ -680,7 +694,6 @@ const UsersRecord = () => {
             </select>
           )}
 
-          {/* Member count */}
           <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#EEF2F7] flex-shrink-0" style={{ border: `1px solid ${TL}` }}>
             <Users size={14} className="text-teal-500" />
             <span className="text-sm font-semibold text-gray-700">{members.length} Members</span>
@@ -688,7 +701,6 @@ const UsersRecord = () => {
 
           <span className="text-xs text-gray-400 hidden sm:block flex-shrink-0">{filtered.length} of {members.length}</span>
 
-          {/* Selection badge */}
           {selectionMode && (
             <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-50 border border-teal-200 flex-shrink-0">
               <span className="text-[12px] font-semibold text-teal-600">{selectedIds.size} selected</span>
@@ -696,7 +708,6 @@ const UsersRecord = () => {
             </div>
           )}
 
-          {/* Global 3-dot */}
           <div className="relative flex-shrink-0">
             <button
               onClick={() => setGlobalMenuOpen(prev => !prev)}
@@ -776,7 +787,6 @@ const UsersRecord = () => {
                           )}
                         </div>
                       </div>
-                      {/* Mobile 3-dot */}
                       <button
                         onMouseDown={e => {
                           e.preventDefault(); e.stopPropagation();
@@ -860,19 +870,25 @@ const UsersRecord = () => {
                           onDragOver={e  => onRowDragOver(e, member.id)}
                           onDrop={e      => onRowDrop(e, member.id)}
                           onDragEnd={onRowDragEnd}
-                          onClick={() => setSelectedRow(member.id)}
-                          className={`group transition-colors duration-75
+                          onClick={(e) => {
+                            // Don't navigate if clicking a cell that's being edited, or if resizing
+                            if (isResizing.current) return;
+                            if (editCell) return;
+                            setSelectedRow(member.id);
+                            navigate(`/userdetails/${member.id}`);
+                          }}
+                          className={`xl-row group transition-colors duration-75
                             ${isRowOver ? 'row-over' : ''}
                             ${isChecked ? 'bg-teal-50/50' : isSelected ? 'bg-teal-50/40' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}
-                            ${!hasEdit  ? 'hover:bg-teal-50/20' : ''}`}
+                            ${!hasEdit  ? 'hover:bg-teal-50/30' : ''}`}
                           style={{ borderBottom: `1px solid ${TL}` }}
                         >
                           {cols.map((col, ci) => {
                             const isCellActive = editCell?.id === member.id && editCell?.field === col.key;
                             return (
                               <td key={col.key}
-                                onDoubleClick={col.editable ? e => openEdit(e, member.id, col.key, member[col.key]) : undefined}
-                                onClick={col.editable && editCell?.id === member.id ? e => openEdit(e, member.id, col.key, member[col.key]) : undefined}
+                                onDoubleClick={col.editable ? e => { e.stopPropagation(); openEdit(e, member.id, col.key, member[col.key]); } : undefined}
+                                onClick={col.editable && editCell?.id === member.id ? e => openEdit(e, member.id, col.key, member[col.key]) : e => e.stopPropagation()}
                                 className={isCellActive ? 'cell-active' : ''}
                                 style={{
                                   height: 56, overflow: 'hidden', position: 'relative',
@@ -902,6 +918,7 @@ const UsersRecord = () => {
       {rowMenuId && rowMenuAnchor && (
         <RowMenu
           anchorEl={rowMenuAnchor}
+          onView={() => navigate(`/userdetails/${rowMenuId}`)}
           onDelete={() => {
             const member = members.find(m => m.id === rowMenuId);
             if (member) requestDeleteSingle(member);
