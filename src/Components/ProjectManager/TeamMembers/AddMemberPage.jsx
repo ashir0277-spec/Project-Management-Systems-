@@ -29,7 +29,7 @@ const identityGridCSS = `
   }
 `;
 
-const ROLES = ['Frontend Developer','Backend Developer','Flutter Developer','UI/UX Designer','Project Manager','QA Engineer','Marketing Manager','Content Writer','DevOps Engineer'];
+const ROLES = ['Frontend Developer','Backend Developer','Full Stack','Flutter Developer','UI/UX Designer','Project Manager','QA Engineer','Marketing Manager','Content Writer','DevOps Engineer'];
 const EMPLOYMENT_TYPES = ['Full-Time','Part-Time','Contract','Internship','Freelance'];
 const PAYMENT_METHODS  = ['Bank Transfer','Cash','Cheque','JazzCash','EasyPaisa'];
 const DOC_ACCEPT   = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar';
@@ -359,7 +359,6 @@ const MediaGrid = ({ media, onAdd, onRemove }) => {
             </div>
             <div style={{ textAlign:'center' }}>
               <p style={{ fontSize:13, fontWeight:600, color:'#9ca3af', margin:0 }}>No media added yet</p>
-              
             </div>
           </div>
         ) : (
@@ -430,29 +429,37 @@ const AddMemberPage = () => {
     </select>
   );
 
-  const handleSave = async () => {
-    const errs = {};
-    if(!data.name?.trim())  errs.name  = 'Full name is required';
-    if(!data.email?.trim()) errs.email = 'Email is required';
-    if(!data.phone?.trim()) errs.phone = 'Phone is required';
-    if(Object.keys(errs).length){ setErrors(errs); window.scrollTo({top:0,behavior:'smooth'}); return; }
-    setSaving(true);
-    try {
-      await addDoc(collection(db,'teamMembers'),{
-        ...data,
-        documents:    documents.map(f=>({name:f.name,size:f.size,type:f.type})),
-        media:        media.map(f=>({name:f.name,size:f.size,type:f.type})),
-        profilePhoto: profilePhoto?{name:profilePhoto.name,size:profilePhoto.size,type:profilePhoto.type}:null,
-        cnicFront:    cnicFront   ?{name:cnicFront.name,   size:cnicFront.size,   type:cnicFront.type   }:null,
-        cnicBack:     cnicBack    ?{name:cnicBack.name,    size:cnicBack.size,    type:cnicBack.type    }:null,
-        projects:0, avatar:generateAvatar(data.name),
-        joinDate:getCurrentMonthYear(), tasks:[],
-        order:Date.now(), createdAt:serverTimestamp(),
-      });
-      navigate(-1);
-    } catch(err){ console.error(err); alert('Error saving. Please try again.'); }
-    finally{ setSaving(false); }
-  };
+ const handleSave = async () => {
+  const errs = {};
+  if(!data.name?.trim())  errs.name  = 'Full name is required';
+  if(!data.email?.trim()) errs.email = 'Email is required';
+  if(!data.phone?.trim()) errs.phone = 'Phone is required';
+  if(Object.keys(errs).length){ setErrors(errs); window.scrollTo({top:0,behavior:'smooth'}); return; }
+
+  setSaving(true);
+  try {
+    await addDoc(collection(db,'teamMembers'), {
+      ...data,
+      salary: data.salary ? Number(data.salary) : 0,   // ← yeh line important hai
+      documents: documents.map(f=>({name:f.name,size:f.size,type:f.type})),
+      media: media.map(f=>({name:f.name,size:f.size,type:f.type})),
+      profilePhoto: profilePhoto ? {name:profilePhoto.name, size:profilePhoto.size, type:profilePhoto.type} : null,
+      cnicFront: cnicFront ? {name:cnicFront.name, size:cnicFront.size, type:cnicFront.type} : null,
+      cnicBack: cnicBack ? {name:cnicBack.name, size:cnicBack.size, type:cnicBack.type} : null,
+      projects: 0,
+      avatar: generateAvatar(data.name),
+      joinDate: getCurrentMonthYear(),
+      tasks: [],
+      order: Date.now(),
+      createdAt: serverTimestamp(),
+    });
+    navigate(-1);
+  } catch(err){ 
+    console.error(err); 
+    alert('Error saving. Please try again.'); 
+  }
+  finally{ setSaving(false); }
+};
 
   const iconStyle = { color:'#fff' };
 
@@ -481,7 +488,7 @@ const AddMemberPage = () => {
         </button>
       </div>
 
-      {/* ── Page Body — 80% width, 10% padding each side ── */}
+      {/* ── Page Body ── */}
       <div style={{ padding:'28px 10% 60px' }}>
 
         {/* Error banner */}
@@ -494,14 +501,13 @@ const AddMemberPage = () => {
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
           {/* 1 — Basic Info */}
-          <Section title="Basic Information" subtitle="Required — Name, role, email and phone" icon={<User size={18} style={iconStyle}/>} defaultOpen={true}>
+          <Section title="Basic Information" subtitle="Required — Name, role, email, phone and salary" icon={<User size={18} style={iconStyle}/>} defaultOpen={true}>
             <Field label="Full Name" required error={errors.name}>{inpR('name','text','e.g. Ali Hassan')}</Field>
-            <Row2>
-              <Field label="Role" required>{sel('role',ROLES,true)}</Field>
-              <Field label="Status" required>{sel('status',['Active','Away','Inactive'],true)}</Field>
-            </Row2>
+            <Field label="Role" required>{sel('role',ROLES,true)}</Field>
             <Field label="Email Address" required error={errors.email}>{inpR('email','email','ali@company.com')}</Field>
             <Field label="Phone Number" required error={errors.phone}>{inpR('phone','tel','+92 300 0000000')}</Field>
+            {/* ── Salary moved here from Work Info ── */}
+            <Field label="Monthly Salary (PKR)">{inp('salary','number','0')}</Field>
           </Section>
 
           {/* 2 — Personal */}
@@ -515,7 +521,7 @@ const AddMemberPage = () => {
           </Section>
 
           {/* 3 — Work */}
-          <Section title="Work Information" subtitle="Department, salary, joining date and more" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={iconStyle}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>} defaultOpen={false}>
+          <Section title="Work Information" subtitle="Department, joining date, employment type and more" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={iconStyle}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>} defaultOpen={false}>
             <Row2>
               <Field label="Department">{inp('department','text','e.g. Engineering')}</Field>
               <Field label="Experience">{inp('experience','text','e.g. 2 years')}</Field>
@@ -528,7 +534,6 @@ const AddMemberPage = () => {
               <Field label="Work Location">{inp('workLocation','text','Office / Remote')}</Field>
               <Field label="Manager">{inp('manager','text','Manager name')}</Field>
             </Row2>
-            <Field label="Monthly Salary (PKR)">{inp('salary','number','0')}</Field>
           </Section>
 
           {/* 4 — Bank */}
@@ -542,8 +547,7 @@ const AddMemberPage = () => {
             <Field label="IBAN">{inp('iban','text','PK00XXXX0000000000000000')}</Field>
           </Section>
 
-          {/* 5 — Identity */}
-          {/* 5 — Identity, Documents & Media — combined */}
+          {/* 5 — Identity, Documents & Media */}
           <Section title="Identity, Documents & Media" subtitle="Profile photo, CNIC, documents and other files" icon={<CreditCard size={18} style={iconStyle}/>} defaultOpen={false}>
 
             {/* ── Profile & CNIC ── */}
